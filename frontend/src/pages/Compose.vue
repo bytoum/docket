@@ -2,9 +2,14 @@
     <transition name="slide-fade" appear>
         <div class="stack-page">
             <!-- Header -->
-            <div v-if="isEditMode" class="stack-header">
+            <div v-if="isAdd" class="stack-header">
+                <span class="state-pill accent"><img :src="icons.dotAccent" width="6" height="6" alt="" />{{ $t("newBadge") }}</span>
+                <h1>{{ $t("newStack") }}</h1>
+                <span class="meta">{{ $t("newStackSubtitle") }}</span>
+            </div>
+            <div v-else-if="isEditMode" class="stack-header">
                 <span class="state-pill accent"><img :src="icons.dotAccent" width="6" height="6" alt="" />{{ $t("editingBadge") }}</span>
-                <h1>{{ isAdd ? $t("compose") : stack.name }}</h1>
+                <h1>{{ stack.name }}</h1>
                 <span class="meta">{{ stack.composeFileName || "compose.yaml" }}</span>
             </div>
             <div v-else class="stack-header">
@@ -35,7 +40,8 @@
                         </BDropdown>
                     </div>
 
-                    <button v-if="!isAdd" class="btn btn-light-outline toolbar-btn" :disabled="processing" @click="discardStack">{{ $t("discardStack") }}</button>
+                    <button v-if="isAdd" class="btn btn-light-outline toolbar-btn" :disabled="processing" @click="$router.push('/')">{{ $t("cancel") }}</button>
+                    <button v-else class="btn btn-light-outline toolbar-btn" :disabled="processing" @click="discardStack">{{ $t("discardStack") }}</button>
 
                     <span v-if="isDirty" class="state-pill warning ms-auto">
                         <img :src="icons.dotWarning" width="6" height="6" alt="" />{{ $t("unsavedChanges") }}
@@ -174,17 +180,31 @@
 
             <!-- Edit mode: compose.yaml / .env editor -->
             <div v-if="stack.isManagedByDockge && isEditMode" class="edit-view">
-                <!-- New stack: name and agent -->
-                <div v-if="isAdd" class="shadow-box big-padding mb-4">
-                    <div>
-                        <label for="name" class="form-label">{{ $t("stackName") }}</label>
-                        <input id="name" v-model="stack.name" type="text" class="form-control" required @blur="stackNameToLowercase">
-                        <div class="form-text">{{ $t("Lowercase only") }}</div>
+                <!-- New stack: name, starting point and agent -->
+                <div v-if="isAdd" class="setup-row">
+                    <div class="setup-field stack-name-field">
+                        <label for="name" class="field-label">{{ $t("stackName") }}</label>
+                        <input id="name" v-model="stack.name" type="text" class="form-control setup-input" required placeholder="e.g. my-stack" autocomplete="off" @blur="stackNameToLowercase">
+                        <p class="field-hint">{{ $t("stackNameHint") }}</p>
                     </div>
 
-                    <div class="mt-3">
-                        <label for="endpoint" class="form-label">{{ $t("dockgeAgent") }}</label>
-                        <select id="endpoint" v-model="stack.endpoint" class="form-select">
+                    <div class="setup-field">
+                        <span class="field-label">{{ $t("startFrom") }}</span>
+                        <div class="choice-chips" role="radiogroup">
+                            <button
+                                v-for="option in startFromOptions" :key="option.value" type="button" class="choice-chip"
+                                role="radio" :aria-checked="startFrom === option.value" :class="{ selected: startFrom === option.value }"
+                                @click="applyStartFrom(option.value)"
+                            >
+                                {{ $t(option.label) }}
+                            </button>
+                        </div>
+                        <p class="field-hint">{{ $t("startFromHint") }}</p>
+                    </div>
+
+                    <div v-if="$root.agentCount > 1" class="setup-field">
+                        <label for="endpoint" class="field-label">{{ $t("dockgeAgent") }}</label>
+                        <select id="endpoint" v-model="stack.endpoint" class="form-select setup-input">
                             <option v-for="(agent, agentEndpoint) in $root.agentList" :key="agentEndpoint" :value="agentEndpoint" :disabled="$root.agentStatusList[agentEndpoint] != 'online'">
                                 ({{ $root.agentStatusList[agentEndpoint] }}) {{ (agent.name !== '') ? agent.name : agent.url || $t("Current") }}
                             </option>
@@ -192,72 +212,114 @@
                     </div>
                 </div>
 
-                <div class="editor-card">
-                    <div class="editor-header">
-                        <div class="file-tabs" role="tablist">
-                            <button
-                                v-for="file in editorFiles" :key="file.key" type="button" class="file-tab" role="tab"
-                                :aria-selected="activeFile === file.key" :class="{ active: activeFile === file.key }"
-                                @click="activeFile = file.key"
-                            >
-                                <AssetIcon :src="icons.fileTab" width="12" height="14.6667" tone="neutral" />
-                                {{ file.label }}
-                                <img v-if="file.dirty" :src="icons.dotWarning" width="6" height="6" alt="" :title="$t('unsavedChanges')" />
+                <!-- Start from docker run -->
+                <div v-if="isAdd && startFrom === 'dockerRun'" class="docker-run-row">
+                    <textarea v-model="dockerRunCommand" class="form-control docker-run-input" rows="2" spellcheck="false" placeholder="docker run -d --name my-app -p 8080:80 nginx:latest"></textarea>
+                    <button type="button" class="btn btn-primary toolbar-btn" :disabled="!dockerRunCommand.trim()" @click="convertDockerRun">
+                        {{ $t("Convert to Compose") }}
+                    </button>
+                </div>
+
+                <div class="edit-content" :class="{ 'with-panel': isAdd }">
+                    <!-- New stack: containers, in sync with compose.yaml -->
+                    <div v-if="isAdd" class="containers-panel">
+                        <div class="section-head">
+                            <div>
+                                <h2 class="section-title">{{ $tc("container", 2) }}</h2>
+                                <p class="field-hint">{{ $t("containersSyncHint") }}</p>
+                            </div>
+                            <button class="btn btn-light-outline toolbar-btn" @click="openContainerDrawer()">
+                                <AssetIcon :src="icons.plus" width="10.8333" height="10.8333" tone="neutral" />
+                                {{ $t("addContainer") }}
                             </button>
                         </div>
 
-                        <span class="spacer"></span>
-
-                        <template v-if="activeFile === 'yaml'">
-                            <span v-if="yamlError" class="state-pill danger"><span class="dot"></span>{{ $t("invalidYaml") }}</span>
-                            <span v-else class="state-pill success"><img :src="icons.dotSuccess" width="6" height="6" alt="" />{{ $t("validYaml") }}</span>
-
-                            <button type="button" class="format-btn" :title="$t('formatYaml') + ' (Shift+Alt+F)'" @click="formatYAML">
-                                <AssetIcon :src="icons.format" width="13.3333" height="13.3333" />
-                                {{ $t("formatYaml") }}
-                                <kbd class="shortcut">Shift+Alt+F</kbd>
-                            </button>
-                        </template>
+                        <div class="service-rows">
+                            <div v-for="(service, name) in jsonConfig.services" :key="name" class="service-row">
+                                <span class="service-icon"><AssetIcon :src="icons.cubeLarge" width="15" height="16.4985" :box="18" /></span>
+                                <div class="service-info">
+                                    <div class="service-name">{{ name }}</div>
+                                    <div v-if="service?.image" class="service-image">{{ service.image }}</div>
+                                </div>
+                                <span v-if="firstPort(service)" class="tag-pill"><img :src="icons.dotNeutral" width="6" height="6" alt="" />{{ firstPort(service) }}</span>
+                                <button type="button" class="row-btn" :title="$t('Edit')" @click="openContainerDrawer(name)">
+                                    <AssetIcon :src="icons.penRow" width="12.8902" height="12.8902" :box="14" tone="neutral" />
+                                </button>
+                                <button type="button" class="row-btn danger" :title="$t('deleteContainer')" @click="deleteContainer(name)">
+                                    <AssetIcon :src="icons.trashRow" width="11.6667" height="12.8333" :box="14" />
+                                </button>
+                            </div>
+                            <p v-if="serviceCount === 0" class="field-hint">{{ $t("noContainersYet") }}</p>
+                        </div>
                     </div>
 
-                    <div class="editor-body" @keydown="onEditorKeydown">
-                        <code-mirror
-                            v-show="activeFile === 'yaml'"
-                            ref="editor"
-                            v-model="stack.composeYAML"
-                            :extensions="extensions"
-                            minimal
-                            wrap="true"
-                            :dark="$root.isDark"
-                            tab="true"
-                            :hasFocus="editorFocus"
-                            @change="yamlCodeChange"
-                        />
-                        <code-mirror
-                            v-show="activeFile === 'env'"
-                            ref="envEditor"
-                            v-model="stack.composeENV"
-                            :extensions="extensionsEnv"
-                            minimal
-                            wrap="true"
-                            :dark="$root.isDark"
-                            tab="true"
-                            :hasFocus="editorFocus"
-                            @change="yamlCodeChange"
-                        />
-                    </div>
+                    <div class="editor-card">
+                        <div class="editor-header">
+                            <div class="file-tabs" role="tablist">
+                                <button
+                                    v-for="file in editorFiles" :key="file.key" type="button" class="file-tab" role="tab"
+                                    :aria-selected="activeFile === file.key" :class="{ active: activeFile === file.key }"
+                                    @click="activeFile = file.key"
+                                >
+                                    <AssetIcon :src="icons.fileTab" width="12" height="14.6667" tone="neutral" />
+                                    {{ file.label }}
+                                    <img v-if="file.dirty" :src="icons.dotWarning" width="6" height="6" alt="" :title="$t('unsavedChanges')" />
+                                </button>
+                            </div>
 
-                    <div class="status-bar">
-                        <span>{{ activeFile === "yaml" ? "YAML" : ".env" }}</span>
-                        <span>{{ $t("spacesIndent", [ 2 ]) }}</span>
-                        <span>UTF-8</span>
-                        <span>{{ $t("cursorPosition", [ cursor.line, cursor.col ]) }}</span>
-                        <span class="spacer"></span>
-                        <span v-if="activeFile === 'yaml' && yamlError" class="validation danger" :title="yamlError">{{ yamlError }}</span>
-                        <span v-else class="validation success">
-                            <AssetIcon :src="icons.check" width="10.7917" height="7.875" :box="14" />
-                            {{ $t("noProblemsFound") }}
-                        </span>
+                            <span class="spacer"></span>
+
+                            <template v-if="activeFile === 'yaml'">
+                                <span v-if="yamlError" class="state-pill danger"><span class="dot"></span>{{ $t("invalidYaml") }}</span>
+                                <span v-else class="state-pill success"><img :src="icons.dotSuccess" width="6" height="6" alt="" />{{ $t("validYaml") }}</span>
+
+                                <button type="button" class="format-btn" :title="$t('formatYaml') + ' (Shift+Alt+F)'" @click="formatYAML">
+                                    <AssetIcon :src="icons.format" width="13.3333" height="13.3333" />
+                                    {{ $t("formatYaml") }}
+                                    <kbd class="shortcut">Shift+Alt+F</kbd>
+                                </button>
+                            </template>
+                        </div>
+
+                        <div class="editor-body" @keydown="onEditorKeydown">
+                            <code-mirror
+                                v-show="activeFile === 'yaml'"
+                                ref="editor"
+                                v-model="stack.composeYAML"
+                                :extensions="extensions"
+                                minimal
+                                wrap="true"
+                                :dark="$root.isDark"
+                                tab="true"
+                                :hasFocus="editorFocus"
+                                @change="yamlCodeChange"
+                            />
+                            <code-mirror
+                                v-show="activeFile === 'env'"
+                                ref="envEditor"
+                                v-model="stack.composeENV"
+                                :extensions="extensionsEnv"
+                                minimal
+                                wrap="true"
+                                :dark="$root.isDark"
+                                tab="true"
+                                :hasFocus="editorFocus"
+                                @change="yamlCodeChange"
+                            />
+                        </div>
+
+                        <div class="status-bar">
+                            <span>{{ activeFile === "yaml" ? "YAML" : ".env" }}</span>
+                            <span>{{ $t("spacesIndent", [ 2 ]) }}</span>
+                            <span>UTF-8</span>
+                            <span>{{ $t("cursorPosition", [ cursor.line, cursor.col ]) }}</span>
+                            <span class="spacer"></span>
+                            <span v-if="activeFile === 'yaml' && yamlError" class="validation danger" :title="yamlError">{{ yamlError }}</span>
+                            <span v-else class="validation success">
+                                <AssetIcon :src="icons.check" width="10.7917" height="7.875" :box="14" />
+                                {{ $t("noProblemsFound") }}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -352,6 +414,9 @@ import iconDotWarning from "../assets/stack/dot-warning.svg";
 import iconFileTab from "../assets/stack/file-tab.svg";
 import iconFormat from "../assets/stack/format.svg";
 import iconCheck from "../assets/stack/check.svg";
+import iconCubeLarge from "../assets/stack/cube-lg.svg";
+import iconPenRow from "../assets/stack/pen-row.svg";
+import iconTrashRow from "../assets/stack/trash-row.svg";
 import dotenv from "dotenv";
 import { ref } from "vue";
 
@@ -375,6 +440,9 @@ const icons = {
     fileTab: iconFileTab,
     format: iconFormat,
     check: iconCheck,
+    cubeLarge: iconCubeLarge,
+    penRow: iconPenRow,
+    trashRow: iconTrashRow,
 };
 
 // Editor syntax colours, styled through these classes in the page CSS
@@ -415,6 +483,7 @@ services:
     ports:
       - "8080:80"
 `;
+const blankTemplate = "services: {}\n";
 const envDefault = "# VARIABLE=value #comment";
 
 let yamlErrorTimeout = null;
@@ -503,6 +572,23 @@ export default {
             showDeleteDialog: false,
             icons,
             activeFile: "yaml",
+            startFrom: "template",
+            startYAML: "",
+            dockerRunCommand: "",
+            startFromOptions: [
+                {
+                    value: "blank",
+                    label: "startBlank",
+                },
+                {
+                    value: "template",
+                    label: "startTemplate",
+                },
+                {
+                    value: "dockerRun",
+                    label: "startDockerRun",
+                },
+            ],
             savedYAML: "",
             savedENV: "",
             hostNetworkDrivers: {},
@@ -768,8 +854,10 @@ export default {
             let composeENV;
 
             if (this.$root.composeTemplate) {
+                // Converted from a docker run command on the home page
                 composeYAML = this.$root.composeTemplate;
                 this.$root.composeTemplate = "";
+                this.startFrom = "dockerRun";
             } else {
                 composeYAML = template;
             }
@@ -790,7 +878,11 @@ export default {
             };
 
             this.yamlCodeChange();
-            this.markSaved();
+            // After the editor sync has normalised the YAML
+            this.$nextTick(() => {
+                this.markSaved();
+                this.startYAML = this.stack.composeYAML;
+            });
 
         } else {
             this.stack.name = this.$route.params.stackName;
@@ -1071,6 +1163,74 @@ export default {
         editComposeFile() {
             this.activeFile = "yaml";
             this.enableEditMode();
+        },
+
+        /**
+         * Replace compose.yaml with a starting point (new stacks only).
+         * Asks first if the current file was changed by the user.
+         * @param {string} option "blank", "template" or "dockerRun"
+         * @returns {void}
+         */
+        applyStartFrom(option) {
+            if (option === this.startFrom) {
+                return;
+            }
+            if (option !== "dockerRun" && this.stack.composeYAML !== this.startYAML && !confirm(this.$t("replaceComposeConfirm"))) {
+                return;
+            }
+
+            this.startFrom = option;
+            if (option === "blank") {
+                this.setStartYAML(blankTemplate);
+            } else if (option === "template") {
+                this.setStartYAML(template);
+            }
+        },
+
+        /**
+         * Put a starting compose file in the editor
+         * @param {string} yamlText Compose file
+         * @returns {void}
+         */
+        setStartYAML(yamlText) {
+            this.stack.composeYAML = yamlText;
+            this.yamlCodeChange();
+            this.$nextTick(() => {
+                this.startYAML = this.stack.composeYAML;
+            });
+        },
+
+        /**
+         * Convert the docker run command to a compose file (done by the backend)
+         * @returns {void}
+         */
+        convertDockerRun() {
+            if (this.stack.composeYAML !== this.startYAML && !confirm(this.$t("replaceComposeConfirm"))) {
+                return;
+            }
+            this.$root.getSocket().emit("composerize", this.dockerRunCommand, (res) => {
+                if (res.ok) {
+                    this.setStartYAML(res.composeTemplate);
+                } else {
+                    this.$root.toastRes(res);
+                }
+            });
+        },
+
+        /**
+         * First port mapping of a service, for the containers panel
+         * @param {object} service Compose service
+         * @returns {string} Port mapping, or an empty string
+         */
+        firstPort(service) {
+            const port = service?.ports?.[0];
+            if (port === undefined || port === null) {
+                return "";
+            }
+            if (typeof port === "object") {
+                return port.published ? `${port.published}:${port.target}` : String(port.target ?? "");
+            }
+            return String(port);
         },
 
         /**
@@ -1915,8 +2075,227 @@ export default {
     }
 }
 
+// New stack: setup row
+.setup-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 16px 32px;
+    margin-bottom: 28px;
+}
+
+.setup-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.stack-name-field {
+    width: 420px;
+    max-width: 100%;
+}
+
+.field-label {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.field-hint {
+    font-size: 12px;
+    color: $muted;
+    margin: 0;
+}
+
+.setup-input {
+    height: 44px;
+    padding: 11px 14px;
+    font-size: 14px;
+    border-color: $border-strong;
+    border-radius: 10px;
+
+    &::placeholder {
+        color: $muted;
+    }
+}
+
+.choice-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.choice-chip {
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: normal;
+    color: $text-secondary;
+    background-color: #fff;
+    border: 1px solid $border-strong;
+    border-radius: 999px;
+
+    &:hover {
+        background-color: #f8fafc;
+    }
+
+    &.selected {
+        color: $primary;
+        background-color: $accent-subtle;
+        border-color: $primary;
+    }
+}
+
+.docker-run-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin: -12px 0 28px;
+
+    .docker-run-input {
+        flex: 1;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        border-color: $border-strong;
+        border-radius: 10px;
+        resize: vertical;
+    }
+}
+
+// Containers panel next to the editor
+.edit-content.with-panel {
+    display: grid;
+    grid-template-columns: 440px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+
+    @media (max-width: 1200px) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .editor-body {
+        height: calc(100vh - 470px);
+    }
+}
+
+.containers-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    .section-head {
+        margin-bottom: 0;
+    }
+
+    .section-title {
+        margin-bottom: 2px;
+    }
+}
+
+.service-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.service-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 64px;
+    padding: 12px 14px;
+    background-color: #fff;
+    border: 1px solid $surface-border;
+    border-radius: 14px;
+}
+
+.service-icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background-color: $accent-subtle;
+}
+
+.service-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.service-name {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.service-image {
+    font-size: 13px;
+    color: $muted;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.row-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 8px;
+    background-color: $surface-raised;
+
+    &:hover {
+        background-color: darken($surface-raised, 4%);
+    }
+
+    &.danger {
+        background-color: #fef2f2;
+
+        &:hover {
+            background-color: #fee2e2;
+        }
+    }
+}
+
 // Dark theme
 .dark {
+    .choice-chip {
+        color: $dark-font-color;
+        background-color: $dark-bg;
+        border-color: #343c4d;
+
+        &.selected {
+            color: $highlight;
+            background-color: rgba($primary, 0.2);
+            border-color: $highlight;
+        }
+    }
+
+    .service-row {
+        background-color: $dark-bg;
+        border-color: $dark-border-color;
+    }
+
+    .service-icon {
+        background-color: rgba($primary, 0.2);
+    }
+
+    .row-btn {
+        background-color: $dark-header-bg;
+
+        &.danger {
+            background-color: #2d1618;
+        }
+    }
+
     .state-pill {
         &.accent {
             color: $highlight;
