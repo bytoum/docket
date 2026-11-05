@@ -503,8 +503,8 @@ $muted: #6b7280;
 }
 
 .pill-online {
-    color: #198754;
-    background: rgba(#198754, 0.12);
+    color: $success;
+    background: rgba($success, 0.12);
 }
 
 .pill-offline {

@@ -3,7 +3,7 @@
         <div class="list-header">
             <!-- Search -->
             <div class="search-wrapper">
-                <font-awesome-icon v-if="searchText == ''" icon="search" class="search-icon" />
+                <AssetIcon v-if="searchText == ''" :src="iconSearch" width="13.5" height="13.5" class="search-icon" />
                 <button v-else type="button" class="search-icon clear" :title="$t('clearFilter')" @click="clearSearchText">
                     <font-awesome-icon icon="times" />
                 </button>
@@ -74,12 +74,15 @@
 <script>
 import Confirm from "../components/Confirm.vue";
 import StackListItem from "../components/StackListItem.vue";
+import AssetIcon from "../components/AssetIcon.vue";
+import iconSearch from "../assets/stack/search.svg";
 import { CREATED_FILE, CREATED_STACK, EXITED, RUNNING, UNKNOWN, statusNameShort } from "../../../common/util-common";
 
 export default {
     components: {
         Confirm,
         StackListItem,
+        AssetIcon,
     },
     props: {
         /** Should the scrollbar be shown */
@@ -89,6 +92,7 @@ export default {
     },
     data() {
         return {
+            iconSearch,
             searchText: "",
             statusFilterOptions: [ "all", "active", "exited", "inactive" ],
             statusFilter: "all",
@@ -347,35 +351,40 @@ export default {
 
 .search-wrapper {
     position: relative;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
 }
 
 .search-icon {
     position: absolute;
-    left: 12px;
+    left: 14px;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 13px;
-    color: #9ca3af;
+    color: $muted;
 
     &.clear {
         border: none;
         background: none;
         padding: 0;
+        font-size: 13px;
         cursor: pointer;
 
         &:hover {
-            color: $muted;
+            color: $text-secondary;
         }
     }
 }
 
 .search-input {
+    height: 42px;
     font-size: 14px;
-    padding-left: 34px;
-    border-radius: 8px;
+    padding: 11px 14px 11px 40px;
+    border-radius: 10px;
     border-color: $surface-border;
-    background-color: #f9fafb;
+    background-color: #f8fafc;
+
+    &::placeholder {
+        color: $muted;
+    }
 
     .dark & {
         background-color: $dark-bg;
@@ -393,21 +402,22 @@ export default {
 
 .chip {
     border: none;
-    border-radius: 50rem;
-    padding: 3px 10px;
+    border-radius: 999px;
+    padding: 5px 12px;
     font-size: 12px;
     font-weight: 500;
+    line-height: normal;
     text-transform: capitalize;
-    color: #4b5563;
-    background-color: #eef0f3;
+    color: $text-secondary;
+    background-color: $surface-raised;
 
     &:hover {
-        background-color: darken(#eef0f3, 4%);
+        background-color: darken($surface-raised, 4%);
     }
 
     &.active {
         color: $primary;
-        background-color: #dfe5ff;
+        background-color: $accent-subtle;
     }
 
     .dark & {
@@ -415,8 +425,8 @@ export default {
         background-color: $dark-bg;
 
         &.active {
-            color: #fff;
-            background-color: $primary;
+            color: $highlight;
+            background-color: rgba($primary, 0.2);
         }
     }
 }
@@ -424,10 +434,10 @@ export default {
 .section-label {
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.88px;
     text-transform: uppercase;
     color: $muted;
-    margin: 0 4px 8px;
+    margin: 0 0 16px;
 }
 
 .stack-list {

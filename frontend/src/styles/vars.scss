@@ -1,11 +1,11 @@
-$primary: #3b5bdb;
+$primary: #2563eb;
 $danger: #dc3545;
 $warning: #f8a306;
 $maintenance: #1747f5;
 $link-color: #111;
 $border-radius: 50rem;
 
-$highlight: #5c7cfa;
+$highlight: #60a5fa;
 $highlight-white: #eef1f6;
 
 $dark-font-color: #b1b8c0;
@@ -27,5 +27,11 @@ $primary-gradient: linear-gradient($primary, $primary);
 // Light theme surfaces
 $page-bg: #f6f7f9;
 $surface-border: #e7eaf0;
-$muted: #6b7280;
-$primary-gradient-active: linear-gradient(#3049c4, #3049c4);
+$muted: #64748b;
+$text-secondary: #475569;
+$surface-raised: #f1f5f9;
+$border-strong: #d5dae2;
+$accent-subtle: #eff6ff;
+$success: #15803d;
+$danger-strong: #dc2626;
+$primary-gradient-active: linear-gradient(#1d4ed8, #1d4ed8);

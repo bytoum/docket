@@ -541,9 +541,6 @@ export default {
 <style lang="scss" scoped>
 @import "../styles/vars.scss";
 
-$border-strong: #d5dae2;
-$text-secondary: #4b5563;
-
 .drawer-scrim {
     position: fixed;
     inset: 0;
@@ -882,7 +879,7 @@ $text-secondary: #4b5563;
         border: 1px solid $primary;
 
         &:hover {
-            background-color: #3049c4;
+            background-color: #1d4ed8;
         }
 
         &:disabled {

@@ -1,6 +1,6 @@
 <template>
     <router-link :to="url" :class="{ 'dim' : !stack.isManagedByDockge }" class="item">
-        <span class="item-icon"><font-awesome-icon icon="cube" /></span>
+        <span class="item-icon"><AssetIcon :src="iconCube" width="13.3333" height="14.6653" /></span>
         <div class="title">{{ stackName }}</div>
         <Uptime :stack="stack" />
     </router-link>
@@ -8,10 +8,13 @@
 
 <script>
 import Uptime from "./Uptime.vue";
+import AssetIcon from "./AssetIcon.vue";
+import iconCube from "../assets/stack/cube.svg";
 
 export default {
     components: {
-        Uptime
+        Uptime,
+        AssetIcon,
     },
     props: {
         /** Stack this represents */
@@ -47,6 +50,7 @@ export default {
     },
     data() {
         return {
+            iconCube,
             isCollapsed: true,
         };
     },
@@ -131,24 +135,25 @@ export default {
     text-decoration: none;
     display: flex;
     align-items: center;
-    gap: 10px;
-    min-height: 44px;
-    margin-bottom: 2px;
-    border-radius: 8px;
+    gap: 12px;
+    margin-bottom: 6px;
+    border: 1px solid transparent;
+    border-radius: 12px;
     transition: background-color ease-in-out 0.15s;
     width: 100%;
-    padding: 6px 10px;
-    color: #111827;
+    padding: 12px 14px;
+    color: #0f172a;
     font-size: 14px;
     font-weight: 500;
     &.disabled {
         opacity: 0.3;
     }
     &:hover {
-        background-color: #f3f4f6;
+        background-color: #f8fafc;
     }
     &.active {
-        background-color: $highlight-white;
+        background-color: $accent-subtle;
+        border-color: $primary;
     }
     .title {
         flex: 1;
@@ -162,12 +167,10 @@ export default {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 26px;
-        height: 26px;
-        border-radius: 7px;
-        font-size: 12px;
-        color: $primary;
-        background-color: #e8ecff;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background-color: $accent-subtle;
     }
     .dark & {
         color: $dark-font-color;
@@ -175,11 +178,11 @@ export default {
             background-color: $dark-bg;
         }
         &.active {
-            background-color: $dark-bg2;
+            background-color: rgba($primary, 0.15);
+            border-color: $highlight;
         }
         .item-icon {
             background-color: rgba($primary, 0.2);
-            color: $highlight;
         }
     }
     .endpoint {

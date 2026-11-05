@@ -204,7 +204,7 @@ main {
 }
 
 .app-header {
-    height: 60px;
+    height: 64px;
     padding: 0 20px;
     background-color: #fff;
     border-bottom: 1px solid $surface-border;
@@ -318,7 +318,7 @@ main {
         align-items: center;
         justify-content: center;
         color: $primary;
-        background-color: #dfe5ff;
+        background-color: $accent-subtle;
         width: 24px;
         height: 24px;
         margin-right: 5px;

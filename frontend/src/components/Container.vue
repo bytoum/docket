@@ -1,48 +1,48 @@
 <template>
-    <div class="shadow-box mb-3 container-card">
+    <div class="container-card">
         <div class="card-top">
             <div class="identity">
                 <div class="name">{{ name }}</div>
-                <div v-if="envsubstService.image" class="image">{{ imageName }}:{{ imageTag }}</div>
+                <div v-if="envsubstService.image" class="image"><span class="image-name">{{ imageName }}:</span>{{ imageTag }}</div>
             </div>
 
             <div class="function">
                 <template v-if="!isEditMode">
-                    <div v-if="hasServiceActions" class="btn-group service-actions" role="group">
-                        <router-link v-if="isRunning" class="btn" :to="terminalRouteLink">
-                            <font-awesome-icon icon="terminal" class="me-1" />
+                    <div v-if="hasServiceActions" class="service-actions" role="group">
+                        <router-link v-if="isRunning" class="action" :to="terminalRouteLink">
+                            <AssetIcon :src="icons.terminal" width="9.97917" height="8.89583" :box="13" tone="neutral" />
                             Bash
                         </router-link>
                         <button
                             v-if="serviceCount > 1 && !isRunning"
-                            class="btn"
+                            class="action"
                             :disabled="processing"
                             @click="startService"
                         >
-                            <font-awesome-icon icon="play" class="me-1" />
+                            <font-awesome-icon icon="play" class="play-icon" />
                             {{ $t("startStack") }}
                         </button>
                         <button
                             v-if="serviceCount > 1 && (isRunning || status === 'unhealthy')"
-                            class="btn"
+                            class="action"
                             :disabled="processing"
                             @click="restartService"
                         >
-                            <font-awesome-icon icon="rotate" class="me-1" />
+                            <AssetIcon :src="icons.restart" width="11.0625" height="11.0625" :box="13" tone="neutral" />
                             {{ $t("restartStack") }}
                         </button>
                         <button
                             v-if="serviceCount > 1 && (isRunning || status === 'unhealthy')"
-                            class="btn"
+                            class="action"
                             :disabled="processing"
                             @click="stopService"
                         >
-                            <font-awesome-icon icon="stop" class="me-1" />
+                            <AssetIcon :src="icons.stop" width="8.89583" height="8.89583" :box="13" tone="neutral" />
                             {{ $t("stopStack") }}
                         </button>
                     </div>
                     <button class="icon-btn" :title="$t('Edit')" @click="editService">
-                        <font-awesome-icon icon="pen" />
+                        <AssetIcon :src="icons.pen" width="13.0569" height="13.0569" :box="14" tone="neutral" />
                     </button>
                 </template>
 
@@ -61,9 +61,14 @@
 
         <div v-if="!isEditMode" class="card-bottom">
             <div class="pills">
-                <span class="pill" :class="statusClass"><span class="dot"></span>{{ status }}</span>
+                <span class="pill" :class="statusClass">
+                    <img v-if="isRunning" :src="icons.dotSuccess" width="6" height="6" alt="" />
+                    <img v-else-if="status !== 'unhealthy'" :src="icons.dotNeutral" width="6" height="6" alt="" />
+                    <span v-else class="dot"></span>
+                    {{ status }}
+                </span>
                 <a v-for="port in (ports ?? envsubstService.ports)" :key="port" :href="parsePort(port).url" target="_blank" class="pill pill-port">
-                    <span class="dot"></span>{{ parsePort(port).display }}
+                    <img :src="icons.dotNeutral" width="6" height="6" alt="" />{{ parsePort(port).display }}
                 </a>
             </div>
 
@@ -100,11 +105,29 @@ import { defineComponent } from "vue";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { parseDockerPort } from "../../../common/util-common";
 import DockerStat from "./DockerStat.vue";
+import AssetIcon from "./AssetIcon.vue";
+import iconTerminal from "../assets/stack/terminal-sm.svg";
+import iconRestart from "../assets/stack/restart-sm.svg";
+import iconStop from "../assets/stack/stop-sm.svg";
+import iconPen from "../assets/stack/pen-sm.svg";
+import iconDotSuccess from "../assets/stack/dot-success.svg";
+import iconDotNeutral from "../assets/stack/dot-neutral.svg";
+
+// Icons exported from the Figma design
+const icons = {
+    terminal: iconTerminal,
+    restart: iconRestart,
+    stop: iconStop,
+    pen: iconPen,
+    dotSuccess: iconDotSuccess,
+    dotNeutral: iconDotNeutral,
+};
 
 export default defineComponent({
     components: {
         FontAwesomeIcon,
-        DockerStat
+        DockerStat,
+        AssetIcon,
     },
     props: {
         name: {
@@ -136,6 +159,7 @@ export default defineComponent({
     ],
     data() {
         return {
+            icons,
             expandedStats: false,
         };
     },
@@ -316,21 +340,32 @@ export default defineComponent({
 @import "../styles/vars";
 
 .container-card {
-    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 14px 16px;
+    background-color: #fff;
+    border: 1px solid $surface-border;
+    border-radius: 14px;
 }
 
 .card-top {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 12px;
 }
 
 .identity {
+    flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
 
     .name {
-        font-size: 15px;
+        font-size: 16px;
         font-weight: 600;
     }
 
@@ -340,6 +375,10 @@ export default defineComponent({
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+
+        .image-name {
+            color: $text-secondary;
+        }
     }
 }
 
@@ -348,46 +387,60 @@ export default defineComponent({
     align-items: center;
     flex-wrap: wrap;
     justify-content: flex-end;
-    gap: 6px;
+    gap: 12px;
 }
 
 .service-actions {
-    border: 1px solid $surface-border;
+    display: inline-flex;
+    padding: 3px;
     border-radius: 8px;
-    background-color: #f9fafb;
+    background-color: $surface-raised;
 
-    .btn {
-        font-size: 12px;
-        padding: 3px 10px;
+    .action {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 9px;
         border: none;
-        color: #374151;
+        border-radius: 6px;
+        background: transparent;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: normal;
+        color: $text-secondary;
+        text-decoration: none;
 
         &:hover {
-            background-color: #eef0f3;
+            background-color: #fff;
         }
+    }
+
+    .play-icon {
+        width: 13px;
+        font-size: 10px;
     }
 }
 
 .icon-btn {
-    border: 1px solid $surface-border;
-    background: #fff;
-    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 30px;
     height: 30px;
-    font-size: 12px;
-    color: #4b5563;
+    border: none;
+    border-radius: 8px;
+    background-color: $surface-raised;
 
     &:hover {
-        background-color: #f3f4f6;
+        background-color: darken($surface-raised, 4%);
     }
 }
 
 .card-bottom {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     flex-wrap: wrap;
-    gap: 16px 28px;
-    margin-top: 12px;
+    gap: 12px 24px;
 }
 
 .pills {
@@ -399,15 +452,16 @@ export default defineComponent({
 .pill {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
-    border-radius: 50rem;
-    font-size: 11px;
-    font-weight: 500;
+    gap: 6px;
+    padding: 4px 10px 4px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: normal;
     text-decoration: none;
     text-transform: capitalize;
-    color: #4b5563;
-    background-color: rgba($muted, 0.12);
+    color: $muted;
+    background-color: $surface-raised;
 
     .dot {
         width: 6px;
@@ -417,30 +471,36 @@ export default defineComponent({
     }
 
     &.pill-running {
-        color: #198754;
-        background-color: rgba(#198754, 0.12);
+        color: $success;
+        background-color: #dcfce7;
     }
 
     &.pill-danger {
-        color: $danger;
-        background-color: rgba($danger, 0.12);
+        color: $danger-strong;
+        background-color: #fef2f2;
     }
 
     &.pill-port:hover {
-        background-color: rgba($muted, 0.2);
+        background-color: darken($surface-raised, 4%);
     }
 }
 
 .metrics {
     display: flex;
-    align-items: flex-end;
-    gap: 28px;
+    align-items: center;
+    gap: 24px;
+}
+
+.metric {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .metric-label {
     font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.8px;
     text-transform: uppercase;
     color: $muted;
 }
@@ -448,49 +508,59 @@ export default defineComponent({
 .metric-value {
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
+    color: #0f172a;
 }
 
-.metric-memory {
-    min-width: 160px;
+.metric-memory .bar {
+    width: 130px;
+    height: 4px;
+    border-radius: 2px;
+    background-color: $surface-border;
+    overflow: hidden;
 
-    .bar {
-        height: 4px;
-        margin-top: 4px;
-        border-radius: 2px;
-        background-color: #eef0f3;
-        overflow: hidden;
-
-        span {
-            display: block;
-            height: 100%;
-            background-color: $primary;
-        }
+    span {
+        display: block;
+        height: 100%;
+        background-color: $primary;
     }
 }
 
 .dark {
+    .container-card {
+        background-color: $dark-bg;
+        border-color: $dark-border-color;
+    }
+
     .service-actions,
     .icon-btn {
-        background-color: $dark-bg2;
-        border-color: $dark-border-color;
-        color: $dark-font-color;
-    }
-
-    .service-actions .btn {
-        color: $dark-font-color;
-    }
-
-    .service-actions .btn:hover,
-    .icon-btn:hover {
         background-color: $dark-header-bg;
+    }
+
+    .service-actions .action {
+        color: $dark-font-color;
+
+        &:hover {
+            background-color: $dark-bg2;
+        }
+    }
+
+    .icon-btn:hover {
+        background-color: $dark-bg2;
+    }
+
+    .identity .image .image-name,
+    .metric-value {
+        color: $dark-font-color;
     }
 
     .pill {
         color: $dark-font-color;
+        background-color: $dark-header-bg;
     }
 
     .pill-running {
         color: #4ade80;
+        background-color: #0f2619;
     }
 
     .metric-memory .bar {

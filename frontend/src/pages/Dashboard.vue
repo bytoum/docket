@@ -1,7 +1,7 @@
 <template>
     <div class="dashboard">
         <aside v-if="!$root.isMobile" class="sidebar">
-            <router-link to="/compose" class="btn btn-primary w-100 mb-3"><font-awesome-icon icon="plus" class="me-1" /> {{ $t("compose") }}</router-link>
+            <router-link to="/compose" class="btn btn-primary compose-btn"><AssetIcon :src="iconPlus" width="10.8333" height="10.8333" /> {{ $t("compose") }}</router-link>
             <StackList :scrollbar="true" />
         </aside>
 
@@ -15,14 +15,18 @@
 <script>
 
 import StackList from "../components/StackList.vue";
+import AssetIcon from "../components/AssetIcon.vue";
+import iconPlus from "../assets/stack/plus-on-accent.svg";
 
 export default {
     components: {
         StackList,
+        AssetIcon,
     },
     data() {
         return {
-            height: 0
+            height: 0,
+            iconPlus,
         };
     },
     mounted() {
@@ -34,8 +38,8 @@ export default {
 <style lang="scss" scoped>
 @import "../styles/vars.scss";
 
-$header-height: 60px;
-$sidebar-width: 270px;
+$header-height: 64px;
+$sidebar-width: 320px;
 
 .dashboard {
     display: flex;
@@ -45,12 +49,13 @@ $sidebar-width: 270px;
 .sidebar {
     flex: 0 0 $sidebar-width;
     width: $sidebar-width;
-    height: calc(100vh - #{$header-height});
+    height: calc(100vh - #{$header-height} - var(--console-dock-height, 0px));
     position: sticky;
     top: $header-height;
     display: flex;
     flex-direction: column;
-    padding: 16px;
+    gap: 16px;
+    padding: 20px;
     background-color: #fff;
     border-right: 1px solid $surface-border;
 
@@ -60,10 +65,22 @@ $sidebar-width: 270px;
     }
 }
 
+.compose-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 11px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
 .content {
     flex: 1;
     min-width: 0;
-    padding: 28px 32px 32px;
+    padding: 40px 40px calc(40px + var(--console-dock-height, 0px));
 
     .mobile & {
         padding: 16px;

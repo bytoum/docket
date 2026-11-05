@@ -48,13 +48,13 @@ export default {
 .status-pill {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     flex-shrink: 0;
-    padding: 2px 8px;
-    border-radius: 50rem;
+    padding: 4px 10px 4px 8px;
+    border-radius: 999px;
     font-size: 11px;
     font-weight: 600;
-    line-height: 1.5;
+    line-height: normal;
     text-transform: capitalize;
     white-space: nowrap;
     color: $muted;
@@ -71,8 +71,8 @@ export default {
 
 // Running
 .status-primary {
-    color: #198754;
-    background-color: rgba(#198754, 0.12);
+    color: $success;
+    background-color: #dcfce7;
 }
 
 .status-danger {

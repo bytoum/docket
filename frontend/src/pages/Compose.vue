@@ -29,33 +29,36 @@
                 </template>
 
                 <template v-else>
-                    <button class="btn btn-primary" :disabled="processing" @click="openContainerDrawer()">
-                        <font-awesome-icon icon="plus" class="me-1" />
+                    <button class="btn btn-primary toolbar-btn" :disabled="processing" @click="openContainerDrawer()">
+                        <AssetIcon :src="icons.plusOnAccent" width="10.8333" height="10.8333" />
                         {{ $t("addContainer") }}
                     </button>
 
-                    <div class="btn-group action-group" role="group">
-                        <button v-if="!active" class="btn" :disabled="processing" @click="startStack">
-                            <font-awesome-icon icon="play" class="me-1" />
+                    <div class="action-group" role="group">
+                        <button v-if="!active" class="action" :disabled="processing" @click="startStack">
+                            <font-awesome-icon icon="play" class="play-icon" />
                             {{ $t("startStack") }}
                         </button>
 
-                        <button v-if="active" class="btn" :disabled="processing" @click="restartStack">
-                            <font-awesome-icon icon="rotate" class="me-1" />
+                        <button v-if="active" class="action" :disabled="processing" @click="restartStack">
+                            <AssetIcon :src="icons.restart" width="13.5" height="13.5" tone="neutral" />
                             {{ $t("restartStack") }}
                         </button>
 
-                        <button class="btn" :disabled="processing" @click="updateStack">
-                            <font-awesome-icon icon="cloud-arrow-down" class="me-1" />
+                        <button class="action" :disabled="processing" @click="updateStack">
+                            <AssetIcon :src="icons.update" width="14.8324" height="13.4997" tone="neutral" />
                             {{ $t("updateStack") }}
                         </button>
 
-                        <button v-if="active" class="btn" :disabled="processing" @click="stopStack">
-                            <font-awesome-icon icon="stop" class="me-1" />
+                        <button v-if="active" class="action" :disabled="processing" @click="stopStack">
+                            <AssetIcon :src="icons.stop" width="10.8333" height="10.8333" tone="neutral" />
                             {{ $t("stopStack") }}
                         </button>
 
-                        <BDropdown right text="" variant="link" class="more-dropdown">
+                        <BDropdown right no-caret variant="link" class="more-dropdown" toggle-class="action action-more">
+                            <template #button-content>
+                                <AssetIcon :src="icons.chevronDown" width="9.5" height="5.5" tone="neutral" />
+                            </template>
                             <BDropdownItem @click="downStack">
                                 <font-awesome-icon icon="stop" class="me-1" />
                                 {{ $t("downStack") }}
@@ -63,8 +66,8 @@
                         </BDropdown>
                     </div>
 
-                    <button class="btn btn-soft-danger ms-auto" :disabled="processing" @click="showDeleteDialog = !showDeleteDialog">
-                        <font-awesome-icon icon="trash" class="me-1" />
+                    <button class="btn btn-soft-danger toolbar-btn ms-auto" :disabled="processing" @click="showDeleteDialog = !showDeleteDialog">
+                        <AssetIcon :src="icons.trash" width="13.5" height="14.8333" />
                         {{ $t("deleteStack") }}
                     </button>
                 </template>
@@ -118,12 +121,12 @@
                     <!-- Containers -->
                     <div class="section-head">
                         <h2 class="section-title">{{ $tc("container", 2) }}</h2>
-                        <button v-if="!isEditMode" class="btn btn-light-outline btn-sm-flat" @click="editComposeFile">
-                            <font-awesome-icon icon="file" class="me-1" />
+                        <button v-if="!isEditMode" class="btn btn-light-outline toolbar-btn" @click="editComposeFile">
+                            <AssetIcon :src="icons.file" width="12" height="14.6667" tone="neutral" />
                             {{ $t("editComposeFile", [ stack.composeFileName || "compose.yaml" ]) }}
                         </button>
-                        <button v-else class="btn btn-light-outline btn-sm-flat" @click="openContainerDrawer()">
-                            <font-awesome-icon icon="plus" class="me-1" />
+                        <button v-else class="btn btn-light-outline toolbar-btn" @click="openContainerDrawer()">
+                            <AssetIcon :src="icons.plus" width="10.8333" height="10.8333" tone="neutral" />
                             {{ $t("addContainer") }}
                         </button>
                     </div>
@@ -159,21 +162,21 @@
                     </div>
 
                     <!-- Networks (view mode) -->
-                    <div v-if="!isEditMode" class="mt-4">
+                    <div v-if="!isEditMode" class="networks-section">
                         <div class="section-head">
                             <h2 class="section-title">{{ $tc("network", 2) }}</h2>
-                            <button class="btn btn-light-outline btn-sm-flat" @click="editNetworks">
-                                <font-awesome-icon icon="plus" class="me-1" />
+                            <button class="btn btn-light-outline toolbar-btn" @click="editNetworks">
+                                <AssetIcon :src="icons.plus" width="10.8333" height="10.8333" tone="neutral" />
                                 {{ $t("addNetwork") }}
                             </button>
                         </div>
 
                         <template v-for="group in networkGroups" :key="group.key">
-                            <div v-if="group.items.length > 0" class="mb-4">
+                            <div v-if="group.items.length > 0" class="network-group">
                                 <div class="group-label">{{ group.label }}</div>
-                                <div v-for="network in group.items" :key="network.name" class="network-row shadow-box">
+                                <div v-for="network in group.items" :key="network.name" class="network-row">
                                     <span class="network-icon" :class="{ external: group.key === 'external' }">
-                                        <font-awesome-icon icon="sitemap" />
+                                        <AssetIcon :src="group.key === 'external' ? icons.networkExternal : icons.network" width="16.5" height="16.5" :box="18" />
                                     </span>
                                     <div class="network-body">
                                         <div class="network-name">{{ network.name }}</div>
@@ -182,29 +185,17 @@
                                             <template v-else>{{ $t("notUsedByAnyContainer") }}</template>
                                         </div>
                                     </div>
-                                    <span v-if="network.driver" class="tag-pill">{{ network.driver }}</span>
-                                    <span v-if="group.key === 'external'" class="tag-pill tag-blue">{{ $t("externalNetwork") }}</span>
+                                    <div class="tags">
+                                        <span v-if="network.driver" class="tag-pill"><img :src="icons.dotNeutral" width="6" height="6" alt="" />{{ network.driver }}</span>
+                                        <span v-if="group.key === 'external'" class="tag-pill tag-blue"><img :src="icons.dotAccent" width="6" height="6" alt="" />{{ $t("externalNetwork") }}</span>
+                                    </div>
                                     <button class="icon-btn" :title="$t('Edit')" @click="editNetworks">
-                                        <font-awesome-icon icon="pen" />
+                                        <AssetIcon :src="icons.pen" width="14.7317" height="14.7317" tone="neutral" />
                                     </button>
                                 </div>
                                 <div class="group-hint">{{ group.hint }}</div>
                             </div>
                         </template>
-                    </div>
-
-                    <!-- Combined Terminal Output -->
-                    <div v-show="!isEditMode" class="mt-2">
-                        <h2 class="section-title">{{ $t("terminal") }}</h2>
-                        <Terminal
-                            ref="combinedTerminal"
-                            class="mb-3 terminal"
-                            :name="combinedTerminalName"
-                            :endpoint="endpoint"
-                            :rows="combinedTerminalRows"
-                            :cols="combinedTerminalCols"
-                            style="height: 315px;"
-                        ></Terminal>
                     </div>
                 </div>
 
@@ -257,6 +248,16 @@
                 {{ $t("stackNotManagedByDockgeMsg") }}
             </div>
 
+            <!-- Combined container logs, docked to the bottom of the page -->
+            <ConsoleDock
+                v-if="!isAdd && stack.name"
+                :name="combinedTerminalName"
+                :endpoint="endpoint"
+                :services="Object.keys(jsonConfig.services ?? {})"
+                :container-names="containerNames"
+                :live="active"
+            />
+
             <!-- Add / edit container drawer -->
             <ContainerDrawer
                 :open="containerDrawer.open"
@@ -298,6 +299,38 @@ import {
 import { BModal } from "bootstrap-vue-next";
 import NetworkInput from "../components/NetworkInput.vue";
 import ContainerDrawer from "../components/ContainerDrawer.vue";
+import AssetIcon from "../components/AssetIcon.vue";
+import ConsoleDock from "../components/ConsoleDock.vue";
+import iconPlusOnAccent from "../assets/stack/plus-on-accent.svg";
+import iconPlus from "../assets/stack/plus.svg";
+import iconRestart from "../assets/stack/restart.svg";
+import iconUpdate from "../assets/stack/update.svg";
+import iconStop from "../assets/stack/stop.svg";
+import iconChevronDown from "../assets/stack/chevron-down.svg";
+import iconTrash from "../assets/stack/trash.svg";
+import iconFile from "../assets/stack/file.svg";
+import iconNetwork from "../assets/stack/network.svg";
+import iconNetworkExternal from "../assets/stack/network-external.svg";
+import iconPen from "../assets/stack/pen.svg";
+import iconDotNeutral from "../assets/stack/dot-neutral.svg";
+import iconDotAccent from "../assets/stack/dot-accent.svg";
+
+// Icons exported from the Figma design
+const icons = {
+    plusOnAccent: iconPlusOnAccent,
+    plus: iconPlus,
+    restart: iconRestart,
+    update: iconUpdate,
+    stop: iconStop,
+    chevronDown: iconChevronDown,
+    trash: iconTrash,
+    file: iconFile,
+    network: iconNetwork,
+    networkExternal: iconNetworkExternal,
+    pen: iconPen,
+    dotNeutral: iconDotNeutral,
+    dotAccent: iconDotAccent,
+};
 import dotenv from "dotenv";
 import { ref } from "vue";
 
@@ -320,6 +353,8 @@ export default {
     components: {
         NetworkInput,
         ContainerDrawer,
+        AssetIcon,
+        ConsoleDock,
         FontAwesomeIcon,
         CodeMirror,
         BModal,
@@ -375,6 +410,7 @@ export default {
             isEditMode: false,
             submitted: false,
             showDeleteDialog: false,
+            icons,
             containerDrawer: {
                 open: false,
                 serviceName: "",
@@ -451,6 +487,20 @@ export default {
 
         networks() {
             return this.jsonConfig.networks;
+        },
+
+        /**
+         * Custom container names ("container_name"), keyed by service name
+         * @returns {object} Container names
+         */
+        containerNames() {
+            const names = {};
+            for (const [ serviceName, service ] of Object.entries(this.envsubstJSONConfig.services ?? {})) {
+                if (service?.container_name) {
+                    names[serviceName] = service.container_name;
+                }
+            }
+            return names;
         },
 
         /**
@@ -1040,96 +1090,116 @@ export default {
 }
 
 // Header
+.stack-page {
+    display: flex;
+    flex-direction: column;
+}
+
 .stack-header {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 18px;
+    gap: 12px;
+    margin-bottom: 28px;
 
     h1 {
-        font-size: 1.75rem;
+        font-size: 28px;
         font-weight: 700;
+        letter-spacing: -0.42px;
         margin: 0;
     }
 
     .meta {
-        font-size: 13px;
+        font-size: 14px;
         color: $muted;
     }
 }
 
-// Action bar
+// Toolbar
 .action-bar {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 12px;
     margin-bottom: 28px;
+}
 
-    .btn {
-        font-size: 14px;
-        font-weight: 500;
-        padding: 6px 14px;
-        border-radius: 8px;
-    }
+.toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: normal;
 }
 
 .action-group {
-    background-color: #fff;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    background-color: $surface-raised;
     border: 1px solid $surface-border;
-    border-radius: 8px;
+    border-radius: 10px;
 
-    > .btn,
-    :deep(.btn) {
+    .action,
+    :deep(.action) {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 14px;
         border: none;
-        border-radius: 0 !important;
-        color: #374151;
+        border-radius: 7px;
         background: transparent;
-        padding: 6px 12px;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: normal;
+        color: #0f172a;
+        text-decoration: none;
 
         &:hover {
-            background-color: #f3f4f6;
+            background-color: #fff;
+        }
+
+        &:disabled {
+            opacity: 0.5;
         }
     }
 
-    > .btn:first-child {
-        border-top-left-radius: 8px !important;
-        border-bottom-left-radius: 8px !important;
+    :deep(.action-more) {
+        padding: 7px 8px;
     }
 
-    :deep(.more-dropdown .btn) {
-        border-top-right-radius: 8px !important;
-        border-bottom-right-radius: 8px !important;
-        padding: 6px 10px;
+    .play-icon {
+        width: 16px;
+        font-size: 12px;
+        color: $text-secondary;
     }
 }
 
 .btn-light-outline {
-    color: #374151;
-    background-color: #fff;
-    border: 1px solid $surface-border;
+    color: #0f172a;
+    background-color: $surface-raised;
+    border: 1px solid $border-strong;
 
     &:hover {
-        background-color: #f3f4f6;
+        background-color: darken($surface-raised, 3%);
     }
 }
 
-.btn-sm-flat {
-    font-size: 13px;
-    font-weight: 500;
-    padding: 5px 12px;
-    border-radius: 8px;
-}
-
 .btn-soft-danger {
-    color: $danger;
-    background-color: rgba($danger, 0.1);
+    padding-left: 16px;
+    padding-right: 16px;
+    color: $danger-strong;
+    background-color: #fef2f2;
     border: none;
 
     &:hover {
-        color: #fff;
-        background-color: $danger;
+        color: $danger-strong;
+        background-color: #fee2e2;
     }
 }
 
@@ -1137,13 +1207,13 @@ export default {
     font-size: 12px;
     font-weight: 500;
     padding: 3px 10px;
-    border-radius: 50rem;
+    border-radius: 999px;
     text-decoration: none;
     color: $primary;
-    background-color: rgba($primary, 0.1);
+    background-color: $accent-subtle;
 
     &:hover {
-        background-color: rgba($primary, 0.18);
+        background-color: #dbeafe;
     }
 }
 
@@ -1153,7 +1223,7 @@ export default {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
 
     .section-title {
         margin-bottom: 0;
@@ -1161,33 +1231,52 @@ export default {
 }
 
 .section-title {
-    font-size: 1.05rem;
+    font-size: 18px;
     font-weight: 600;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
+}
+
+.networks-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-top: 32px;
+    margin-bottom: 32px;
+
+    .section-head {
+        margin-bottom: 0;
+    }
+}
+
+.network-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .group-label {
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.88px;
     text-transform: uppercase;
     color: $muted;
-    margin-bottom: 8px;
 }
 
 .group-hint {
     font-size: 12px;
     color: $muted;
-    margin-top: 2px;
 }
 
 // Network rows
 .network-row {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    margin-bottom: 8px;
+    gap: 14px;
+    height: 64px;
+    padding: 14px 16px;
+    background-color: #fff;
+    border: 1px solid $surface-border;
+    border-radius: 14px;
 }
 
 .network-icon {
@@ -1195,22 +1284,22 @@ export default {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    font-size: 13px;
-    color: $primary;
-    background-color: #e8ecff;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background-color: $accent-subtle;
 
     &.external {
-        color: $muted;
-        background-color: rgba($muted, 0.12);
+        background-color: $surface-raised;
     }
 }
 
 .network-body {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .network-name {
@@ -1219,71 +1308,75 @@ export default {
 }
 
 .network-used {
-    font-size: 12px;
+    font-size: 13px;
     color: $muted;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
+.tags {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .tag-pill {
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
-    border-radius: 50rem;
+    gap: 6px;
+    padding: 4px 10px 4px 8px;
+    border-radius: 999px;
     font-size: 11px;
-    font-weight: 500;
-    color: #4b5563;
-    background-color: rgba($muted, 0.12);
-
-    &::before {
-        content: "";
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background-color: currentColor;
-    }
+    font-weight: 600;
+    line-height: normal;
+    color: $muted;
+    background-color: $surface-raised;
 
     &.tag-blue {
         color: $primary;
-        background-color: rgba($primary, 0.12);
+        background-color: $accent-subtle;
     }
 }
 
 .icon-btn {
     flex-shrink: 0;
-    border: 1px solid $surface-border;
-    background: #fff;
-    border-radius: 8px;
-    width: 30px;
-    height: 30px;
-    font-size: 12px;
-    color: #4b5563;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 10px;
+    background-color: $surface-raised;
 
     &:hover {
-        background-color: #f3f4f6;
+        background-color: darken($surface-raised, 4%);
     }
 }
 
 // Dark theme
 .dark {
-    .action-group,
-    .btn-light-outline,
-    .icon-btn {
-        background-color: $dark-bg;
+    .action-group {
+        background-color: $dark-header-bg;
         border-color: $dark-border-color;
-        color: $dark-font-color;
     }
 
-    .action-group > .btn,
-    .action-group :deep(.btn) {
+    .action-group .action,
+    .action-group :deep(.action) {
         color: $dark-font-color;
 
         &:hover {
-            background-color: $dark-bg2;
+            background-color: $dark-bg;
         }
+    }
+
+    .btn-light-outline,
+    .icon-btn {
+        color: $dark-font-color;
+        background-color: $dark-header-bg;
+        border-color: #343c4d;
     }
 
     .btn-light-outline:hover,
@@ -1291,17 +1384,32 @@ export default {
         background-color: $dark-bg2;
     }
 
+    .btn-soft-danger {
+        color: #f87171;
+        background-color: #2d1618;
+    }
+
+    .network-row {
+        background-color: $dark-bg;
+        border-color: $dark-border-color;
+    }
+
     .network-icon {
         background-color: rgba($primary, 0.2);
-        color: $highlight;
+
+        &.external {
+            background-color: $dark-header-bg;
+        }
     }
 
     .tag-pill {
         color: $dark-font-color;
+        background-color: $dark-header-bg;
     }
 
     .tag-blue {
         color: $highlight;
+        background-color: rgba($primary, 0.2);
     }
 }
 </style>
