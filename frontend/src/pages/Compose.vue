@@ -29,7 +29,7 @@
                 </template>
 
                 <template v-else>
-                    <button class="btn btn-primary" :disabled="processing" @click="addContainerFromView">
+                    <button class="btn btn-primary" :disabled="processing" @click="openContainerDrawer()">
                         <font-awesome-icon icon="plus" class="me-1" />
                         {{ $t("addContainer") }}
                     </button>
@@ -122,17 +122,8 @@
                             <font-awesome-icon icon="file" class="me-1" />
                             {{ $t("editComposeFile", [ stack.composeFileName || "compose.yaml" ]) }}
                         </button>
-                    </div>
-
-                    <div v-if="isEditMode" class="input-group mb-3">
-                        <input
-                            ref="newContainerInput"
-                            v-model="newContainerName"
-                            :placeholder="$t(`New Container Name...`)"
-                            class="form-control"
-                            @keyup.enter="addContainer"
-                        />
-                        <button class="btn btn-primary" @click="addContainer">
+                        <button v-else class="btn btn-light-outline btn-sm-flat" @click="openContainerDrawer()">
+                            <font-awesome-icon icon="plus" class="me-1" />
                             {{ $t("addContainer") }}
                         </button>
                     </div>
@@ -149,7 +140,7 @@
                             @start-service="startService"
                             @stop-service="stopService"
                             @restart-service="restartService"
-                            @edit-service="enableEditMode"
+                            @edit-service="openContainerDrawer"
                         />
                     </div>
 
@@ -266,6 +257,18 @@
                 {{ $t("stackNotManagedByDockgeMsg") }}
             </div>
 
+            <!-- Add / edit container drawer -->
+            <ContainerDrawer
+                :open="containerDrawer.open"
+                :service-name="containerDrawer.serviceName"
+                :json-config="jsonConfig"
+                :stack-name="stack.name"
+                :endpoint="endpoint"
+                :busy="processing && !isEditMode"
+                @close="containerDrawer.open = false"
+                @submit="applyContainerDrawer"
+            />
+
             <!-- Delete Dialog -->
             <BModal v-model="showDeleteDialog" :cancelTitle="$t('cancel')" :okTitle="$t('deleteStack')" okVariant="danger" @ok="deleteDialog">
                 {{ $t("deleteStackMsg") }}
@@ -294,6 +297,7 @@ import {
 } from "../../../common/util-common";
 import { BModal } from "bootstrap-vue-next";
 import NetworkInput from "../components/NetworkInput.vue";
+import ContainerDrawer from "../components/ContainerDrawer.vue";
 import dotenv from "dotenv";
 import { ref } from "vue";
 
@@ -315,6 +319,7 @@ let dockerStatsTimeout = null;
 export default {
     components: {
         NetworkInput,
+        ContainerDrawer,
         FontAwesomeIcon,
         CodeMirror,
         BModal,
@@ -370,7 +375,10 @@ export default {
             isEditMode: false,
             submitted: false,
             showDeleteDialog: false,
-            newContainerName: "",
+            containerDrawer: {
+                open: false,
+                serviceName: "",
+            },
             stopServiceStatusTimeout: false,
             stopDockerStatsTimeout: false,
         };
@@ -899,42 +907,78 @@ export default {
         },
 
         /**
-         * Switch to edit mode and focus the new container name input
+         * Open the container drawer
+         * @param {string} [serviceName] Service to edit; omit to add a new container
          * @returns {void}
          */
-        addContainerFromView() {
-            this.enableEditMode();
-            this.$nextTick(() => {
-                this.$refs.newContainerInput?.focus();
-            });
+        openContainerDrawer(serviceName = "") {
+            this.containerDrawer.serviceName = typeof serviceName === "string" ? serviceName : "";
+            this.containerDrawer.open = true;
         },
 
-        checkYAML() {
+        /**
+         * Apply the container drawer's result to the compose file.
+         * In view mode the stack is deployed right away; in edit mode the
+         * change stays in the editor until the user deploys or saves.
+         * @param {object} result Values emitted by the drawer
+         * @returns {void}
+         */
+        applyContainerDrawer({ originalName, name, service, urls, externalNetworks, internalNetwork }) {
+            const config = this.jsonConfig;
+            config.services = config.services ?? {};
 
-        },
+            if (originalName && originalName !== name) {
+                // Rename while keeping the service order
+                const services = {};
+                for (const [ key, value ] of Object.entries(config.services)) {
+                    services[key === originalName ? name : key] = key === originalName ? service : value;
+                }
+                config.services = services;
 
-        addContainer() {
-            this.checkYAML();
-
-            if (this.jsonConfig.services[this.newContainerName]) {
-                this.$root.toastError("Container name already exists");
-                return;
+                // Point other services' dependencies at the new name
+                for (const other of Object.values(config.services)) {
+                    const dependsOn = other?.depends_on;
+                    if (Array.isArray(dependsOn)) {
+                        other.depends_on = dependsOn.map((dep) => dep === originalName ? name : dep);
+                    } else if (dependsOn && originalName in dependsOn) {
+                        dependsOn[name] = dependsOn[originalName];
+                        delete dependsOn[originalName];
+                    }
+                }
+            } else {
+                config.services[name] = service;
             }
 
-            if (!this.newContainerName) {
-                this.$root.toastError("Container name cannot be empty");
-                return;
+            // Declare the networks the service now uses
+            if (internalNetwork !== "default" || externalNetworks.length > 0) {
+                config.networks = config.networks ?? {};
+                if (internalNetwork !== "default" && !(internalNetwork in config.networks)) {
+                    config.networks[internalNetwork] = {};
+                }
+                for (const networkName of externalNetworks) {
+                    if (!config.networks[networkName]) {
+                        config.networks[networkName] = { external: true };
+                    }
+                }
             }
 
-            this.jsonConfig.services[this.newContainerName] = {
-                restart: "unless-stopped",
-            };
-            this.newContainerName = "";
-            let element = this.$refs.containerList.lastElementChild;
-            element.scrollIntoView({
-                block: "start",
-                behavior: "smooth"
-            });
+            // URLs live in the stack-level "x-dockge" section
+            if (urls.length > 0) {
+                config["x-dockge"] = config["x-dockge"] ?? {};
+                config["x-dockge"].urls = urls;
+            } else if (config["x-dockge"]) {
+                delete config["x-dockge"].urls;
+                if (Object.keys(config["x-dockge"]).length === 0) {
+                    delete config["x-dockge"];
+                }
+            }
+
+            this.containerDrawer.open = false;
+
+            if (!this.isEditMode) {
+                // Wait for the jsonConfig watcher to regenerate the YAML, then deploy
+                this.$nextTick(() => this.deployStack());
+            }
         },
 
         stackNameToLowercase() {
