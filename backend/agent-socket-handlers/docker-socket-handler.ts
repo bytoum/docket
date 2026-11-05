@@ -331,6 +331,20 @@ export class DockerSocketHandler extends AgentSocketHandler {
                 callbackError(e, callback);
             }
         });
+
+        // Networks on the host with their driver and container count
+        agentSocket.on("getDockerNetworkDetails", async (callback) => {
+            try {
+                checkLogin(socket);
+                const dockerNetworkDetails = await server.getDockerNetworkDetails();
+                callbackResult({
+                    ok: true,
+                    dockerNetworkDetails,
+                }, callback);
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
     }
 
     async saveStack(server : DockgeServer, name : unknown, composeYAML : unknown, composeENV : unknown, isAdd : unknown) : Promise<Stack> {

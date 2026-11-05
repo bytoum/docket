@@ -144,6 +144,7 @@
                             @stop-service="stopService"
                             @restart-service="restartService"
                             @edit-service="openContainerDrawer"
+                            @delete-service="deleteContainer"
                         />
                     </div>
 
@@ -165,7 +166,7 @@
                     <div v-if="!isEditMode" class="networks-section">
                         <div class="section-head">
                             <h2 class="section-title">{{ $tc("network", 2) }}</h2>
-                            <button class="btn btn-light-outline toolbar-btn" @click="editNetworks">
+                            <button class="btn btn-light-outline toolbar-btn" @click="openNetworkDrawer()">
                                 <AssetIcon :src="icons.plus" width="10.8333" height="10.8333" tone="neutral" />
                                 {{ $t("addNetwork") }}
                             </button>
@@ -189,7 +190,7 @@
                                         <span v-if="network.driver" class="tag-pill"><img :src="icons.dotNeutral" width="6" height="6" alt="" />{{ network.driver }}</span>
                                         <span v-if="group.key === 'external'" class="tag-pill tag-blue"><img :src="icons.dotAccent" width="6" height="6" alt="" />{{ $t("externalNetwork") }}</span>
                                     </div>
-                                    <button class="icon-btn" :title="$t('Edit')" @click="editNetworks">
+                                    <button class="icon-btn" :title="$t('Edit')" @click="openNetworkDrawer(network.name)">
                                         <AssetIcon :src="icons.pen" width="14.7317" height="14.7317" tone="neutral" />
                                     </button>
                                 </div>
@@ -258,6 +259,19 @@
                 :live="active"
             />
 
+            <!-- Add / edit network drawer -->
+            <NetworkDrawer
+                :open="networkDrawer.open"
+                :network-name="networkDrawer.networkName"
+                :json-config="jsonConfig"
+                :stack-name="stack.name"
+                :endpoint="endpoint"
+                :busy="processing && !isEditMode"
+                @close="networkDrawer.open = false"
+                @submit="applyNetworkDrawer"
+                @delete="deleteNetwork"
+            />
+
             <!-- Add / edit container drawer -->
             <ContainerDrawer
                 :open="containerDrawer.open"
@@ -268,6 +282,7 @@
                 :busy="processing && !isEditMode"
                 @close="containerDrawer.open = false"
                 @submit="applyContainerDrawer"
+                @delete="deleteContainer"
             />
 
             <!-- Delete Dialog -->
@@ -299,6 +314,7 @@ import {
 import { BModal } from "bootstrap-vue-next";
 import NetworkInput from "../components/NetworkInput.vue";
 import ContainerDrawer from "../components/ContainerDrawer.vue";
+import NetworkDrawer from "../components/NetworkDrawer.vue";
 import AssetIcon from "../components/AssetIcon.vue";
 import ConsoleDock from "../components/ConsoleDock.vue";
 import iconPlusOnAccent from "../assets/stack/plus-on-accent.svg";
@@ -353,6 +369,7 @@ export default {
     components: {
         NetworkInput,
         ContainerDrawer,
+        NetworkDrawer,
         AssetIcon,
         ConsoleDock,
         FontAwesomeIcon,
@@ -411,6 +428,11 @@ export default {
             submitted: false,
             showDeleteDialog: false,
             icons,
+            hostNetworkDrivers: {},
+            networkDrawer: {
+                open: false,
+                networkName: "",
+            },
             containerDrawer: {
                 open: false,
                 serviceName: "",
@@ -547,7 +569,7 @@ export default {
                 const config = networks[name] ?? {};
                 const item = {
                     name,
-                    driver: config.driver ?? (config.external ? "" : "bridge"),
+                    driver: config.driver ?? (config.external ? (this.hostNetworkDrivers[config.name ?? name] ?? "") : "bridge"),
                     usedBy: usedBy(name),
                 };
                 (config.external ? externalItems : stackItems).push(item);
@@ -664,6 +686,7 @@ export default {
 
         this.requestServiceStatus();
         this.requestDockerStats();
+        this.loadHostNetworkDrivers();
     },
     unmounted() {
 
@@ -949,11 +972,125 @@ export default {
         },
 
         /**
-         * Switch to edit mode and show the network editor
+         * Load the drivers of the networks on the host, to show them for
+         * external networks. Older agents without this event are ignored.
          * @returns {void}
          */
-        editNetworks() {
-            this.editAndScrollTo("networkEditorTitle");
+        loadHostNetworkDrivers() {
+            if (this.isAdd) {
+                return;
+            }
+            this.$root.emitAgent(this.endpoint, "getDockerNetworkDetails", (res) => {
+                if (res.ok) {
+                    const drivers = {};
+                    for (const network of res.dockerNetworkDetails) {
+                        drivers[network.name] = network.driver;
+                    }
+                    this.hostNetworkDrivers = drivers;
+                }
+            });
+        },
+
+        /**
+         * Open the network drawer
+         * @param {string} [networkName] Network to edit; omit to add one
+         * @returns {void}
+         */
+        openNetworkDrawer(networkName = "") {
+            this.networkDrawer.networkName = typeof networkName === "string" ? networkName : "";
+            this.networkDrawer.open = true;
+        },
+
+        /**
+         * Rename a network in every service that uses it
+         * @param {string} from Old network name
+         * @param {string|null} to New network name, or null to detach it
+         * @returns {void}
+         */
+        renameServiceNetwork(from, to) {
+            for (const service of Object.values(this.jsonConfig.services ?? {})) {
+                const networks = service?.networks;
+                if (Array.isArray(networks)) {
+                    const list = networks.filter((name) => name !== from);
+                    if (to && list.length !== networks.length && !list.includes(to)) {
+                        list.push(to);
+                    }
+                    if (list.length > 0) {
+                        service.networks = list;
+                    } else {
+                        delete service.networks;
+                    }
+                } else if (networks && from in networks) {
+                    const value = networks[from];
+                    delete networks[from];
+                    if (to) {
+                        networks[to] = value;
+                    }
+                    if (Object.keys(networks).length === 0) {
+                        delete service.networks;
+                    }
+                }
+            }
+        },
+
+        /**
+         * Deploy right away in view mode; in edit mode the change stays in the editor
+         * @returns {void}
+         */
+        deployIfViewing() {
+            if (!this.isEditMode) {
+                // Wait for the jsonConfig watcher to regenerate the YAML, then deploy
+                this.$nextTick(() => this.deployStack());
+            }
+        },
+
+        /**
+         * Apply the network drawer's result to the compose file
+         * @param {object} result Values emitted by the drawer
+         * @returns {void}
+         */
+        applyNetworkDrawer({ originalName, name, config }) {
+            const networks = this.jsonConfig.networks ?? {};
+
+            if (originalName && originalName !== name) {
+                // Rename while keeping the order
+                const renamed = {};
+                for (const [ key, value ] of Object.entries(networks)) {
+                    if (key === originalName) {
+                        renamed[name] = config;
+                    } else {
+                        renamed[key] = value;
+                    }
+                }
+                if (!(originalName in networks)) {
+                    renamed[name] = config;
+                }
+                this.jsonConfig.networks = renamed;
+                this.renameServiceNetwork(originalName, name);
+            } else {
+                networks[name] = config;
+                this.jsonConfig.networks = networks;
+            }
+
+            this.networkDrawer.open = false;
+            this.deployIfViewing();
+        },
+
+        /**
+         * Remove a network from the stack and from every service using it
+         * @param {string} networkName Network to remove
+         * @returns {void}
+         */
+        deleteNetwork(networkName) {
+            const networks = this.jsonConfig.networks ?? {};
+            delete networks[networkName];
+            if (Object.keys(networks).length === 0) {
+                delete this.jsonConfig.networks;
+            }
+            this.renameServiceNetwork(networkName, null);
+
+            this.networkDrawer.open = false;
+            this.deployIfViewing();
         },
 
         /**
@@ -964,6 +1101,43 @@ export default {
         openContainerDrawer(serviceName = "") {
             this.containerDrawer.serviceName = typeof serviceName === "string" ? serviceName : "";
             this.containerDrawer.open = true;
+        },
+
+        /**
+         * Remove a service from the compose file and from other services'
+         * dependencies. In view mode the stack is deployed right away, which
+         * removes the container (deploy uses --remove-orphans).
+         * @param {string} serviceName Service to remove
+         * @returns {void}
+         */
+        deleteContainer(serviceName) {
+            const services = this.jsonConfig.services ?? {};
+            if (!(serviceName in services)) {
+                return;
+            }
+            delete services[serviceName];
+
+            for (const other of Object.values(services)) {
+                const dependsOn = other?.depends_on;
+                if (Array.isArray(dependsOn)) {
+                    other.depends_on = dependsOn.filter((dep) => dep !== serviceName);
+                    if (other.depends_on.length === 0) {
+                        delete other.depends_on;
+                    }
+                } else if (dependsOn && serviceName in dependsOn) {
+                    delete dependsOn[serviceName];
+                    if (Object.keys(dependsOn).length === 0) {
+                        delete other.depends_on;
+                    }
+                }
+            }
+
+            this.containerDrawer.open = false;
+
+            if (!this.isEditMode) {
+                // Wait for the jsonConfig watcher to regenerate the YAML, then deploy
+                this.$nextTick(() => this.deployStack());
+            }
         },
 
         /**

@@ -5,7 +5,7 @@
         </transition>
 
         <transition name="drawer-slide">
-            <aside v-if="open" class="container-drawer" :class="$root.theme" role="dialog" aria-modal="true" @keydown.esc="close">
+            <aside v-if="open" class="side-drawer" :class="$root.theme" role="dialog" aria-modal="true" @keydown.esc="close">
                 <!-- Header -->
                 <header class="drawer-header">
                     <div class="drawer-title">
@@ -111,7 +111,8 @@
                             <div v-for="name in externalNetworkOptions" :key="name" class="network-toggle">
                                 <div class="info">
                                     <div class="name">{{ name }}</div>
-                                    <div v-if="externalUsedBy(name).length > 0" class="meta">{{ $t("usedBy", [ externalUsedBy(name).join(", ") ]) }}</div>
+                                    <div v-if="hostNetworkInfo[name]?.driver" class="meta">{{ hostNetworkInfo[name].driver }} · {{ $tc("containerCount", hostNetworkInfo[name].containers) }}</div>
+                                    <div v-else-if="externalUsedBy(name).length > 0" class="meta">{{ $t("usedBy", [ externalUsedBy(name).join(", ") ]) }}</div>
                                 </div>
                                 <button
                                     type="button" class="switch" role="switch" :aria-checked="!!draft.externalNetworks[name]" :aria-label="name"
@@ -173,12 +174,25 @@
 
                 <!-- Footer -->
                 <footer class="drawer-footer">
+                    <button v-if="!isAdd" type="button" class="footer-btn danger" :disabled="busy" @click="showDeleteDialog = true">
+                        <AssetIcon :src="iconTrash" width="13.5" height="14.8333" />
+                        {{ $t("deleteStack") }}
+                    </button>
+                    <span class="footer-spacer"></span>
                     <button type="button" class="footer-btn secondary" @click="close">{{ $t("cancel") }}</button>
                     <button type="submit" form="container-drawer-form" class="footer-btn primary" :disabled="busy">
                         <span v-if="isAdd" class="icon"><img :src="iconPlusOnAccent" alt="" width="10.8333" height="10.8333" /></span>
                         {{ isAdd ? $t("addContainer") : $t("saveChanges") }}
                     </button>
                 </footer>
+
+                <!-- Delete confirmation -->
+                <BModal
+                    v-model="showDeleteDialog" :title="$t('deleteContainerTitle')" :cancelTitle="$t('cancel')"
+                    :okTitle="$t('deleteContainer')" okVariant="danger" @ok="$emit('delete', serviceName)"
+                >
+                    {{ $t("deleteContainerMsg", [ serviceName ]) }}
+                </BModal>
             </aside>
         </transition>
     </Teleport>
@@ -191,6 +205,9 @@ import iconPlusOnAccent from "../assets/drawer/plus-on-accent.svg";
 import iconChevron from "../assets/drawer/chevron-down.svg";
 import iconSwitchOn from "../assets/drawer/switch-on.svg";
 import iconSwitchOff from "../assets/drawer/switch-off.svg";
+import iconTrash from "../assets/stack/trash.svg";
+import AssetIcon from "./AssetIcon.vue";
+import { BModal } from "bootstrap-vue-next";
 
 // Service names allowed by Docker Compose
 const SERVICE_NAME_PATTERN = /^[a-z0-9][a-z0-9_.-]*$/;
@@ -209,6 +226,10 @@ function networksOf(service) {
 }
 
 export default {
+    components: {
+        AssetIcon,
+        BModal,
+    },
     props: {
         /** Whether the drawer is shown */
         open: {
@@ -241,7 +262,7 @@ export default {
             default: false,
         },
     },
-    emits: [ "close", "submit" ],
+    emits: [ "close", "submit", "delete" ],
     data() {
         return {
             iconClose,
@@ -250,7 +271,10 @@ export default {
             iconChevron,
             iconSwitchOn,
             iconSwitchOff,
+            iconTrash,
+            showDeleteDialog: false,
             hostNetworks: [],
+            hostNetworkInfo: {},
             draft: this.emptyDraft(),
             simpleLists: [
                 {
@@ -409,14 +433,27 @@ export default {
          * @returns {void}
          */
         loadHostNetworks() {
-            this.$root.emitAgent(this.endpoint, "getDockerNetworkList", (res) => {
-                if (!res.ok) {
+            // Skip this stack's own networks and the ones Compose does not support
+            const usable = (name) => !(this.stackName && name.startsWith(this.stackName + "_"))
+                && ![ "none", "host", "bridge" ].includes(name);
+
+            this.$root.emitAgent(this.endpoint, "getDockerNetworkDetails", (res) => {
+                if (res.ok) {
+                    const info = {};
+                    for (const network of res.dockerNetworkDetails) {
+                        info[network.name] = network;
+                    }
+                    this.hostNetworkInfo = info;
+                    this.hostNetworks = res.dockerNetworkDetails.map((network) => network.name).filter(usable);
                     return;
                 }
-                // Skip this stack's own networks and the ones Compose does not support
-                this.hostNetworks = res.dockerNetworkList.filter((name) =>
-                    !(this.stackName && name.startsWith(this.stackName + "_"))
-                    && ![ "none", "host", "bridge" ].includes(name));
+
+                // Older agents only list names
+                this.$root.emitAgent(this.endpoint, "getDockerNetworkList", (listRes) => {
+                    if (listRes.ok) {
+                        this.hostNetworks = listRes.dockerNetworkList.filter(usable);
+                    }
+                });
             });
         },
 
@@ -539,434 +576,5 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import "../styles/vars.scss";
-
-.drawer-scrim {
-    position: fixed;
-    inset: 0;
-    z-index: 1040;
-    background-color: rgba(15, 23, 41, 0.35);
-}
-
-.container-drawer {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 1045;
-    width: 520px;
-    max-width: 100vw;
-    display: flex;
-    flex-direction: column;
-    background-color: #fff;
-    border-left: 1px solid $surface-border;
-    box-shadow: -8px 0 32px rgba(15, 23, 41, 0.18);
-    color: #111827;
-}
-
-.icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-}
-
-// Header
-.drawer-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 20px 20px 20px 24px;
-    border-bottom: 1px solid $surface-border;
-}
-
-.drawer-title {
-    flex: 1;
-    min-width: 0;
-
-    h2 {
-        font-size: 20px;
-        font-weight: 600;
-        letter-spacing: -0.2px;
-        margin: 0 0 2px;
-    }
-
-    p {
-        font-size: 13px;
-        color: $muted;
-        margin: 0;
-    }
-}
-
-.square-btn {
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    border: 1px solid $surface-border;
-    border-radius: 10px;
-    background-color: #fff;
-
-    &:hover {
-        background-color: #f3f4f6;
-    }
-}
-
-.square-spacer {
-    flex-shrink: 0;
-    width: 44px;
-}
-
-// Body
-.drawer-body {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
-    padding: 24px 24px 28px;
-}
-
-.field {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.field-networks {
-    gap: 16px;
-}
-
-.sub-field {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.field-label {
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.field-hint {
-    font-size: 12px;
-    color: $muted;
-    margin: 0;
-}
-
-.group-label {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.88px;
-    text-transform: uppercase;
-    color: $muted;
-}
-
-.field-input {
-    width: 100%;
-    height: 44px;
-    padding: 11px 14px;
-    font-size: 14px;
-    color: inherit;
-    background-color: #fff;
-    border: 1px solid $border-strong;
-    border-radius: 10px;
-    outline: none;
-
-    &::placeholder {
-        color: $muted;
-    }
-
-    &:focus {
-        border-color: $primary;
-        box-shadow: 0 0 0 3px rgba($primary, 0.15);
-    }
-}
-
-.rows {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.row-line {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-
-    > .field-input {
-        flex: 1;
-        min-width: 0;
-    }
-}
-
-.column-headers {
-    font-size: 12px;
-    font-weight: 500;
-    color: $muted;
-}
-
-.env-key {
-    flex: 0 0 240px !important;
-    width: 240px;
-}
-
-.env-value {
-    flex: 1;
-    min-width: 0;
-}
-
-.add-row {
-    align-self: flex-start;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 0;
-    border: none;
-    background: none;
-    font-size: 14px;
-    font-weight: 600;
-    color: $primary;
-
-    &:hover {
-        text-decoration: underline;
-    }
-}
-
-// Restart policy
-.chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.choice-chip {
-    padding: 8px 14px;
-    font-size: 13px;
-    font-weight: 500;
-    color: $text-secondary;
-    background-color: #fff;
-    border: 1px solid $border-strong;
-    border-radius: 999px;
-
-    &:hover {
-        background-color: #f3f4f6;
-    }
-
-    &.selected {
-        color: $primary;
-        background-color: rgba($primary, 0.08);
-        border-color: $primary;
-    }
-}
-
-// Networks
-.select-wrapper {
-    position: relative;
-
-    select {
-        appearance: none;
-        padding-right: 38px;
-        cursor: pointer;
-    }
-
-    .select-chevron {
-        position: absolute;
-        right: 14px;
-        top: 50%;
-        transform: translateY(-50%);
-        pointer-events: none;
-    }
-}
-
-.network-toggle {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-height: 60px;
-    padding: 12px 14px;
-    border: 1px solid $surface-border;
-    border-radius: 12px;
-
-    .info {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .name {
-        font-size: 14px;
-        font-weight: 600;
-    }
-
-    .meta {
-        font-size: 13px;
-        color: $muted;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-}
-
-.switch {
-    flex-shrink: 0;
-    display: inline-flex;
-    padding: 0;
-    border: none;
-    background: none;
-    border-radius: 13px;
-
-    &:focus-visible {
-        outline: 2px solid $primary;
-        outline-offset: 2px;
-    }
-}
-
-.divider-label {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.88px;
-    text-transform: uppercase;
-    color: $muted;
-
-    .line {
-        flex: 1;
-        height: 1px;
-        background-color: $surface-border;
-    }
-}
-
-// Footer
-.drawer-footer {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 12px;
-    padding: 20px 24px;
-    border-top: 1px solid $surface-border;
-    background-color: #fff;
-}
-
-.footer-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 11px 18px;
-    font-size: 14px;
-    font-weight: 600;
-    border-radius: 10px;
-
-    &.secondary {
-        color: #111827;
-        background-color: #f3f4f6;
-        border: 1px solid $border-strong;
-
-        &:hover {
-            background-color: #e9ebef;
-        }
-    }
-
-    &.primary {
-        color: #fff;
-        background-color: $primary;
-        border: 1px solid $primary;
-
-        &:hover {
-            background-color: #1d4ed8;
-        }
-
-        &:disabled {
-            opacity: 0.6;
-        }
-    }
-}
-
-// Dark theme
-.container-drawer.dark {
-    color: #f1f5f9;
-    background-color: $dark-bg;
-    border-left-color: $dark-border-color;
-
-    .drawer-header,
-    .drawer-footer {
-        border-color: $dark-border-color;
-    }
-
-    .drawer-footer {
-        background-color: $dark-bg;
-    }
-
-    .field-input,
-    .square-btn,
-    .choice-chip {
-        color: #f1f5f9;
-        background-color: $dark-bg;
-        border-color: #343c4d;
-    }
-
-    .square-btn:hover,
-    .choice-chip:hover {
-        background-color: $dark-header-bg;
-    }
-
-    .choice-chip.selected {
-        color: $highlight;
-        background-color: rgba($primary, 0.2);
-        border-color: $highlight;
-    }
-
-    .network-toggle,
-    .divider-label .line {
-        border-color: $dark-border-color;
-    }
-
-    .divider-label .line {
-        background-color: $dark-border-color;
-    }
-
-    .add-row {
-        color: $highlight;
-    }
-
-    .footer-btn.secondary {
-        color: #f1f5f9;
-        background-color: $dark-header-bg;
-        border-color: #343c4d;
-    }
-}
-
-// Transitions
-.drawer-fade-enter-active,
-.drawer-fade-leave-active {
-    transition: opacity 0.2s ease;
-}
-
-.drawer-fade-enter-from,
-.drawer-fade-leave-to {
-    opacity: 0;
-}
-
-.drawer-slide-enter-active,
-.drawer-slide-leave-active {
-    transition: transform 0.25s $easing-out;
-}
-
-.drawer-slide-enter-from,
-.drawer-slide-leave-to {
-    transform: translateX(100%);
-}
-
-@media (max-width: 560px) {
-    .env-key {
-        flex-basis: 40% !important;
-        width: 40%;
-    }
-}
+@import "../styles/drawer.scss";
 </style>

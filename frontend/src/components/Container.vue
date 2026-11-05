@@ -156,6 +156,7 @@ export default defineComponent({
         "stop-service",
         "restart-service",
         "edit-service",
+        "delete-service",
     ],
     data() {
         return {
@@ -313,7 +314,7 @@ export default defineComponent({
             }
         },
         remove() {
-            delete this.jsonObject.services[this.name];
+            this.$emit("delete-service", this.name);
         },
         startService() {
             this.$emit("start-service", this.name);

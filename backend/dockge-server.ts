@@ -38,6 +38,13 @@ import { AgentSocket } from "../common/agent-socket";
 import { ManageAgentSocketHandler } from "./socket-handlers/manage-agent-socket-handler";
 import { Terminal } from "./terminal";
 
+/** A Docker network on the host */
+export interface DockerNetworkDetails {
+    name: string;
+    driver: string;
+    containers: number;
+}
+
 export class DockgeServer {
     app : Express;
     httpServer : http.Server;
@@ -635,6 +642,41 @@ export class DockgeServer {
         });
 
         return list;
+    }
+
+    /**
+     * List the Docker networks on this host with their driver and how many
+     * containers are attached to each
+     * @returns {Promise<DockerNetworkDetails[]>} Networks sorted by name
+     */
+    async getDockerNetworkDetails() : Promise<DockerNetworkDetails[]> {
+        const names = await this.getDockerNetworkList();
+        if (names.length === 0) {
+            return [];
+        }
+
+        const res = await childProcessAsync.spawn("docker", [ "network", "inspect", "--format", "{{.Name}}\t{{.Driver}}\t{{len .Containers}}", ...names ], {
+            encoding: "utf-8",
+        });
+
+        const details = new Map<string, DockerNetworkDetails>();
+        for (const line of (res.stdout ?? "").toString().split("\n")) {
+            const [ name, driver, containers ] = line.split("\t");
+            if (name) {
+                details.set(name, {
+                    name,
+                    driver: driver ?? "",
+                    containers: Number.parseInt(containers ?? "0", 10) || 0,
+                });
+            }
+        }
+
+        // Keep every listed network, even if inspect skipped it
+        return names.map((name) => details.get(name) ?? {
+            name,
+            driver: "",
+            containers: 0,
+        });
     }
 
     async getDockerStats() : Promise<Map<string, object>> {
