@@ -1,12 +1,8 @@
 <template>
     <transition name="slide-fade" appear>
         <div class="stack-page">
-            <!-- Header -->
-            <div v-if="isAdd" class="stack-header">
-                <span class="state-pill accent"><img :src="icons.dotAccent" width="6" height="6" alt="" />{{ $t("newBadge") }}</span>
-                <h1>{{ $t("newStack") }}</h1>
-                <span class="meta">{{ $t("newStackSubtitle") }}</span>
-            </div>
+            <!-- Header (a new stack starts straight with the toolbar) -->
+            <h1 v-if="isAdd" class="visually-hidden">{{ $t("newStack") }}</h1>
             <div v-else-if="isEditMode" class="stack-header">
                 <span class="state-pill accent"><img :src="icons.dotAccent" width="6" height="6" alt="" />{{ $t("editingBadge") }}</span>
                 <h1>{{ stack.name }}</h1>
@@ -22,7 +18,7 @@
             </div>
 
             <!-- Actions -->
-            <div v-if="stack.isManagedByDockge" class="action-bar">
+            <div v-if="stack.isManagedByDockge" class="action-bar" :class="{ flat: isAdd }">
                 <template v-if="isEditMode">
                     <!-- Save = save and deploy; the menu saves without deploying -->
                     <div class="save-group">
@@ -40,7 +36,7 @@
                         </BDropdown>
                     </div>
 
-                    <button v-if="isAdd" class="btn btn-light-outline toolbar-btn" :disabled="processing" @click="$router.push('/')">{{ $t("cancel") }}</button>
+                    <button v-if="isAdd" class="btn flat-btn toolbar-btn" :disabled="processing" @click="$router.push('/')">{{ $t("cancel") }}</button>
                     <button v-else class="btn btn-light-outline toolbar-btn" :disabled="processing" @click="discardStack">{{ $t("discardStack") }}</button>
 
                     <span v-if="isDirty" class="state-pill warning ms-auto">
@@ -180,80 +176,87 @@
 
             <!-- Edit mode: compose.yaml / .env editor -->
             <div v-if="stack.isManagedByDockge && isEditMode" class="edit-view">
-                <!-- New stack: name, starting point and agent -->
-                <div v-if="isAdd" class="setup-row">
-                    <div class="setup-field stack-name-field">
-                        <label for="name" class="field-label">{{ $t("stackName") }}</label>
-                        <input id="name" v-model="stack.name" type="text" class="form-control setup-input" required placeholder="e.g. my-stack" autocomplete="off" @blur="stackNameToLowercase">
-                        <p class="field-hint">{{ $t("stackNameHint") }}</p>
-                    </div>
-
-                    <div class="setup-field">
-                        <span class="field-label">{{ $t("startFrom") }}</span>
-                        <div class="choice-chips" role="radiogroup">
-                            <button
-                                v-for="option in startFromOptions" :key="option.value" type="button" class="choice-chip"
-                                role="radio" :aria-checked="startFrom === option.value" :class="{ selected: startFrom === option.value }"
-                                @click="applyStartFrom(option.value)"
-                            >
-                                {{ $t(option.label) }}
-                            </button>
-                        </div>
-                        <p class="field-hint">{{ $t("startFromHint") }}</p>
-                    </div>
-
-                    <div v-if="$root.agentCount > 1" class="setup-field">
-                        <label for="endpoint" class="field-label">{{ $t("dockgeAgent") }}</label>
-                        <select id="endpoint" v-model="stack.endpoint" class="form-select setup-input">
-                            <option v-for="(agent, agentEndpoint) in $root.agentList" :key="agentEndpoint" :value="agentEndpoint" :disabled="$root.agentStatusList[agentEndpoint] != 'online'">
-                                ({{ $root.agentStatusList[agentEndpoint] }}) {{ (agent.name !== '') ? agent.name : agent.url || $t("Current") }}
-                            </option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Start from docker run -->
-                <div v-if="isAdd && startFrom === 'dockerRun'" class="docker-run-row">
-                    <textarea v-model="dockerRunCommand" class="form-control docker-run-input" rows="2" spellcheck="false" placeholder="docker run -d --name my-app -p 8080:80 nginx:latest"></textarea>
-                    <button type="button" class="btn btn-primary toolbar-btn" :disabled="!dockerRunCommand.trim()" @click="convertDockerRun">
-                        {{ $t("Convert to Compose") }}
-                    </button>
-                </div>
-
                 <div class="edit-content" :class="{ 'with-panel': isAdd }">
-                    <!-- New stack: containers, in sync with compose.yaml -->
-                    <div v-if="isAdd" class="containers-panel">
-                        <div class="section-head">
-                            <div>
-                                <h2 class="section-title">{{ $tc("container", 2) }}</h2>
-                                <p class="field-hint">{{ $t("containersSyncHint") }}</p>
-                            </div>
-                            <button class="btn btn-light-outline toolbar-btn" @click="openContainerDrawer()">
-                                <AssetIcon :src="icons.plus" width="10.8333" height="10.8333" tone="neutral" />
-                                {{ $t("addContainer") }}
-                            </button>
+                    <!-- New stack: configuration panel -->
+                    <div v-if="isAdd" class="config-panel">
+                        <div class="panel-title">
+                            <h2>{{ $t("configuration") }}</h2>
+                            <p class="field-hint">{{ $t("configurationHint") }}</p>
                         </div>
 
-                        <div class="service-rows">
-                            <div v-for="(service, name) in jsonConfig.services" :key="name" class="service-row">
-                                <span class="service-icon"><AssetIcon :src="icons.cubeLarge" width="15" height="16.4985" :box="18" /></span>
-                                <div class="service-info">
-                                    <div class="service-name">{{ name }}</div>
-                                    <div v-if="service?.image" class="service-image">{{ service.image }}</div>
-                                </div>
-                                <span v-if="firstPort(service)" class="tag-pill"><img :src="icons.dotNeutral" width="6" height="6" alt="" />{{ firstPort(service) }}</span>
-                                <button type="button" class="row-btn" :title="$t('Edit')" @click="openContainerDrawer(name)">
-                                    <AssetIcon :src="icons.penRow" width="12.8902" height="12.8902" :box="14" tone="neutral" />
-                                </button>
-                                <button type="button" class="row-btn danger" :title="$t('deleteContainer')" @click="deleteContainer(name)">
-                                    <AssetIcon :src="icons.trashRow" width="11.6667" height="12.8333" :box="14" />
+                        <div class="setup-field">
+                            <label for="name" class="field-label">{{ $t("stackName") }}</label>
+                            <input id="name" v-model="stack.name" type="text" class="flat-input" required placeholder="e.g. my-stack" autocomplete="off" @blur="stackNameToLowercase">
+                            <p class="field-hint">{{ $t("stackNameHint") }}</p>
+                        </div>
+
+                        <div class="setup-field">
+                            <span class="field-label">{{ $t("startFrom") }}</span>
+                            <div class="choice-chips" role="radiogroup">
+                                <button
+                                    v-for="option in startFromOptions" :key="option.value" type="button" class="choice-chip"
+                                    role="radio" :aria-checked="startFrom === option.value" :class="{ selected: startFrom === option.value }"
+                                    @click="applyStartFrom(option.value)"
+                                >
+                                    {{ $t(option.label) }}
                                 </button>
                             </div>
-                            <p v-if="serviceCount === 0" class="field-hint">{{ $t("noContainersYet") }}</p>
+                            <p class="field-hint">{{ $t("startFromHint") }}</p>
+
+                            <!-- Start from docker run -->
+                            <div v-if="startFrom === 'dockerRun'" class="docker-run-box">
+                                <textarea v-model="dockerRunCommand" class="flat-input docker-run-input" rows="3" spellcheck="false" placeholder="docker run -d --name my-app -p 8080:80 nginx:latest"></textarea>
+                                <button type="button" class="btn btn-primary toolbar-btn" :disabled="!dockerRunCommand.trim()" @click="convertDockerRun">
+                                    {{ $t("Convert to Compose") }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div v-if="$root.agentCount > 1" class="setup-field">
+                            <label for="endpoint" class="field-label">{{ $t("dockgeAgent") }}</label>
+                            <select id="endpoint" v-model="stack.endpoint" class="flat-input">
+                                <option v-for="(agent, agentEndpoint) in $root.agentList" :key="agentEndpoint" :value="agentEndpoint" :disabled="$root.agentStatusList[agentEndpoint] != 'online'">
+                                    ({{ $root.agentStatusList[agentEndpoint] }}) {{ (agent.name !== '') ? agent.name : agent.url || $t("Current") }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <hr class="panel-divider" />
+
+                        <!-- Containers, in sync with compose.yaml -->
+                        <div class="containers-panel">
+                            <div class="section-head">
+                                <div>
+                                    <h2 class="section-title">{{ $tc("container", 2) }}</h2>
+                                    <p class="field-hint">{{ $t("containersSyncHint") }}</p>
+                                </div>
+                                <button class="btn flat-btn toolbar-btn" @click="openContainerDrawer()">
+                                    <AssetIcon :src="icons.plus" width="10.8333" height="10.8333" tone="neutral" />
+                                    {{ $t("addContainer") }}
+                                </button>
+                            </div>
+
+                            <div class="service-rows">
+                                <div v-for="(service, name) in jsonConfig.services" :key="name" class="service-row">
+                                    <span class="service-icon"><AssetIcon :src="icons.cubeLarge" width="15" height="16.4985" :box="18" /></span>
+                                    <div class="service-info">
+                                        <div class="service-name">{{ name }}</div>
+                                        <div v-if="service?.image" class="service-image">{{ service.image }}</div>
+                                    </div>
+                                    <span v-if="firstPort(service)" class="tag-pill"><img :src="icons.dotNeutral" width="6" height="6" alt="" />{{ firstPort(service) }}</span>
+                                    <button type="button" class="row-btn" :title="$t('Edit')" @click="openContainerDrawer(name)">
+                                        <AssetIcon :src="icons.penRow" width="12.8902" height="12.8902" :box="14" tone="neutral" />
+                                    </button>
+                                    <button type="button" class="row-btn danger" :title="$t('deleteContainer')" @click="deleteContainer(name)">
+                                        <AssetIcon :src="icons.trashRow" width="11.6667" height="12.8333" :box="14" />
+                                    </button>
+                                </div>
+                                <p v-if="serviceCount === 0" class="field-hint">{{ $t("noContainersYet") }}</p>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="editor-card">
+                    <div class="editor-card" :class="{ flat: isAdd }">
                         <div class="editor-header">
                             <div class="file-tabs" role="tablist">
                                 <button
@@ -276,7 +279,7 @@
                                 <button type="button" class="format-btn" :title="$t('formatYaml') + ' (Shift+Alt+F)'" @click="formatYAML">
                                     <AssetIcon :src="icons.format" width="13.3333" height="13.3333" />
                                     {{ $t("formatYaml") }}
-                                    <kbd class="shortcut">Shift+Alt+F</kbd>
+                                    <kbd v-if="!isAdd" class="shortcut">Shift+Alt+F</kbd>
                                 </button>
                             </template>
                         </div>
@@ -1623,11 +1626,11 @@ export default {
         font-size: 14px;
         font-weight: 500;
         line-height: normal;
-        color: #0f172a;
+        color: $text-primary;
         text-decoration: none;
 
         &:hover {
-            background-color: #fff;
+            background-color: $bg-surface;
         }
 
         &:disabled {
@@ -1647,7 +1650,7 @@ export default {
 }
 
 .btn-light-outline {
-    color: #0f172a;
+    color: $text-primary;
     background-color: $surface-raised;
     border: 1px solid $border-strong;
 
@@ -1660,12 +1663,12 @@ export default {
     padding-left: 16px;
     padding-right: 16px;
     color: $danger-strong;
-    background-color: #fef2f2;
+    background-color: $status-danger-subtle;
     border: none;
 
     &:hover {
         color: $danger-strong;
-        background-color: #fee2e2;
+        background-color: $status-danger-subtle-hover;
     }
 }
 
@@ -1679,7 +1682,7 @@ export default {
     background-color: $accent-subtle;
 
     &:hover {
-        background-color: #dbeafe;
+        background-color: darken($accent-primary-subtle, 4%);
     }
 }
 
@@ -1740,7 +1743,7 @@ export default {
     gap: 14px;
     height: 64px;
     padding: 14px 16px;
-    background-color: #fff;
+    background-color: $bg-surface;
     border: 1px solid $surface-border;
     border-radius: 14px;
 }
@@ -1797,8 +1800,8 @@ export default {
     font-size: 11px;
     font-weight: 600;
     line-height: normal;
-    color: $muted;
-    background-color: $surface-raised;
+    color: $status-neutral;
+    background-color: $status-neutral-subtle;
 
     &.tag-blue {
         color: $primary;
@@ -1847,18 +1850,18 @@ export default {
     }
 
     &.warning {
-        color: #b45309;
-        background-color: #fef3c7;
+        color: $status-warning;
+        background-color: $status-warning-subtle;
     }
 
     &.success {
         color: $success;
-        background-color: #dcfce7;
+        background-color: $status-success-subtle;
     }
 
     &.danger {
         color: $danger-strong;
-        background-color: #fef2f2;
+        background-color: $status-danger-subtle;
     }
 }
 
@@ -1886,7 +1889,7 @@ export default {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background-color: #fff;
+    background-color: $bg-surface;
     border: 1px solid $surface-border;
     border-radius: 16px;
 }
@@ -1923,11 +1926,11 @@ export default {
     }
 
     &:hover {
-        background-color: #f8fafc;
+        background-color: $bg-input;
     }
 
     &.active {
-        color: #0f172a;
+        color: $text-primary;
     }
 }
 
@@ -1948,7 +1951,7 @@ export default {
     background-color: $accent-subtle;
 
     &:hover {
-        background-color: #dbeafe;
+        background-color: darken($accent-primary-subtle, 4%);
     }
 
     .shortcut {
@@ -1958,7 +1961,7 @@ export default {
         font-size: 11px;
         font-weight: 500;
         color: $text-secondary;
-        background-color: #fff;
+        background-color: $bg-surface;
         box-shadow: none;
     }
 }
@@ -1976,7 +1979,7 @@ export default {
     :deep(.cm-editor) {
         font-family: 'JetBrains Mono', monospace;
         font-size: 13px;
-        color: #0f172a;
+        color: $text-primary;
         background-color: #fff !important;
 
         &.cm-focused {
@@ -1991,7 +1994,7 @@ export default {
 
     :deep(.cm-content) {
         padding: 16px 0;
-        caret-color: #0f172a;
+        caret-color: $text-primary;
     }
 
     :deep(.cm-line) {
@@ -2002,7 +2005,7 @@ export default {
         min-height: 100%;
         padding: 0 14px 0 16px;
         color: $muted;
-        background-color: #f8fafc;
+        background-color: $bg-input;
         border-right: 1px solid $surface-border;
     }
 
@@ -2020,11 +2023,11 @@ export default {
 
     :deep(.cm-activeLineGutter) {
         background-color: transparent;
-        color: #0f172a;
+        color: $text-primary;
     }
 
     :deep(.cm-cursor) {
-        border-left: 2px solid #0f172a;
+        border-left: 2px solid $text-primary;
     }
 
     :deep(.tok-key) {
@@ -2032,7 +2035,7 @@ export default {
     }
 
     :deep(.tok-var) {
-        color: #b45309;
+        color: $status-warning;
     }
 
     :deep(.tok-comment) {
@@ -2052,7 +2055,7 @@ export default {
     padding: 10px 20px;
     font-size: 12px;
     color: $muted;
-    background-color: #f8fafc;
+    background-color: $bg-input;
     border-top: 1px solid $surface-border;
 
     .validation {
@@ -2075,24 +2078,75 @@ export default {
     }
 }
 
-// New stack: setup row
-.setup-row {
+// New stack (Figma "New compose"): flat style, 4px corners, no borders
+$flat-radius: 4px;
+
+.action-bar.flat {
+    .toolbar-btn,
+    :deep(.save-toggle) {
+        border-radius: $flat-radius;
+    }
+
+    .save-main {
+        border-radius: $flat-radius 0 0 $flat-radius;
+    }
+
+    :deep(.save-toggle) {
+        border-radius: 0 $flat-radius $flat-radius 0;
+    }
+}
+
+.flat-btn {
+    color: $text-primary;
+    background-color: $bg-surface-raised;
+    border: none;
+
+    &:hover {
+        color: $text-primary;
+        background-color: darken($bg-surface-raised, 4%);
+    }
+}
+
+.edit-content.with-panel {
+    display: grid;
+    grid-template-columns: 480px minmax(0, 1fr);
+    gap: 24px;
+    align-items: stretch;
+    // Fill the window below the toolbar
+    height: calc(100vh - 64px - 40px - 39px - 28px - 40px);
+    min-height: 560px;
+
+    @media (max-width: 1200px) {
+        grid-template-columns: minmax(0, 1fr);
+        height: auto;
+
+        .editor-body {
+            height: 480px;
+        }
+    }
+}
+
+.config-panel {
     display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 16px 32px;
-    margin-bottom: 28px;
+    flex-direction: column;
+    gap: 24px;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 24px;
+    background-color: $bg-surface;
+    border-radius: $flat-radius;
+}
+
+.panel-title h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 2px;
 }
 
 .setup-field {
     display: flex;
     flex-direction: column;
     gap: 8px;
-}
-
-.stack-name-field {
-    width: 420px;
-    max-width: 100%;
 }
 
 .field-label {
@@ -2103,20 +2157,32 @@ export default {
 
 .field-hint {
     font-size: 12px;
-    color: $muted;
+    color: $text-muted;
     margin: 0;
 }
 
-.setup-input {
-    height: 44px;
+.flat-input {
+    width: 100%;
+    min-height: 44px;
     padding: 11px 14px;
     font-size: 14px;
-    border-color: $border-strong;
-    border-radius: 10px;
+    color: $text-primary;
+    background-color: $bg-input;
+    border: none;
+    border-radius: $flat-radius;
+    outline: none;
 
     &::placeholder {
-        color: $muted;
+        color: $text-muted;
     }
+
+    &:focus {
+        box-shadow: 0 0 0 2px rgba($accent-primary, 0.35);
+    }
+}
+
+select.flat-input {
+    cursor: pointer;
 }
 
 .choice-chips {
@@ -2131,51 +2197,39 @@ export default {
     font-weight: 500;
     line-height: normal;
     color: $text-secondary;
-    background-color: #fff;
-    border: 1px solid $border-strong;
+    background-color: $bg-surface-raised;
+    border: none;
     border-radius: 999px;
 
     &:hover {
-        background-color: #f8fafc;
+        background-color: darken($bg-surface-raised, 4%);
     }
 
     &.selected {
-        color: $primary;
-        background-color: $accent-subtle;
-        border-color: $primary;
+        color: $accent-primary;
+        background-color: $accent-primary-subtle;
     }
 }
 
-.docker-run-row {
+.docker-run-box {
     display: flex;
+    flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
-    margin: -12px 0 28px;
+    gap: 8px;
+    margin-top: 4px;
 
     .docker-run-input {
-        flex: 1;
         font-family: 'JetBrains Mono', monospace;
         font-size: 13px;
-        border-color: $border-strong;
-        border-radius: 10px;
         resize: vertical;
     }
 }
 
-// Containers panel next to the editor
-.edit-content.with-panel {
-    display: grid;
-    grid-template-columns: 440px minmax(0, 1fr);
-    gap: 24px;
-    align-items: start;
-
-    @media (max-width: 1200px) {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .editor-body {
-        height: calc(100vh - 470px);
-    }
+.panel-divider {
+    margin: 0;
+    border: none;
+    border-top: 1px solid $border-default;
+    opacity: 1;
 }
 
 .containers-panel {
@@ -2204,9 +2258,8 @@ export default {
     gap: 12px;
     height: 64px;
     padding: 12px 14px;
-    background-color: #fff;
-    border: 1px solid $surface-border;
-    border-radius: 14px;
+    background-color: $bg-input;
+    border-radius: $flat-radius;
 }
 
 .service-icon {
@@ -2217,7 +2270,7 @@ export default {
     width: 36px;
     height: 36px;
     border-radius: 10px;
-    background-color: $accent-subtle;
+    background-color: $accent-primary-subtle;
 }
 
 .service-info {
@@ -2235,7 +2288,7 @@ export default {
 
 .service-image {
     font-size: 13px;
-    color: $muted;
+    color: $text-muted;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2249,50 +2302,96 @@ export default {
     width: 30px;
     height: 30px;
     border: none;
-    border-radius: 8px;
-    background-color: $surface-raised;
+    border-radius: $flat-radius;
+    background-color: $bg-surface-raised;
 
     &:hover {
-        background-color: darken($surface-raised, 4%);
+        background-color: darken($bg-surface-raised, 4%);
     }
 
     &.danger {
-        background-color: #fef2f2;
+        background-color: $status-danger-subtle;
 
         &:hover {
-            background-color: #fee2e2;
+            background-color: $status-danger-subtle-hover;
         }
+    }
+}
+
+// Flat editor card on the new-stack page
+.editor-card.flat {
+    min-height: 0;
+    border: none;
+    border-radius: $flat-radius;
+
+    .editor-header {
+        gap: 20px;
+        border-bottom: none;
+    }
+
+    .format-btn {
+        padding: 8px 14px;
+        border-radius: $flat-radius;
+    }
+
+    .editor-body {
+        flex: 1;
+        height: auto;
+        min-height: 0;
+
+        :deep(.cm-gutters) {
+            border-right: none;
+        }
+    }
+
+    .status-bar {
+        border-top: none;
     }
 }
 
 // Dark theme
 .dark {
+    .config-panel {
+        background-color: $dark-bg-surface;
+    }
+
+    .flat-input {
+        color: $dark-text-primary;
+        background-color: $dark-bg-input;
+    }
+
+    .flat-btn {
+        color: $dark-text-primary;
+        background-color: $dark-bg-surface-raised;
+    }
+
+    .panel-divider {
+        border-top-color: $dark-border-default;
+    }
+
     .choice-chip {
-        color: $dark-font-color;
-        background-color: $dark-bg;
-        border-color: #343c4d;
+        color: $dark-text-secondary;
+        background-color: $dark-bg-surface-raised;
 
         &.selected {
-            color: $highlight;
-            background-color: rgba($primary, 0.2);
-            border-color: $highlight;
+            color: $dark-accent-primary;
+            background-color: $dark-accent-primary-subtle;
         }
     }
 
     .service-row {
-        background-color: $dark-bg;
-        border-color: $dark-border-color;
+        background-color: $dark-bg-input;
     }
 
     .service-icon {
-        background-color: rgba($primary, 0.2);
+        background-color: $dark-accent-primary-subtle;
     }
 
     .row-btn {
-        background-color: $dark-header-bg;
+        background-color: $dark-bg-surface-raised;
 
         &.danger {
-            background-color: #2d1618;
+            background-color: $dark-status-danger-subtle;
         }
     }
 
@@ -2303,18 +2402,18 @@ export default {
         }
 
         &.warning {
-            color: #f5a524;
-            background-color: #2c2110;
+            color: $dark-status-warning;
+            background-color: $dark-status-warning-subtle;
         }
 
         &.success {
-            color: #4ade80;
-            background-color: #0f2619;
+            color: $dark-status-success;
+            background-color: $dark-status-success-subtle;
         }
 
         &.danger {
-            color: #f87171;
-            background-color: #2d1618;
+            color: $dark-status-danger;
+            background-color: $dark-status-danger-subtle;
         }
     }
 
@@ -2335,7 +2434,7 @@ export default {
         }
 
         &.active {
-            color: #f1f5f9;
+            color: $dark-text-primary;
         }
     }
 
@@ -2351,16 +2450,16 @@ export default {
 
     .editor-body {
         :deep(.cm-editor) {
-            color: #f1f5f9;
+            color: $dark-text-primary;
             background-color: $dark-bg !important;
         }
 
         :deep(.cm-content) {
-            caret-color: #f1f5f9;
+            caret-color: $dark-text-primary;
         }
 
         :deep(.cm-gutters) {
-            background-color: #0d1016;
+            background-color: $dark-bg-input;
             border-right-color: $dark-border-color;
         }
 
@@ -2369,11 +2468,11 @@ export default {
         }
 
         :deep(.cm-activeLineGutter) {
-            color: #f1f5f9;
+            color: $dark-text-primary;
         }
 
         :deep(.cm-cursor) {
-            border-left-color: #f1f5f9;
+            border-left-color: $dark-text-primary;
         }
 
         :deep(.tok-key) {
@@ -2381,12 +2480,12 @@ export default {
         }
 
         :deep(.tok-var) {
-            color: #f5a524;
+            color: $dark-status-warning;
         }
     }
 
     .status-bar {
-        background-color: #0d1016;
+        background-color: $dark-bg-input;
         border-top-color: $dark-border-color;
     }
 
@@ -2408,7 +2507,7 @@ export default {
     .icon-btn {
         color: $dark-font-color;
         background-color: $dark-header-bg;
-        border-color: #343c4d;
+        border-color: $dark-border-strong;
     }
 
     .btn-light-outline:hover,
@@ -2417,8 +2516,8 @@ export default {
     }
 
     .btn-soft-danger {
-        color: #f87171;
-        background-color: #2d1618;
+        color: $dark-status-danger;
+        background-color: $dark-status-danger-subtle;
     }
 
     .network-row {
