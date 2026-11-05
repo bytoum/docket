@@ -2,6 +2,10 @@
 @import "bootstrap/scss/bootstrap";
 @import "bootstrap-vue-next/dist/bootstrap-vue-next.css";
 
+body {
+    background-color: $page-bg;
+}
+
 #app {
     font-family: BlinkMacSystemFont, segoe ui, Roboto, helvetica neue, Arial, noto sans, sans-serif, apple color emoji, segoe ui emoji, segoe ui symbol, noto color emoji;
 }
@@ -100,9 +104,11 @@ optgroup {
 }
 
 .shadow-box {
-    box-shadow: 0 15px 70px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+    border: 1px solid $surface-border;
+    box-shadow: none;
     padding: 10px;
-    border-radius: 10px;
+    border-radius: 12px;
 
     &.big-padding {
         padding: 20px;
@@ -125,16 +131,12 @@ optgroup {
     &:hover, &:active, &:focus, &.active {
         color: white;
         background: $primary-gradient-active;
-        border-color: $highlight;
-    }
-
-    .dark & {
-        color: $dark-font-color2;
+        border-color: #3049c4;
     }
 }
 
 .btn-normal {
-    $bg-color: #F5F5F5;
+    $bg-color: #eef0f3;
 
     background-color: $bg-color;
     border-color: $bg-color;
@@ -247,6 +249,8 @@ optgroup {
     }
 
     .shadow-box {
+        border-color: $dark-border-color;
+
         &:not(.alert) {
             background-color: $dark-bg;
         }
@@ -314,7 +318,7 @@ optgroup {
     }
 
     .nav-pills .nav-link.active, .nav-pills .show > .nav-link {
-        color: $dark-font-color2;
+        color: #fff;
         background: $primary-gradient;
 
         &:hover {
@@ -323,7 +327,7 @@ optgroup {
     }
 
     .bg-primary {
-        color: $dark-font-color2;
+        color: #fff;
         background: $primary-gradient;
     }
 
@@ -519,9 +523,9 @@ optgroup {
 }
 
 .alert-success {
-    color: #122f21;
-    background-color: $primary;
-    border-color: $primary;
+    color: #0f5132;
+    background-color: #d1e7dd;
+    border-color: #badbcc;
 }
 
 .alert-info {
@@ -687,7 +691,7 @@ code {
 	background-color: transparent !important;
 }
 .cm-selectionBackground {
-    background-color: #74c2ff3d !important;
+    background-color: rgba($primary, 0.24) !important;
 }
 .cm-focused {
     outline: none !important;

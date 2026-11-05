@@ -1,32 +1,23 @@
 <template>
-    <div class="shadow-box mb-3" :style="boxStyle">
+    <div class="stack-list-box">
         <div class="list-header">
-            <div class="header-top">
-                <!-- TODO -->
-                <button
-                    v-if="false" class="btn btn-outline-normal ms-2" :class="{ 'active': selectMode }" type="button"
-                    @click="selectMode = !selectMode"
-                >
-                    {{ $t("Select") }}
+            <!-- Search -->
+            <div class="search-wrapper">
+                <font-awesome-icon v-if="searchText == ''" icon="search" class="search-icon" />
+                <button v-else type="button" class="search-icon clear" :title="$t('clearFilter')" @click="clearSearchText">
+                    <font-awesome-icon icon="times" />
                 </button>
-
-                <div class="placeholder"></div>
-                <div class="search-wrapper">
-                    <a v-if="searchText == ''" class="search-icon">
-                        <font-awesome-icon icon="search" />
-                    </a>
-                    <a v-if="searchText != ''" class="search-icon" style="cursor: pointer" @click="clearSearchText">
-                        <font-awesome-icon icon="times" />
-                    </a>
-                    <form>
-                        <input v-model="searchText" class="form-control search-input" autocomplete="off" />
-                    </form>
-                </div>
+                <input v-model="searchText" class="form-control search-input" autocomplete="off" :placeholder="$t('searchStacks')" />
             </div>
 
-            <!-- TODO -->
-            <div v-if="false" class="header-filter">
-                <!--<StackListFilter :filterState="filterState" @update-filter="updateFilter" />-->
+            <!-- Status filter -->
+            <div class="status-filter">
+                <button
+                    v-for="option in statusFilterOptions" :key="option" type="button" class="chip"
+                    :class="{ active: statusFilter === option }" @click="statusFilter = option"
+                >
+                    {{ $t(option) }}
+                </button>
             </div>
 
             <!-- TODO: Selection Controls -->
@@ -47,13 +38,16 @@
                 </span>
             </div>
         </div>
-        <div ref="stackList" class="stack-list" :class="{ scrollbar: scrollbar }" :style="stackListStyle">
-            <div v-if="agentStackList[0] && agentStackList[0].stacks.length === 0" class="text-center mt-3">
+
+        <div class="section-label">{{ $t("stacks") }}</div>
+
+        <div ref="stackList" class="stack-list" :class="{ scrollbar: scrollbar }">
+            <div v-if="Object.keys($root.completeStackList).length === 0" class="text-center mt-3">
                 <router-link to="/compose">{{ $t("addFirstStackMsg") }}</router-link>
             </div>
             <div v-for="(agent, agentIndex) in agentStackList" :key="agentIndex" class="stack-list-inner">
                 <div
-                    v-if="$root.agentCount > 1" class="p-2 agent-select"
+                    v-if="$root.agentCount > 1" class="agent-select"
                     @click="closedAgents.set(agent.endpoint, !closedAgents.get(agent.endpoint))"
                 >
                     <span class="me-1">
@@ -80,7 +74,7 @@
 <script>
 import Confirm from "../components/Confirm.vue";
 import StackListItem from "../components/StackListItem.vue";
-import { CREATED_FILE, CREATED_STACK, EXITED, RUNNING, UNKNOWN } from "../../../common/util-common";
+import { CREATED_FILE, CREATED_STACK, EXITED, RUNNING, UNKNOWN, statusNameShort } from "../../../common/util-common";
 
 export default {
     components: {
@@ -96,11 +90,12 @@ export default {
     data() {
         return {
             searchText: "",
+            statusFilterOptions: [ "all", "active", "exited", "inactive" ],
+            statusFilter: "all",
             selectMode: false,
             selectAll: false,
             disableSelectAllWatcher: false,
             selectedStacks: {},
-            windowTop: 0,
             filterState: {
                 status: null,
                 active: null,
@@ -110,25 +105,6 @@ export default {
         };
     },
     computed: {
-        /**
-         * Improve the sticky appearance of the list by increasing its
-         * height as user scrolls down.
-         * Not used on mobile.
-         * @returns {object} Style for stack list
-         */
-        boxStyle() {
-            if (window.innerWidth > 550) {
-                return {
-                    height: `calc(100vh - 160px + ${this.windowTop}px)`,
-                };
-            } else {
-                return {
-                    height: "calc(100vh - 160px)",
-                };
-            }
-
-        },
-
         /**
          * Returns a sorted list of stacks based on the applied filters and search text.
          * @returns {Array} The sorted list of stacks.
@@ -162,7 +138,10 @@ export default {
                         .length > 0;
                 }
 
-                return searchTextMatch && activeMatch && tagsMatch;
+                // filter by status chip
+                const statusMatch = this.statusFilter === "all" || statusNameShort(stack.status) === this.statusFilter;
+
+                return searchTextMatch && activeMatch && tagsMatch && statusMatch;
             });
 
             result.sort((m1, m2) => {
@@ -231,19 +210,6 @@ export default {
             return document.body.classList.contains("dark");
         },
 
-        stackListStyle() {
-            //let listHeaderHeight = 107;
-            let listHeaderHeight = 60;
-
-            if (this.selectMode) {
-                listHeaderHeight += 42;
-            }
-
-            return {
-                "height": `calc(100% - ${listHeaderHeight}px)`
-            };
-        },
-
         selectedStackCount() {
             return Object.keys(this.selectedStacks).length;
         },
@@ -288,25 +254,7 @@ export default {
             }
         },
     },
-    mounted() {
-        window.addEventListener("scroll", this.onScroll);
-    },
-    beforeUnmount() {
-        window.removeEventListener("scroll", this.onScroll);
-    },
     methods: {
-        /**
-         * Handle user scroll
-         * @returns {void}
-         */
-        onScroll() {
-            if (window.top.scrollY <= 133) {
-                this.windowTop = window.top.scrollY;
-            } else {
-                this.windowTop = 133;
-            }
-        },
-
         /**
          * Clear the search bar
          * @returns {void}
@@ -390,88 +338,104 @@ export default {
 <style lang="scss" scoped>
 @import "../styles/vars.scss";
 
-.shadow-box {
-    height: calc(100vh - 150px);
-    position: sticky;
-    top: 10px;
-}
-
-.small-padding {
-    padding-left: 5px !important;
-    padding-right: 5px !important;
-}
-
-.list-header {
-    border-bottom: 1px solid #dee2e6;
-    border-radius: 10px 10px 0 0;
-    margin: -10px;
-    margin-bottom: 10px;
-    padding: 10px;
-
-    .dark & {
-        background-color: $dark-header-bg;
-        border-bottom: 0;
-    }
-}
-
-.header-top {
+.stack-list-box {
+    flex: 1;
+    min-height: 0;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.header-filter {
-    display: flex;
-    align-items: center;
-}
-
-@media (max-width: 770px) {
-    .list-header {
-        margin: -20px;
-        margin-bottom: 10px;
-        padding: 5px;
-    }
+    flex-direction: column;
 }
 
 .search-wrapper {
-    display: flex;
-    align-items: center;
+    position: relative;
+    margin-bottom: 12px;
 }
 
 .search-icon {
-    padding: 10px;
-    color: #c0c0c0;
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 13px;
+    color: #9ca3af;
 
-    // Clear filter button (X)
-    svg[data-icon="times"] {
+    &.clear {
+        border: none;
+        background: none;
+        padding: 0;
         cursor: pointer;
-        transition: all ease-in-out 0.1s;
 
         &:hover {
-            opacity: 0.5;
+            color: $muted;
         }
     }
 }
 
 .search-input {
-    max-width: 15em;
+    font-size: 14px;
+    padding-left: 34px;
+    border-radius: 8px;
+    border-color: $surface-border;
+    background-color: #f9fafb;
+
+    .dark & {
+        background-color: $dark-bg;
+        border-color: $dark-border-color;
+        color: $dark-font-color;
+    }
 }
 
-.stack-item {
-    width: 100%;
-}
-
-.tags {
-    margin-top: 4px;
-    padding-left: 67px;
+.status-filter {
     display: flex;
     flex-wrap: wrap;
-    gap: 0;
+    gap: 6px;
+    margin-bottom: 16px;
 }
 
-.bottom-style {
-    padding-left: 67px;
-    margin-top: 5px;
+.chip {
+    border: none;
+    border-radius: 50rem;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: capitalize;
+    color: #4b5563;
+    background-color: #eef0f3;
+
+    &:hover {
+        background-color: darken(#eef0f3, 4%);
+    }
+
+    &.active {
+        color: $primary;
+        background-color: #dfe5ff;
+    }
+
+    .dark & {
+        color: $dark-font-color;
+        background-color: $dark-bg;
+
+        &.active {
+            color: #fff;
+            background-color: $primary;
+        }
+    }
+}
+
+.section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: $muted;
+    margin: 0 4px 8px;
+}
+
+.stack-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 0 -6px;
+    padding: 0 6px;
 }
 
 .selection-controls {
@@ -483,11 +447,10 @@ export default {
 
 .agent-select {
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     color: $dark-font-color3;
-    padding-left: 10px;
-    padding-right: 10px;
+    padding: 8px 4px;
     display: flex;
     align-items: center;
     user-select: none;

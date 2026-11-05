@@ -1,9 +1,8 @@
 <template>
     <router-link :to="url" :class="{ 'dim' : !stack.isManagedByDockge }" class="item">
-        <Uptime :stack="stack" :fixed-width="true" class="me-2" />
-        <div class="title">
-            <span>{{ stackName }}</span>
-        </div>
+        <span class="item-icon"><font-awesome-icon icon="cube" /></span>
+        <div class="title">{{ stackName }}</div>
+        <Uptime :stack="stack" />
     </router-link>
 </template>
 
@@ -132,22 +131,56 @@ export default {
     text-decoration: none;
     display: flex;
     align-items: center;
-    min-height: 52px;
-    border-radius: 10px;
-    transition: all ease-in-out 0.15s;
+    gap: 10px;
+    min-height: 44px;
+    margin-bottom: 2px;
+    border-radius: 8px;
+    transition: background-color ease-in-out 0.15s;
     width: 100%;
-    padding: 5px 8px;
+    padding: 6px 10px;
+    color: #111827;
+    font-size: 14px;
+    font-weight: 500;
     &.disabled {
         opacity: 0.3;
     }
     &:hover {
-        background-color: $highlight-white;
+        background-color: #f3f4f6;
     }
     &.active {
-        background-color: #cdf8f4;
+        background-color: $highlight-white;
     }
     .title {
-        margin-top: -4px;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .item-icon {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+        font-size: 12px;
+        color: $primary;
+        background-color: #e8ecff;
+    }
+    .dark & {
+        color: $dark-font-color;
+        &:hover {
+            background-color: $dark-bg;
+        }
+        &.active {
+            background-color: $dark-bg2;
+        }
+        .item-icon {
+            background-color: rgba($primary, 0.2);
+            color: $highlight;
+        }
     }
     .endpoint {
         font-size: 12px;

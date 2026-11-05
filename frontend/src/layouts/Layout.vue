@@ -10,10 +10,10 @@
         </div>
 
         <!-- Desktop header -->
-        <header v-if="! $root.isMobile" class="d-flex flex-wrap justify-content-center py-3 mb-3 border-bottom">
-            <router-link to="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none">
-                <object class="bi me-2 ms-4" width="40" height="40" data="/icon.svg" />
-                <span class="fs-4 title">Dockge</span>
+        <header v-if="! $root.isMobile" class="app-header d-flex align-items-center">
+            <router-link to="/" class="brand d-flex align-items-center me-auto text-decoration-none">
+                <object class="me-2" width="32" height="32" data="/icon.svg" />
+                <span class="title">Dockge</span>
             </router-link>
 
             <a v-if="hasNewVersion" target="_blank" href="https://github.com/louislam/dockge/releases" class="btn btn-warning me-3">
@@ -21,7 +21,7 @@
             </a>
 
             <ul class="nav nav-pills">
-                <li v-if="$root.loggedIn" class="nav-item me-2">
+                <li v-if="$root.loggedIn" class="nav-item me-1">
                     <router-link to="/" class="nav-link">
                         <font-awesome-icon icon="home" /> {{ $t("home") }}
                     </router-link>
@@ -203,12 +203,44 @@ main {
     min-height: calc(100vh - 160px);
 }
 
-.title {
-    font-weight: bold;
+.app-header {
+    height: 60px;
+    padding: 0 20px;
+    background-color: #fff;
+    border-bottom: 1px solid $surface-border;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
-.nav {
-    margin-right: 25px;
+.brand {
+    color: #111827;
+}
+
+.title {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.nav-pills {
+    align-items: center;
+
+    .nav-link {
+        font-size: 14px;
+        font-weight: 500;
+        padding: 6px 14px;
+        border-radius: 8px;
+        color: #374151;
+
+        &:hover {
+            background-color: $highlight-white;
+        }
+
+        &.active {
+            color: #fff;
+            background: $primary;
+        }
+    }
 }
 
 .lost-connection {
@@ -229,11 +261,12 @@ main {
         display: flex;
         gap: 6px;
         align-items: center;
-        background-color: rgba(200, 200, 200, 0.2);
-        padding: 0.5rem 0.8rem;
+        background-color: #eef0f3;
+        padding: 6px 10px;
+        border-radius: 50rem;
 
         &:hover {
-            background-color: rgba(255, 255, 255, 0.2);
+            background-color: darken(#eef0f3, 4%);
         }
     }
 
@@ -284,8 +317,8 @@ main {
         display: flex;
         align-items: center;
         justify-content: center;
-        color: white;
-        background-color: $primary;
+        color: $primary;
+        background-color: #dfe5ff;
         width: 24px;
         height: 24px;
         margin-right: 5px;
@@ -296,9 +329,21 @@ main {
 }
 
 .dark {
-    header {
+    .app-header {
         background-color: $dark-header-bg;
-        border-bottom-color: $dark-header-bg !important;
+        border-bottom-color: $dark-border-color;
+
+        .nav-link:not(.active) {
+            color: $dark-font-color;
+
+            &:hover {
+                background-color: $dark-bg;
+            }
+        }
+
+        .dropdown-profile-pic .nav-link {
+            background-color: $dark-bg;
+        }
 
         span {
             color: #f0f6fc;
