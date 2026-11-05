@@ -171,7 +171,7 @@ export default {
     height: calc(60px + env(safe-area-inset-bottom));
     width: 100%;
     left: 0;
-    background-color: #fff;
+    background-color: $bg-surface;
     box-shadow: 0 15px 47px 0 rgba(0, 0, 0, 0.05), 0 5px 14px 0 rgba(0, 0, 0, 0.05);
     text-align: center;
     white-space: nowrap;
@@ -206,7 +206,7 @@ main {
 .app-header {
     height: 64px;
     padding: 0 20px;
-    background-color: #fff;
+    background-color: $bg-surface;
     border-bottom: 1px solid $surface-border;
     position: sticky;
     top: 0;
@@ -214,7 +214,7 @@ main {
 }
 
 .brand {
-    color: #111827;
+    color: $text-primary;
 }
 
 .title {
@@ -230,14 +230,14 @@ main {
         font-weight: 500;
         padding: 6px 14px;
         border-radius: 8px;
-        color: #374151;
+        color: $text-secondary;
 
         &:hover {
             background-color: $highlight-white;
         }
 
         &.active {
-            color: #fff;
+            color: $text-on-accent;
             background: $primary;
         }
     }
@@ -261,12 +261,12 @@ main {
         display: flex;
         gap: 6px;
         align-items: center;
-        background-color: #eef0f3;
+        background-color: $bg-surface-raised;
         padding: 6px 10px;
         border-radius: 50rem;
 
         &:hover {
-            background-color: darken(#eef0f3, 4%);
+            background-color: darken($bg-surface-raised, 4%);
         }
     }
 
@@ -280,7 +280,7 @@ main {
 
         .dropdown-divider {
             margin: 0;
-            border-top: 1px solid rgba(0, 0, 0, 0.4);
+            border-top: 1px solid $surface-border;
             background-color: transparent;
         }
 
@@ -297,6 +297,10 @@ main {
             background-color: $dark-bg;
             color: $dark-font-color;
             border-color: $dark-border-color;
+
+            .dropdown-divider {
+                border-top-color: $dark-border-color;
+            }
 
             .dropdown-item {
                 color: $dark-font-color;
@@ -329,6 +333,11 @@ main {
 }
 
 .dark {
+    .app-header .nav-pills .nav-link.active {
+        color: $dark-text-on-accent;
+        background: $dark-accent-primary;
+    }
+
     .app-header {
         background-color: $dark-header-bg;
         border-bottom-color: $dark-border-color;

@@ -142,14 +142,14 @@ export default {
     transition: background-color ease-in-out 0.15s;
     width: 100%;
     padding: 12px 14px;
-    color: #0f172a;
+    color: $text-primary;
     font-size: 14px;
     font-weight: 500;
     &.disabled {
         opacity: 0.3;
     }
     &:hover {
-        background-color: #f8fafc;
+        background-color: $bg-input;
     }
     &.active {
         background-color: $accent-subtle;

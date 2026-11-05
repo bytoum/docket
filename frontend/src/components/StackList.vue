@@ -380,7 +380,7 @@ export default {
     padding: 11px 14px 11px 40px;
     border-radius: 10px;
     border-color: $surface-border;
-    background-color: #f8fafc;
+    background-color: $bg-input;
 
     &::placeholder {
         color: $muted;

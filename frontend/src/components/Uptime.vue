@@ -57,8 +57,8 @@ export default {
     line-height: normal;
     text-transform: capitalize;
     white-space: nowrap;
-    color: $muted;
-    background-color: rgba($muted, 0.12);
+    color: $status-neutral;
+    background-color: $status-neutral-subtle;
 
     &::before {
         content: "";
@@ -72,17 +72,17 @@ export default {
 // Running
 .status-primary {
     color: $success;
-    background-color: #dcfce7;
+    background-color: $status-success-subtle;
 }
 
 .status-danger {
-    color: $danger;
-    background-color: rgba($danger, 0.12);
+    color: $status-danger;
+    background-color: $status-danger-subtle;
 }
 
 .status-dark {
-    color: #374151;
-    background-color: rgba(#374151, 0.1);
+    color: $status-neutral;
+    background-color: $status-neutral-subtle;
 
     .dark & {
         color: $dark-font-color;

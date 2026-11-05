@@ -317,7 +317,7 @@ export default {
     z-index: 1000;
     display: flex;
     flex-direction: column;
-    background-color: #fff;
+    background-color: $bg-surface;
     border-top: 1px solid $surface-border;
 }
 
@@ -335,7 +335,7 @@ export default {
     gap: 8px;
     font-size: 14px;
     font-weight: 600;
-    color: #0f172a;
+    color: $text-primary;
 }
 
 .live-badge {
@@ -348,7 +348,7 @@ export default {
     font-weight: 600;
     line-height: normal;
     color: $success;
-    background-color: #dcfce7;
+    background-color: $status-success-subtle;
 }
 
 .dock-filters {
@@ -368,12 +368,12 @@ export default {
     font-weight: 500;
     line-height: normal;
     color: $text-secondary;
-    background-color: #fff;
+    background-color: $bg-surface;
     border: 1px solid $border-strong;
     border-radius: 999px;
 
     &:hover {
-        background-color: #f8fafc;
+        background-color: $bg-input;
     }
 
     &.selected {
@@ -405,7 +405,7 @@ export default {
     height: 220px;
     overflow: auto;
     padding: 14px 24px;
-    background-color: #f8fafc;
+    background-color: $bg-input;
     border-top: 1px solid $surface-border;
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
@@ -424,7 +424,7 @@ export default {
 }
 
 .log-time {
-    color: #6b7586;
+    color: $text-muted;
 }
 
 .log-empty {
@@ -439,18 +439,18 @@ export default {
     }
 
     .dock-title {
-        color: #f1f5f9;
+        color: $dark-text-primary;
     }
 
     .live-badge {
-        color: #4ade80;
-        background-color: #0f2619;
+        color: $dark-status-success;
+        background-color: $dark-status-success-subtle;
     }
 
     .choice-chip {
         color: $dark-font-color;
         background-color: $dark-header-bg;
-        border-color: #343c4d;
+        border-color: $dark-border-strong;
 
         &.selected {
             color: $highlight;
@@ -465,7 +465,7 @@ export default {
     }
 
     .log-panel {
-        background-color: #0d1016;
+        background-color: $dark-bg-input;
         border-top-color: $dark-border-color;
         color: $dark-font-color;
     }

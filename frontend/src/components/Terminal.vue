@@ -9,6 +9,40 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { TERMINAL_COLS, TERMINAL_ROWS } from "../../../common/util-common";
 
+// Colours for the light theme, readable on the design's light surface
+const LIGHT_THEME = {
+    background: "#f6f7f9",
+    foreground: "#0f172a",
+    cursor: "#0f172a",
+    cursorAccent: "#f6f7f9",
+    selectionBackground: "rgba(37, 99, 235, 0.2)",
+    black: "#0f172a",
+    red: "#dc2626",
+    green: "#15803d",
+    yellow: "#b45309",
+    blue: "#2563eb",
+    magenta: "#9333ea",
+    cyan: "#0e7490",
+    white: "#5e6e83",
+    brightBlack: "#475569",
+    brightRed: "#b91c1c",
+    brightGreen: "#166534",
+    brightYellow: "#a16207",
+    brightBlue: "#1d4ed8",
+    brightMagenta: "#7e22ce",
+    brightCyan: "#155e75",
+    brightWhite: "#475569",
+};
+
+// xterm's default colours, used in the dark theme
+const DARK_THEME = {
+    background: "#000000",
+    foreground: "#ffffff",
+    cursor: "#ffffff",
+    cursorAccent: "#000000",
+    selectionBackground: "rgba(255, 255, 255, 0.3)",
+};
+
 export default {
     /**
      * @type {Terminal}
@@ -73,9 +107,22 @@ export default {
             cursorPosition: 0,
         };
     },
+    watch: {
+        /**
+         * Follow the app theme while the terminal is open
+         * @param {boolean} isDark Whether the dark theme is active
+         * @returns {void}
+         */
+        "$root.isDark"(isDark) {
+            if (this.terminal) {
+                this.terminal.options.theme = isDark ? DARK_THEME : LIGHT_THEME;
+            }
+        },
+    },
     created() {
 
     },
+
     mounted() {
         let cursorBlink = true;
 
@@ -89,6 +136,7 @@ export default {
             cursorBlink,
             cols: this.cols,
             rows: this.rows,
+            theme: this.$root.isDark ? DARK_THEME : LIGHT_THEME,
         });
 
         if (this.mode === "mainTerminal") {
@@ -382,8 +430,18 @@ export default {
 </style>
 
 <style lang="scss">
+@import "../styles/vars.scss";
+
 .terminal {
-    background-color: black !important;
+    background-color: $bg-input !important;
     height: 100%;
+    border: 1px solid $surface-border;
+    border-radius: 12px;
+    overflow: hidden;
+
+    .dark & {
+        background-color: black !important;
+        border-color: $dark-border-color;
+    }
 }
 </style>

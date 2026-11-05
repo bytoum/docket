@@ -346,7 +346,7 @@ export default defineComponent({
     gap: 10px;
     margin-bottom: 12px;
     padding: 14px 16px;
-    background-color: #fff;
+    background-color: $bg-surface;
     border: 1px solid $surface-border;
     border-radius: 14px;
 }
@@ -412,7 +412,7 @@ export default defineComponent({
         text-decoration: none;
 
         &:hover {
-            background-color: #fff;
+            background-color: $bg-surface;
         }
     }
 
@@ -461,8 +461,8 @@ export default defineComponent({
     line-height: normal;
     text-decoration: none;
     text-transform: capitalize;
-    color: $muted;
-    background-color: $surface-raised;
+    color: $status-neutral;
+    background-color: $status-neutral-subtle;
 
     .dot {
         width: 6px;
@@ -473,12 +473,12 @@ export default defineComponent({
 
     &.pill-running {
         color: $success;
-        background-color: #dcfce7;
+        background-color: $status-success-subtle;
     }
 
     &.pill-danger {
         color: $danger-strong;
-        background-color: #fef2f2;
+        background-color: $status-danger-subtle;
     }
 
     &.pill-port:hover {
@@ -509,7 +509,7 @@ export default defineComponent({
 .metric-value {
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
-    color: #0f172a;
+    color: $text-primary;
 }
 
 .metric-memory .bar {
@@ -560,8 +560,8 @@ export default defineComponent({
     }
 
     .pill-running {
-        color: #4ade80;
-        background-color: #0f2619;
+        color: $dark-status-success;
+        background-color: $dark-status-success-subtle;
     }
 
     .metric-memory .bar {

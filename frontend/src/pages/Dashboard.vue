@@ -56,7 +56,7 @@ $sidebar-width: 320px;
     flex-direction: column;
     gap: 16px;
     padding: 20px;
-    background-color: #fff;
+    background-color: $bg-surface;
     border-right: 1px solid $surface-border;
 
     .dark & {

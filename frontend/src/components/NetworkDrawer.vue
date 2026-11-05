@@ -421,12 +421,12 @@ export default {
     padding: 12px 14px;
     text-align: left;
     color: inherit;
-    background-color: #fff;
+    background-color: $bg-surface;
     border: 1px solid $surface-border;
     border-radius: 12px;
 
     &:hover {
-        background-color: #f8fafc;
+        background-color: $bg-input;
     }
 
     &.selected {

@@ -401,7 +401,7 @@ $muted: #6b7280;
 }
 
 .card-box {
-    background: #fff;
+    background: $bg-surface;
     border: 1px solid $card-border;
     border-radius: 12px;
     padding: 20px;
@@ -486,8 +486,8 @@ $muted: #6b7280;
     border-radius: 50rem;
     font-size: 11px;
     font-weight: 500;
-    color: $muted;
-    background: rgba($muted, 0.12);
+    color: $status-neutral;
+    background: $status-neutral-subtle;
 
     .dot {
         width: 6px;
@@ -498,18 +498,18 @@ $muted: #6b7280;
 }
 
 .pill-beta {
-    color: #b46a00;
-    background: rgba($warning, 0.18);
+    color: $status-warning;
+    background: $status-warning-subtle;
 }
 
 .pill-online {
-    color: $success;
-    background: rgba($success, 0.12);
+    color: $status-success;
+    background: $status-success-subtle;
 }
 
 .pill-offline {
-    color: $danger;
-    background: rgba($danger, 0.12);
+    color: $status-danger;
+    background: $status-danger-subtle;
 }
 
 // Agents

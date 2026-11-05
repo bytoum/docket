@@ -1,12 +1,76 @@
-$primary: #2563eb;
+// ---------------------------------------------------------------------------
+// Design tokens from the Figma file "Dockge – Redesign" (variable names kept).
+// Light values are the defaults; dark values are under "Dark theme".
+// Text colours marked "AA" are nudged slightly from Figma so small text keeps
+// at least 4.5:1 contrast on the surfaces it is used on.
+// ---------------------------------------------------------------------------
+
+// Backgrounds
+$bg-app: #f6f7f9;
+$bg-surface: #ffffff;
+$bg-surface-raised: #f1f3f6;
+$bg-input: #f6f7f9;
+
+// Borders
+$border-default: #e5e8ee;
+$border-strong: #ced4de;
+
+// Text
+$text-primary: #0f172a;
+$text-secondary: #475569;
+$text-muted: #646d7d; // AA (Figma #6b7586)
+$text-on-accent: #ffffff;
+
+// Accent
+$accent-primary: #2563eb;
+$accent-primary-hover: #1d4ed8;
+$accent-primary-subtle: #e8f0ff;
+
+// Status: text colour and subtle background
+$status-success: #157e3c; // AA (Figma #15803d)
+$status-success-subtle: #e4f5ea;
+$status-warning: #b35309; // AA (Figma #b45309)
+$status-warning-subtle: #fdf1dc;
+$status-danger: #c52222; // AA (Figma #dc2626), for text on light and danger-subtle
+$status-danger-subtle: #fdebeb;
+$status-danger-subtle-hover: #fbdcdc;
+$status-neutral: #5e6e83; // AA (Figma #64748b)
+$status-neutral-subtle: #eceff3;
+
+// Dark theme (Figma dark mode values)
+$dark-bg-surface: #12151c;
+$dark-bg-surface-raised: #1a1f2a;
+$dark-bg-input: #0d1016;
+$dark-border-default: #242a37;
+$dark-border-strong: #343c4d;
+$dark-text-primary: #f1f5f9;
+$dark-text-secondary: #a3adbf;
+$dark-text-muted: #818b9c; // AA (Figma #6f7a8e)
+$dark-text-on-accent: #06121f;
+$dark-accent-primary: #5cb3ff;
+$dark-accent-primary-subtle: #112238;
+$dark-status-success: #4ade80;
+$dark-status-success-subtle: #0f2619;
+$dark-status-warning: #f5a524;
+$dark-status-warning-subtle: #2c2110;
+$dark-status-danger: #f87171;
+$dark-status-danger-subtle: #2d1618;
+$dark-status-neutral: #94a3b8;
+$dark-status-neutral-subtle: #1e2430;
+
+// ---------------------------------------------------------------------------
+// App variables (older names kept, now pointing at the tokens)
+// ---------------------------------------------------------------------------
+
+$primary: $accent-primary;
 $danger: #dc3545;
 $warning: #f8a306;
 $maintenance: #1747f5;
 $link-color: #111;
 $border-radius: 50rem;
 
-$highlight: #60a5fa;
-$highlight-white: #eef1f6;
+$highlight: $dark-accent-primary;
+$highlight-white: $bg-surface-raised;
 
 $dark-font-color: #b1b8c0;
 $dark-font-color2: #020b05;
@@ -22,16 +86,25 @@ $easing-in-out: cubic-bezier(0.79, 0.14, 0.15, 0.86);
 
 $dropdown-border-radius: 0.5rem;
 
-$primary-gradient: linear-gradient($primary, $primary);
+$primary-gradient: linear-gradient($accent-primary, $accent-primary);
+$primary-gradient-active: linear-gradient($accent-primary-hover, $accent-primary-hover);
 
-// Light theme surfaces
-$page-bg: #f6f7f9;
-$surface-border: #e7eaf0;
-$muted: #64748b;
-$text-secondary: #475569;
-$surface-raised: #f1f5f9;
-$border-strong: #d5dae2;
-$accent-subtle: #eff6ff;
-$success: #15803d;
-$danger-strong: #dc2626;
-$primary-gradient-active: linear-gradient(#1d4ed8, #1d4ed8);
+$page-bg: $bg-app;
+$surface-border: $border-default;
+$muted: $text-muted;
+$surface-raised: $bg-surface-raised;
+$accent-subtle: $accent-primary-subtle;
+$success: $status-success;
+$danger-strong: $status-danger;
+
+// Bootstrap overrides for the light theme (the dark theme overrides these under .dark)
+$body-color: $text-primary;
+$border-color: $border-default;
+$input-border-color: $border-strong;
+$input-placeholder-color: $text-muted;
+$input-focus-border-color: $accent-primary;
+$input-focus-box-shadow: 0 0 0 3px rgba($accent-primary, 0.15);
+$form-select-focus-box-shadow: 0 0 0 3px rgba($accent-primary, 0.15);
+$form-text-color: $text-muted;
+$dropdown-border-color: $border-default;
+$modal-content-border-color: $border-default;
