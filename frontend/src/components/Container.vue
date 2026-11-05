@@ -1,29 +1,21 @@
 <template>
-    <div class="shadow-box big-padding mb-3 container">
-        <div class="row">
-            <div class="col-5">
-                <h4>{{ name }}</h4>
-                <div class="image mb-2">
-                    <span class="me-1">{{ imageName }}:</span><span class="tag">{{ imageTag }}</span>
-                </div>
-                <div v-if="!isEditMode">
-                    <span class="badge me-1" :class="bgStyle">{{ status }}</span>
-
-                    <a v-for="port in (ports ?? envsubstService.ports)" :key="port" :href="parsePort(port).url" target="_blank">
-                        <span class="badge me-1 bg-secondary">{{ parsePort(port).display }}</span>
-                    </a>
-                </div>
+    <div class="shadow-box mb-3 container-card">
+        <div class="card-top">
+            <div class="identity">
+                <div class="name">{{ name }}</div>
+                <div v-if="envsubstService.image" class="image">{{ imageName }}:{{ imageTag }}</div>
             </div>
-            <div class="col-7">
-                <div class="function">
-                    <div class="btn-group me-2" role="group">
-                        <router-link v-if="!isEditMode && (status === 'running' || status === 'healthy')" class="btn btn-normal" :to="terminalRouteLink" disabled="">
-                            <font-awesome-icon icon="terminal" />
+
+            <div class="function">
+                <template v-if="!isEditMode">
+                    <div v-if="hasServiceActions" class="btn-group service-actions" role="group">
+                        <router-link v-if="isRunning" class="btn" :to="terminalRouteLink">
+                            <font-awesome-icon icon="terminal" class="me-1" />
                             Bash
                         </router-link>
                         <button
-                            v-if="serviceCount > 1 && !isEditMode && status !== 'running' && status !== 'healthy'"
-                            class="btn btn-primary"
+                            v-if="serviceCount > 1 && !isRunning"
+                            class="btn"
                             :disabled="processing"
                             @click="startService"
                         >
@@ -31,8 +23,8 @@
                             {{ $t("startStack") }}
                         </button>
                         <button
-                            v-if="serviceCount > 1 && !isEditMode && (status === 'running' || status === 'healthy' || status === 'unhealthy')"
-                            class="btn btn-normal"
+                            v-if="serviceCount > 1 && (isRunning || status === 'unhealthy')"
+                            class="btn"
                             :disabled="processing"
                             @click="restartService"
                         >
@@ -40,8 +32,8 @@
                             {{ $t("restartStack") }}
                         </button>
                         <button
-                            v-if="serviceCount > 1 && !isEditMode && (status === 'running' || status === 'healthy' || status === 'unhealthy')"
-                            class="btn btn-normal"
+                            v-if="serviceCount > 1 && (isRunning || status === 'unhealthy')"
+                            class="btn"
                             :disabled="processing"
                             @click="stopService"
                         >
@@ -49,47 +41,57 @@
                             {{ $t("stopStack") }}
                         </button>
                     </div>
-                </div>
+                    <button class="icon-btn" :title="$t('Edit')" @click="editService">
+                        <font-awesome-icon icon="pen" />
+                    </button>
+                </template>
+
+                <template v-else>
+                    <button class="btn btn-sm btn-normal" @click="showConfig = !showConfig">
+                        <font-awesome-icon icon="edit" class="me-1" />
+                        {{ $t("Edit") }}
+                    </button>
+                    <button class="btn btn-sm btn-danger" @click="remove">
+                        <font-awesome-icon icon="trash" class="me-1" />
+                        {{ $t("deleteContainer") }}
+                    </button>
+                </template>
             </div>
         </div>
 
-        <div v-if="isEditMode" class="mt-2">
-            <button class="btn btn-normal me-2" @click="showConfig = !showConfig">
-                <font-awesome-icon icon="edit" />
-                {{ $t("Edit") }}
-            </button>
-            <button v-if="false" class="btn btn-normal me-2">Rename</button>
-            <button class="btn btn-danger me-2" @click="remove">
-                <font-awesome-icon icon="trash" />
-                {{ $t("deleteContainer") }}
-            </button>
-        </div>
-        <div v-else-if="statsInstances.length > 0" class="mt-2">
-            <div class="d-flex align-items-center gap-3">
-                <template v-if="!expandedStats">
-                    <div class="stats">
-                        {{ $t('CPU') }}: {{ statsInstances[0].CPUPerc }}
-                    </div>
-                    <div class="stats">
-                        {{ $t('memoryAbbreviated') }}: {{ statsInstances[0].MemUsage }}
-                    </div>
-                </template>
-                <div class="d-flex flex-grow-1 justify-content-end">
-                    <button class="btn btn-sm btn-normal" @click="expandedStats = !expandedStats">
-                        <font-awesome-icon :icon="expandedStats ? 'chevron-up' : 'chevron-down'" />
-                    </button>
-                </div>
+        <div v-if="!isEditMode" class="card-bottom">
+            <div class="pills">
+                <span class="pill" :class="statusClass"><span class="dot"></span>{{ status }}</span>
+                <a v-for="port in (ports ?? envsubstService.ports)" :key="port" :href="parsePort(port).url" target="_blank" class="pill pill-port">
+                    <span class="dot"></span>{{ parsePort(port).display }}
+                </a>
             </div>
-            <transition name="slide-fade" appear>
-                <div v-if="expandedStats" class="d-flex flex-column gap-3 mt-2">
-                    <DockerStat
-                        v-for="stat in statsInstances"
-                        :key="stat.Name"
-                        :stat="stat"
-                    />
+
+            <div v-if="statsInstances.length > 0" class="metrics">
+                <div class="metric">
+                    <div class="metric-label">{{ $t("CPU") }}</div>
+                    <div class="metric-value">{{ statsInstances[0].CPUPerc }}</div>
                 </div>
-            </transition>
+                <div class="metric metric-memory">
+                    <div class="metric-label">{{ $t("memory") }}</div>
+                    <div class="metric-value">{{ statsInstances[0].MemUsage }}</div>
+                    <div class="bar"><span :style="{ width: memoryPercent }"></span></div>
+                </div>
+                <button v-if="statsInstances.length > 1" class="icon-btn" @click="expandedStats = !expandedStats">
+                    <font-awesome-icon :icon="expandedStats ? 'chevron-up' : 'chevron-down'" />
+                </button>
+            </div>
         </div>
+
+        <transition name="slide-fade" appear>
+            <div v-if="!isEditMode && expandedStats" class="d-flex flex-column gap-3 mt-3">
+                <DockerStat
+                    v-for="stat in statsInstances"
+                    :key="stat.Name"
+                    :stat="stat"
+                />
+            </div>
+        </transition>
 
         <transition name="slide-fade" appear>
             <div v-if="isEditMode && showConfig" class="config mt-3">
@@ -225,7 +227,8 @@ export default defineComponent({
     emits: [
         "start-service",
         "stop-service",
-        "restart-service"
+        "restart-service",
+        "edit-service",
     ],
     data() {
         return {
@@ -243,14 +246,38 @@ export default defineComponent({
             return list;
         },
 
-        bgStyle() {
-            if (this.status === "running" || this.status === "healthy") {
-                return "bg-primary";
+        isRunning() {
+            return this.status === "running" || this.status === "healthy";
+        },
+
+        statusClass() {
+            if (this.isRunning) {
+                return "pill-running";
             } else if (this.status === "unhealthy") {
-                return "bg-danger";
+                return "pill-danger";
             } else {
-                return "bg-secondary";
+                return "";
             }
+        },
+
+        /**
+         * Whether the service action button group has any button to show
+         * @returns {boolean} True if at least one action is available
+         */
+        hasServiceActions() {
+            return this.isRunning || this.serviceCount > 1;
+        },
+
+        /**
+         * Memory usage of the first instance as a CSS width
+         * @returns {string} Percentage, e.g. "3.2%"
+         */
+        memoryPercent() {
+            const percent = parseFloat(this.statsInstances[0]?.MemPerc);
+            if (isNaN(percent)) {
+                return "0%";
+            }
+            return Math.min(Math.max(percent, 0), 100) + "%";
         },
 
         terminalRouteLink() {
@@ -377,7 +404,15 @@ export default defineComponent({
         },
         restartService() {
             this.$emit("restart-service", this.name);
-        }
+        },
+        /**
+         * Open this container's settings in edit mode
+         * @returns {void}
+         */
+        editService() {
+            this.showConfig = true;
+            this.$emit("edit-service", this.name);
+        },
 
     }
 });
@@ -386,27 +421,186 @@ export default defineComponent({
 <style scoped lang="scss">
 @import "../styles/vars";
 
-.container {
+.container-card {
+    padding: 16px 18px;
+}
+
+.card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.identity {
+    min-width: 0;
+
+    .name {
+        font-size: 15px;
+        font-weight: 600;
+    }
+
     .image {
-        font-size: 0.8rem;
-        color: #6c757d;
-        .tag {
-            color: #33383b;
+        font-size: 12px;
+        color: $muted;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.function {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.service-actions {
+    border: 1px solid $surface-border;
+    border-radius: 8px;
+    background-color: #f9fafb;
+
+    .btn {
+        font-size: 12px;
+        padding: 3px 10px;
+        border: none;
+        color: #374151;
+
+        &:hover {
+            background-color: #eef0f3;
         }
     }
+}
 
-    .function {
-        align-content: center;
-        display: flex;
-        height: 100%;
-        width: 100%;
-        align-items: center;
-        justify-content: end;
+.icon-btn {
+    border: 1px solid $surface-border;
+    background: #fff;
+    border-radius: 8px;
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+    color: #4b5563;
+
+    &:hover {
+        background-color: #f3f4f6;
+    }
+}
+
+.card-bottom {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px 28px;
+    margin-top: 12px;
+}
+
+.pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 50rem;
+    font-size: 11px;
+    font-weight: 500;
+    text-decoration: none;
+    text-transform: capitalize;
+    color: #4b5563;
+    background-color: rgba($muted, 0.12);
+
+    .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: currentColor;
     }
 
-    .stats {
-        font-size: 0.8rem;
-        color: #6c757d;
+    &.pill-running {
+        color: #198754;
+        background-color: rgba(#198754, 0.12);
+    }
+
+    &.pill-danger {
+        color: $danger;
+        background-color: rgba($danger, 0.12);
+    }
+
+    &.pill-port:hover {
+        background-color: rgba($muted, 0.2);
+    }
+}
+
+.metrics {
+    display: flex;
+    align-items: flex-end;
+    gap: 28px;
+}
+
+.metric-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: $muted;
+}
+
+.metric-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+}
+
+.metric-memory {
+    min-width: 160px;
+
+    .bar {
+        height: 4px;
+        margin-top: 4px;
+        border-radius: 2px;
+        background-color: #eef0f3;
+        overflow: hidden;
+
+        span {
+            display: block;
+            height: 100%;
+            background-color: $primary;
+        }
+    }
+}
+
+.dark {
+    .service-actions,
+    .icon-btn {
+        background-color: $dark-bg2;
+        border-color: $dark-border-color;
+        color: $dark-font-color;
+    }
+
+    .service-actions .btn {
+        color: $dark-font-color;
+    }
+
+    .service-actions .btn:hover,
+    .icon-btn:hover {
+        background-color: $dark-header-bg;
+    }
+
+    .pill {
+        color: $dark-font-color;
+    }
+
+    .pill-running {
+        color: #4ade80;
+    }
+
+    .metric-memory .bar {
+        background-color: $dark-border-color;
     }
 }
 </style>

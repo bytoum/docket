@@ -1,70 +1,79 @@
 <template>
     <transition name="slide-fade" appear>
-        <div>
+        <div class="stack-page">
+            <!-- Header -->
             <h1 v-if="isAdd" class="mb-3">{{ $t("compose") }}</h1>
-            <h1 v-else class="mb-3">
-                <Uptime :stack="globalStack" :pill="true" /> {{ stack.name }}
-                <span v-if="$root.agentCount > 1 && endpoint !== ''" class="agent-name">
+            <div v-else class="stack-header">
+                <Uptime :stack="globalStack" />
+                <h1>{{ stack.name }}</h1>
+                <span v-if="stack.isManagedByDockge" class="meta">{{ $tc("containerCount", serviceCount) }}</span>
+                <span v-if="$root.agentCount > 1 && endpoint !== ''" class="meta">
                     ({{ endpointDisplay }})
                 </span>
-            </h1>
+            </div>
 
-            <div v-if="stack.isManagedByDockge" class="mb-3">
-                <div class="btn-group me-2" role="group">
-                    <button v-if="isEditMode" class="btn btn-primary" :disabled="processing" @click="deployStack">
+            <!-- Actions -->
+            <div v-if="stack.isManagedByDockge" class="action-bar">
+                <template v-if="isEditMode">
+                    <button class="btn btn-primary" :disabled="processing" @click="deployStack">
                         <font-awesome-icon icon="rocket" class="me-1" />
                         {{ $t("deployStack") }}
                     </button>
 
-                    <button v-if="isEditMode" class="btn btn-normal" :disabled="processing" @click="saveStack">
+                    <button class="btn btn-light-outline" :disabled="processing" @click="saveStack">
                         <font-awesome-icon icon="save" class="me-1" />
                         {{ $t("saveStackDraft") }}
                     </button>
 
-                    <button v-if="!isEditMode" class="btn btn-secondary" :disabled="processing" @click="enableEditMode">
-                        <font-awesome-icon icon="pen" class="me-1" />
-                        {{ $t("editStack") }}
+                    <button v-if="!isAdd" class="btn btn-light-outline" :disabled="processing" @click="discardStack">{{ $t("discardStack") }}</button>
+                </template>
+
+                <template v-else>
+                    <button class="btn btn-primary" :disabled="processing" @click="addContainerFromView">
+                        <font-awesome-icon icon="plus" class="me-1" />
+                        {{ $t("addContainer") }}
                     </button>
 
-                    <button v-if="!isEditMode && !active" class="btn btn-primary" :disabled="processing" @click="startStack">
-                        <font-awesome-icon icon="play" class="me-1" />
-                        {{ $t("startStack") }}
-                    </button>
+                    <div class="btn-group action-group" role="group">
+                        <button v-if="!active" class="btn" :disabled="processing" @click="startStack">
+                            <font-awesome-icon icon="play" class="me-1" />
+                            {{ $t("startStack") }}
+                        </button>
 
-                    <button v-if="!isEditMode && active" class="btn btn-normal " :disabled="processing" @click="restartStack">
-                        <font-awesome-icon icon="rotate" class="me-1" />
-                        {{ $t("restartStack") }}
-                    </button>
+                        <button v-if="active" class="btn" :disabled="processing" @click="restartStack">
+                            <font-awesome-icon icon="rotate" class="me-1" />
+                            {{ $t("restartStack") }}
+                        </button>
 
-                    <button v-if="!isEditMode" class="btn btn-normal" :disabled="processing" @click="updateStack">
-                        <font-awesome-icon icon="cloud-arrow-down" class="me-1" />
-                        {{ $t("updateStack") }}
-                    </button>
+                        <button class="btn" :disabled="processing" @click="updateStack">
+                            <font-awesome-icon icon="cloud-arrow-down" class="me-1" />
+                            {{ $t("updateStack") }}
+                        </button>
 
-                    <button v-if="!isEditMode && active" class="btn btn-normal" :disabled="processing" @click="stopStack">
-                        <font-awesome-icon icon="stop" class="me-1" />
-                        {{ $t("stopStack") }}
-                    </button>
-
-                    <BDropdown right text="" variant="normal">
-                        <BDropdownItem @click="downStack">
+                        <button v-if="active" class="btn" :disabled="processing" @click="stopStack">
                             <font-awesome-icon icon="stop" class="me-1" />
-                            {{ $t("downStack") }}
-                        </BDropdownItem>
-                    </BDropdown>
-                </div>
+                            {{ $t("stopStack") }}
+                        </button>
 
-                <button v-if="isEditMode && !isAdd" class="btn btn-normal" :disabled="processing" @click="discardStack">{{ $t("discardStack") }}</button>
-                <button v-if="!isEditMode" class="btn btn-danger" :disabled="processing" @click="showDeleteDialog = !showDeleteDialog">
-                    <font-awesome-icon icon="trash" class="me-1" />
-                    {{ $t("deleteStack") }}
-                </button>
+                        <BDropdown right text="" variant="link" class="more-dropdown">
+                            <BDropdownItem @click="downStack">
+                                <font-awesome-icon icon="stop" class="me-1" />
+                                {{ $t("downStack") }}
+                            </BDropdownItem>
+                        </BDropdown>
+                    </div>
+
+                    <button class="btn btn-soft-danger ms-auto" :disabled="processing" @click="showDeleteDialog = !showDeleteDialog">
+                        <font-awesome-icon icon="trash" class="me-1" />
+                        {{ $t("deleteStack") }}
+                    </button>
+                </template>
             </div>
 
             <!-- URLs -->
-            <div v-if="urls.length > 0" class="mb-3">
-                <a v-for="(urlItem, index) in urls" :key="index" target="_blank" :href="urlItem.url">
-                    <span class="badge bg-secondary me-2">{{ urlItem.display }}</span>
+            <div v-if="urls.length > 0" class="mb-3 d-flex flex-wrap gap-2">
+                <a v-for="(urlItem, index) in urls" :key="index" target="_blank" :href="urlItem.url" class="url-pill">
+                    <font-awesome-icon icon="link" class="me-1" />{{ urlItem.display }}
                 </a>
             </div>
 
@@ -82,11 +91,11 @@
             </transition>
 
             <div v-if="stack.isManagedByDockge" class="row">
-                <div class="col-lg-6">
+                <div :class="isEditMode ? 'col-lg-6' : 'col-12'">
                     <!-- General -->
                     <div v-if="isAdd">
-                        <h4 class="mb-3">{{ $t("general") }}</h4>
-                        <div class="shadow-box big-padding mb-3">
+                        <h2 class="section-title">{{ $t("general") }}</h2>
+                        <div class="shadow-box big-padding mb-4">
                             <!-- Stack Name -->
                             <div>
                                 <label for="name" class="form-label">{{ $t("stackName") }}</label>
@@ -107,10 +116,17 @@
                     </div>
 
                     <!-- Containers -->
-                    <h4 class="mb-3">{{ $tc("container", 2) }}</h4>
+                    <div class="section-head">
+                        <h2 class="section-title">{{ $tc("container", 2) }}</h2>
+                        <button v-if="!isEditMode" class="btn btn-light-outline btn-sm-flat" @click="editComposeFile">
+                            <font-awesome-icon icon="file" class="me-1" />
+                            {{ $t("editComposeFile", [ stack.composeFileName || "compose.yaml" ]) }}
+                        </button>
+                    </div>
 
                     <div v-if="isEditMode" class="input-group mb-3">
                         <input
+                            ref="newContainerInput"
                             v-model="newContainerName"
                             :placeholder="$t(`New Container Name...`)"
                             class="form-control"
@@ -133,14 +149,13 @@
                             @start-service="startService"
                             @stop-service="stopService"
                             @restart-service="restartService"
+                            @edit-service="enableEditMode"
                         />
                     </div>
 
-                    <button v-if="false && isEditMode && jsonConfig.services && Object.keys(jsonConfig.services).length > 0" class="btn btn-normal mb-3" @click="addContainer">{{ $t("addContainer") }}</button>
-
-                    <!-- General -->
+                    <!-- Extra -->
                     <div v-if="isEditMode">
-                        <h4 class="mb-3">{{ $t("extra") }}</h4>
+                        <h2 class="section-title">{{ $t("extra") }}</h2>
                         <div class="shadow-box big-padding mb-3">
                             <!-- URLs -->
                             <div class="mb-4">
@@ -152,9 +167,44 @@
                         </div>
                     </div>
 
+                    <!-- Networks (view mode) -->
+                    <div v-if="!isEditMode" class="mt-4">
+                        <div class="section-head">
+                            <h2 class="section-title">{{ $tc("network", 2) }}</h2>
+                            <button class="btn btn-light-outline btn-sm-flat" @click="editNetworks">
+                                <font-awesome-icon icon="plus" class="me-1" />
+                                {{ $t("addNetwork") }}
+                            </button>
+                        </div>
+
+                        <template v-for="group in networkGroups" :key="group.key">
+                            <div v-if="group.items.length > 0" class="mb-4">
+                                <div class="group-label">{{ group.label }}</div>
+                                <div v-for="network in group.items" :key="network.name" class="network-row shadow-box">
+                                    <span class="network-icon" :class="{ external: group.key === 'external' }">
+                                        <font-awesome-icon icon="sitemap" />
+                                    </span>
+                                    <div class="network-body">
+                                        <div class="network-name">{{ network.name }}</div>
+                                        <div class="network-used">
+                                            <template v-if="network.usedBy.length > 0">{{ $t("usedBy", [ network.usedBy.join(", ") ]) }}</template>
+                                            <template v-else>{{ $t("notUsedByAnyContainer") }}</template>
+                                        </div>
+                                    </div>
+                                    <span v-if="network.driver" class="tag-pill">{{ network.driver }}</span>
+                                    <span v-if="group.key === 'external'" class="tag-pill tag-blue">{{ $t("externalNetwork") }}</span>
+                                    <button class="icon-btn" :title="$t('Edit')" @click="editNetworks">
+                                        <font-awesome-icon icon="pen" />
+                                    </button>
+                                </div>
+                                <div class="group-hint">{{ group.hint }}</div>
+                            </div>
+                        </template>
+                    </div>
+
                     <!-- Combined Terminal Output -->
-                    <div v-show="!isEditMode">
-                        <h4 class="mb-3">{{ $t("terminal") }}</h4>
+                    <div v-show="!isEditMode" class="mt-2">
+                        <h2 class="section-title">{{ $t("terminal") }}</h2>
                         <Terminal
                             ref="combinedTerminal"
                             class="mb-3 terminal"
@@ -166,11 +216,12 @@
                         ></Terminal>
                     </div>
                 </div>
-                <div class="col-lg-6">
-                    <h4 class="mb-3">{{ stack.composeFileName }}</h4>
+
+                <div v-if="isEditMode" class="col-lg-6">
+                    <h2 ref="yamlEditorTitle" class="section-title">{{ stack.composeFileName }}</h2>
 
                     <!-- YAML editor -->
-                    <div class="shadow-box mb-3 editor-box" :class="{'edit-mode' : isEditMode}">
+                    <div class="shadow-box mb-3 editor-box edit-mode">
                         <code-mirror
                             ref="editor"
                             v-model="stack.composeYAML"
@@ -179,57 +230,35 @@
                             wrap="true"
                             dark="true"
                             tab="true"
-                            :disabled="!isEditMode"
                             :hasFocus="editorFocus"
                             @change="yamlCodeChange"
                         />
                     </div>
-                    <div v-if="isEditMode" class="mb-3">
+                    <div class="mb-3">
                         {{ yamlError }}
                     </div>
 
                     <!-- ENV editor -->
-                    <div v-if="isEditMode">
-                        <h4 class="mb-3">.env</h4>
-                        <div class="shadow-box mb-3 editor-box" :class="{'edit-mode' : isEditMode}">
-                            <code-mirror
-                                ref="editor"
-                                v-model="stack.composeENV"
-                                :extensions="extensionsEnv"
-                                minimal
-                                wrap="true"
-                                dark="true"
-                                tab="true"
-                                :disabled="!isEditMode"
-                                :hasFocus="editorFocus"
-                                @change="yamlCodeChange"
-                            />
-                        </div>
+                    <h2 class="section-title">.env</h2>
+                    <div class="shadow-box mb-3 editor-box edit-mode">
+                        <code-mirror
+                            ref="editor"
+                            v-model="stack.composeENV"
+                            :extensions="extensionsEnv"
+                            minimal
+                            wrap="true"
+                            dark="true"
+                            tab="true"
+                            :hasFocus="editorFocus"
+                            @change="yamlCodeChange"
+                        />
                     </div>
 
-                    <div v-if="isEditMode">
-                        <!-- Volumes -->
-                        <div v-if="false">
-                            <h4 class="mb-3">{{ $tc("volume", 2) }}</h4>
-                            <div class="shadow-box big-padding mb-3">
-                            </div>
-                        </div>
-
-                        <!-- Networks -->
-                        <h4 class="mb-3">{{ $tc("network", 2) }}</h4>
-                        <div class="shadow-box big-padding mb-3">
-                            <NetworkInput />
-                        </div>
+                    <!-- Networks -->
+                    <h2 ref="networkEditorTitle" class="section-title">{{ $tc("network", 2) }}</h2>
+                    <div class="shadow-box big-padding mb-3">
+                        <NetworkInput />
                     </div>
-
-                    <!-- <div class="shadow-box big-padding mb-3">
-                        <div class="mb-3">
-                            <label for="name" class="form-label"> Search Templates</label>
-                            <input id="name" v-model="name" type="text" class="form-control" placeholder="Search..." required>
-                        </div>
-
-                        <prism-editor v-if="false" v-model="yamlConfig" class="yaml-editor" :highlight="highlighter" line-numbers @input="yamlCodeChange"></prism-editor>
-                    </div>-->
                 </div>
             </div>
 
@@ -414,6 +443,72 @@ export default {
 
         networks() {
             return this.jsonConfig.networks;
+        },
+
+        /**
+         * Number of services (containers) defined in the compose file
+         * @returns {number} Service count
+         */
+        serviceCount() {
+            return Object.keys(this.jsonConfig.services ?? {}).length;
+        },
+
+        /**
+         * Networks of this stack for the read-only view, split into networks
+         * defined by the stack and external networks that already exist on the host.
+         * The implicit "default" network is included when a service uses it.
+         * @returns {object[]} Network groups with their items
+         */
+        networkGroups() {
+            const services = this.jsonConfig.services ?? {};
+            const networks = this.jsonConfig.networks ?? {};
+
+            const networksOf = (service) => {
+                const list = service?.networks;
+                if (!list) {
+                    return null;
+                }
+                return Array.isArray(list) ? list : Object.keys(list);
+            };
+
+            // A service without a "networks" key is attached to "default"
+            const usedBy = (networkName) => Object.keys(services).filter((serviceName) => {
+                const list = networksOf(services[serviceName]);
+                return list ? list.includes(networkName) : networkName === "default";
+            });
+
+            const names = Object.keys(networks);
+            if (!names.includes("default") && usedBy("default").length > 0) {
+                names.unshift("default");
+            }
+
+            const stackItems = [];
+            const externalItems = [];
+
+            for (const name of names) {
+                const config = networks[name] ?? {};
+                const item = {
+                    name,
+                    driver: config.driver ?? (config.external ? "" : "bridge"),
+                    usedBy: usedBy(name),
+                };
+                (config.external ? externalItems : stackItems).push(item);
+            }
+
+            return [
+                {
+                    key: "stack",
+                    label: this.$t("stackNetworks"),
+                    hint: this.$t("stackNetworksHint"),
+                    items: stackItems,
+                },
+                {
+                    key: "external",
+                    label: this.$t("External Networks"),
+                    hint: this.$t("externalNetworksHint"),
+                    items: externalItems,
+                },
+            ];
         },
 
         endpoint() {
@@ -772,6 +867,48 @@ export default {
             this.isEditMode = true;
         },
 
+        /**
+         * Switch to edit mode and scroll the given element into view
+         * @param {string} refName Name of the ref to scroll to
+         * @returns {void}
+         */
+        editAndScrollTo(refName) {
+            this.enableEditMode();
+            this.$nextTick(() => {
+                this.$refs[refName]?.scrollIntoView({
+                    block: "start",
+                    behavior: "smooth",
+                });
+            });
+        },
+
+        /**
+         * Switch to edit mode and show the compose file editor
+         * @returns {void}
+         */
+        editComposeFile() {
+            this.editAndScrollTo("yamlEditorTitle");
+        },
+
+        /**
+         * Switch to edit mode and show the network editor
+         * @returns {void}
+         */
+        editNetworks() {
+            this.editAndScrollTo("networkEditorTitle");
+        },
+
+        /**
+         * Switch to edit mode and focus the new container name input
+         * @returns {void}
+         */
+        addContainerFromView() {
+            this.enableEditMode();
+            this.$nextTick(() => {
+                this.$refs.newContainerInput?.focus();
+            });
+        },
+
         checkYAML() {
 
         },
@@ -858,8 +995,269 @@ export default {
     font-size: 14px;
 }
 
-.agent-name {
+// Header
+.stack-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 18px;
+
+    h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .meta {
+        font-size: 13px;
+        color: $muted;
+    }
+}
+
+// Action bar
+.action-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 28px;
+
+    .btn {
+        font-size: 14px;
+        font-weight: 500;
+        padding: 6px 14px;
+        border-radius: 8px;
+    }
+}
+
+.action-group {
+    background-color: #fff;
+    border: 1px solid $surface-border;
+    border-radius: 8px;
+
+    > .btn,
+    :deep(.btn) {
+        border: none;
+        border-radius: 0 !important;
+        color: #374151;
+        background: transparent;
+        padding: 6px 12px;
+
+        &:hover {
+            background-color: #f3f4f6;
+        }
+    }
+
+    > .btn:first-child {
+        border-top-left-radius: 8px !important;
+        border-bottom-left-radius: 8px !important;
+    }
+
+    :deep(.more-dropdown .btn) {
+        border-top-right-radius: 8px !important;
+        border-bottom-right-radius: 8px !important;
+        padding: 6px 10px;
+    }
+}
+
+.btn-light-outline {
+    color: #374151;
+    background-color: #fff;
+    border: 1px solid $surface-border;
+
+    &:hover {
+        background-color: #f3f4f6;
+    }
+}
+
+.btn-sm-flat {
     font-size: 13px;
-    color: $dark-font-color3;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 8px;
+}
+
+.btn-soft-danger {
+    color: $danger;
+    background-color: rgba($danger, 0.1);
+    border: none;
+
+    &:hover {
+        color: #fff;
+        background-color: $danger;
+    }
+}
+
+.url-pill {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 50rem;
+    text-decoration: none;
+    color: $primary;
+    background-color: rgba($primary, 0.1);
+
+    &:hover {
+        background-color: rgba($primary, 0.18);
+    }
+}
+
+// Sections
+.section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 14px;
+
+    .section-title {
+        margin-bottom: 0;
+    }
+}
+
+.section-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 14px;
+}
+
+.group-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: $muted;
+    margin-bottom: 8px;
+}
+
+.group-hint {
+    font-size: 12px;
+    color: $muted;
+    margin-top: 2px;
+}
+
+// Network rows
+.network-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+}
+
+.network-icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: $primary;
+    background-color: #e8ecff;
+
+    &.external {
+        color: $muted;
+        background-color: rgba($muted, 0.12);
+    }
+}
+
+.network-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.network-name {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.network-used {
+    font-size: 12px;
+    color: $muted;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tag-pill {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 50rem;
+    font-size: 11px;
+    font-weight: 500;
+    color: #4b5563;
+    background-color: rgba($muted, 0.12);
+
+    &::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: currentColor;
+    }
+
+    &.tag-blue {
+        color: $primary;
+        background-color: rgba($primary, 0.12);
+    }
+}
+
+.icon-btn {
+    flex-shrink: 0;
+    border: 1px solid $surface-border;
+    background: #fff;
+    border-radius: 8px;
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+    color: #4b5563;
+
+    &:hover {
+        background-color: #f3f4f6;
+    }
+}
+
+// Dark theme
+.dark {
+    .action-group,
+    .btn-light-outline,
+    .icon-btn {
+        background-color: $dark-bg;
+        border-color: $dark-border-color;
+        color: $dark-font-color;
+    }
+
+    .action-group > .btn,
+    .action-group :deep(.btn) {
+        color: $dark-font-color;
+
+        &:hover {
+            background-color: $dark-bg2;
+        }
+    }
+
+    .btn-light-outline:hover,
+    .icon-btn:hover {
+        background-color: $dark-bg2;
+    }
+
+    .network-icon {
+        background-color: rgba($primary, 0.2);
+        color: $highlight;
+    }
+
+    .tag-pill {
+        color: $dark-font-color;
+    }
+
+    .tag-blue {
+        color: $highlight;
+    }
 }
 </style>
