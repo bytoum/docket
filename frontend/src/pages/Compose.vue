@@ -165,6 +165,13 @@
                                 <button class="icon-btn" :title="$t('Edit')" @click="openNetworkDrawer(network.name)">
                                     <AssetIcon :src="icons.pen" width="14.7317" height="14.7317" tone="neutral" />
                                 </button>
+                                <button
+                                    v-if="network.name in (jsonConfig.networks ?? {})" class="icon-btn danger"
+                                    :title="$t('deleteNetworkTitle')" :aria-label="$t('deleteNetworkTitle')" :disabled="processing"
+                                    @click="networkToDelete = network.name"
+                                >
+                                    <AssetIcon :src="icons.trash" width="13.5" height="14.8333" />
+                                </button>
                             </div>
                             <div class="group-hint">{{ group.hint }}</div>
                         </div>
@@ -352,7 +359,6 @@
                 :busy="processing && !isEditMode"
                 @close="containerDrawer.open = false"
                 @submit="applyContainerDrawer"
-                @delete="deleteContainer"
                 @create-network="openNetworkDrawerFromContainer"
             />
 
@@ -375,8 +381,16 @@
                 :busy="processing && !isEditMode"
                 @close="networkDrawer.open = false; networkDrawer.fromContainer = false"
                 @submit="applyNetworkDrawer"
-                @delete="deleteNetwork"
             />
+
+            <!-- Delete network confirmation -->
+            <BModal
+                :modelValue="networkToDelete !== ''" :title="$t('deleteNetworkTitle')" :cancelTitle="$t('cancel')"
+                :okTitle="$t('deleteStack')" okVariant="danger"
+                @update:model-value="(show) => { if (!show) networkToDelete = '' }" @ok="deleteNetwork(networkToDelete)"
+            >
+                {{ $t("deleteNetworkMsg", [ networkToDelete ]) }}
+            </BModal>
 
             <!-- Delete Dialog -->
             <BModal v-model="showDeleteDialog" :cancelTitle="$t('cancel')" :okTitle="$t('deleteStack')" okVariant="danger" @ok="deleteDialog">
@@ -586,6 +600,8 @@ export default {
             isEditMode: false,
             submitted: false,
             showDeleteDialog: false,
+            // Network waiting for delete confirmation ("" when none)
+            networkToDelete: "",
             icons,
             activeFile: "yaml",
             startFrom: "template",
@@ -1901,6 +1917,18 @@ export default {
     &:hover {
         background-color: darken($surface-raised, 4%);
     }
+
+    &.danger {
+        background-color: $status-danger-subtle;
+
+        &:hover {
+            background-color: $status-danger-subtle-hover;
+        }
+    }
+
+    &:disabled {
+        opacity: 0.5;
+    }
 }
 
 // State badges (Editing, Unsaved changes, Valid YAML)
@@ -2591,6 +2619,14 @@ select.flat-input {
     .btn-light-outline:hover,
     .icon-btn:hover {
         background-color: $dark-bg2;
+    }
+
+    .icon-btn.danger {
+        background-color: $dark-status-danger-subtle;
+
+        &:hover {
+            background-color: lighten($dark-status-danger-subtle, 4%);
+        }
     }
 
     .btn-soft-danger {

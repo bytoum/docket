@@ -161,10 +161,6 @@
 
                 <!-- Footer -->
                 <footer class="drawer-footer">
-                    <button v-if="!isAdd" type="button" class="footer-btn danger" :disabled="busy" @click="showDeleteDialog = true">
-                        <AssetIcon :src="iconTrash" width="13.5" height="14.8333" />
-                        {{ $t("deleteContainerTitle") }}
-                    </button>
                     <span class="footer-spacer"></span>
                     <button type="button" class="footer-btn secondary" @click="close">{{ $t("cancel") }}</button>
                     <button type="submit" form="container-drawer-form" class="footer-btn primary" :disabled="busy">
@@ -172,14 +168,6 @@
                         {{ isAdd ? $t("addContainer") : $t("saveChanges") }}
                     </button>
                 </footer>
-
-                <!-- Delete confirmation -->
-                <BModal
-                    v-model="showDeleteDialog" :title="$t('deleteContainerTitle')" :cancelTitle="$t('cancel')"
-                    :okTitle="$t('deleteContainer')" okVariant="danger" @ok="$emit('delete', serviceName)"
-                >
-                    {{ $t("deleteContainerMsg", [ serviceName ]) }}
-                </BModal>
             </aside>
         </transition>
     </Teleport>
@@ -192,9 +180,6 @@ import iconPlusOnAccent from "../assets/drawer/plus-on-accent.svg";
 import iconChevron from "../assets/drawer/chevron-down.svg";
 import iconSwitchOn from "../assets/drawer/switch-on.svg";
 import iconSwitchOff from "../assets/drawer/switch-off.svg";
-import iconTrash from "../assets/stack/trash.svg";
-import AssetIcon from "./AssetIcon.vue";
-import { BModal } from "bootstrap-vue-next";
 
 // Service names allowed by Docker Compose
 const SERVICE_NAME_PATTERN = /^[a-z0-9][a-z0-9_.-]*$/;
@@ -213,10 +198,6 @@ function networksOf(service) {
 }
 
 export default {
-    components: {
-        AssetIcon,
-        BModal,
-    },
     props: {
         /** Whether the drawer is shown */
         open: {
@@ -249,7 +230,7 @@ export default {
             default: false,
         },
     },
-    emits: [ "close", "submit", "delete", "create-network" ],
+    emits: [ "close", "submit", "create-network" ],
     data() {
         return {
             iconClose,
@@ -258,8 +239,6 @@ export default {
             iconChevron,
             iconSwitchOn,
             iconSwitchOff,
-            iconTrash,
-            showDeleteDialog: false,
             hostNetworks: [],
             hostNetworkInfo: {},
             draft: this.emptyDraft(),

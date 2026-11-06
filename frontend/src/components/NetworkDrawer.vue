@@ -91,10 +91,6 @@
 
                 <!-- Footer -->
                 <footer class="drawer-footer">
-                    <button v-if="canDelete" type="button" class="footer-btn danger" :disabled="busy" @click="showDeleteDialog = true">
-                        <AssetIcon :src="icons.trash" width="13.5" height="14.8333" />
-                        {{ $t("deleteStack") }}
-                    </button>
                     <span class="footer-spacer"></span>
                     <button type="button" class="footer-btn secondary" @click="close">{{ $t("cancel") }}</button>
                     <button type="submit" form="network-drawer-form" class="footer-btn primary" :disabled="busy">
@@ -102,28 +98,17 @@
                         {{ isAdd ? $t("addNetwork") : $t("saveChanges") }}
                     </button>
                 </footer>
-
-                <!-- Delete confirmation -->
-                <BModal
-                    v-model="showDeleteDialog" :title="$t('deleteNetworkTitle')" :cancelTitle="$t('cancel')"
-                    :okTitle="$t('deleteStack')" okVariant="danger" @ok="$emit('delete', networkName)"
-                >
-                    {{ $t("deleteNetworkMsg", [ networkName ]) }}
-                </BModal>
             </aside>
         </transition>
     </Teleport>
 </template>
 
 <script>
-import { BModal } from "bootstrap-vue-next";
-import AssetIcon from "./AssetIcon.vue";
 import iconClose from "../assets/drawer/close.svg";
 import iconChevronDown from "../assets/drawer/chevron-down.svg";
 import iconPlusOnAccent from "../assets/drawer/plus-on-accent.svg";
 import iconRadioOn from "../assets/drawer/radio-on.svg";
 import iconRadioOff from "../assets/drawer/radio-off.svg";
-import iconTrash from "../assets/stack/trash.svg";
 
 const icons = {
     close: iconClose,
@@ -131,7 +116,6 @@ const icons = {
     plusOnAccent: iconPlusOnAccent,
     radioOn: iconRadioOn,
     radioOff: iconRadioOff,
-    trash: iconTrash,
 };
 
 // Network names allowed by Docker Compose
@@ -147,10 +131,6 @@ const UNSUPPORTED_EXTERNAL = [ "none", "host", "bridge" ];
  * Side drawer to add a network to the stack (new or external) or edit one
  */
 export default {
-    components: {
-        AssetIcon,
-        BModal,
-    },
     props: {
         /** Whether the drawer is shown */
         open: {
@@ -183,14 +163,13 @@ export default {
             default: false,
         },
     },
-    emits: [ "close", "submit", "delete" ],
+    emits: [ "close", "submit" ],
     data() {
         return {
             icons,
             draft: this.emptyDraft(),
             search: "",
             hostNetworks: [],
-            showDeleteDialog: false,
             typeOptions: [
                 {
                     value: "new",
@@ -211,11 +190,6 @@ export default {
 
         networks() {
             return this.jsonConfig.networks ?? {};
-        },
-
-        /** The implicit "default" network cannot be removed */
-        canDelete() {
-            return !this.isAdd && this.networkName !== "default" && this.networkName in this.networks;
         },
 
         /**
