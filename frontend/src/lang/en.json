@@ -213,6 +213,7 @@
     "showConsole": "Show console",
     "hideConsole": "Hide console",
     "resizeConsole": "Resize console",
+    "resizeDrawer": "Resize panel",
     "consoleEmpty": "No log output yet.",
     "consoleFilter": "Filter logs…",
     "consoleClear": "Clear",
