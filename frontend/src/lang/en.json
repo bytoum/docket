@@ -212,6 +212,7 @@
     "replaceComposeConfirm": "Replace the current compose.yaml? Your changes to it will be lost.",
     "showConsole": "Show console",
     "hideConsole": "Hide console",
+    "resizeConsole": "Resize console",
     "consoleEmpty": "No log output yet.",
     "consoleFilter": "Filter logs…",
     "consoleClear": "Clear",

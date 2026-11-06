@@ -1,5 +1,12 @@
 <template>
-    <section class="console-dock" :class="{ open }">
+    <section class="console-dock" :class="{ open, resizing }">
+        <!-- Drag to resize the log panel (arrow keys work too) -->
+        <div
+            v-if="open" class="resize-handle" role="separator" aria-orientation="horizontal" tabindex="0"
+            :aria-label="$t('resizeConsole')" :aria-valuenow="panelHeight" :aria-valuemin="MIN_PANEL_HEIGHT" :aria-valuemax="maxPanelHeight()"
+            @pointerdown="startResize" @keydown="onResizeKeydown"
+        ></div>
+
         <!-- Bar -->
         <div class="dock-bar">
             <div class="dock-title">
@@ -49,7 +56,7 @@
         </div>
 
         <!-- Log panel -->
-        <div v-show="open" ref="panel" class="log-panel" @scroll="onScroll">
+        <div v-show="open" ref="panel" class="log-panel" :style="{ height: panelHeight + 'px' }" @scroll="onScroll">
             <div v-if="visibleLines.length === 0" class="log-empty">{{ lines.length > 0 ? $t("consoleNoMatch") : $t("consoleEmpty") }}</div>
             <div v-for="line in visibleLines" :key="line.id" class="log-line">
                 <span v-if="line.source" class="log-source" :style="sourceStyle">{{ line.source }}</span>
@@ -76,6 +83,12 @@ const icons = {
 };
 
 const STORAGE_KEY = "consoleDockOpen";
+const HEIGHT_STORAGE_KEY = "consoleDockHeight";
+const DEFAULT_PANEL_HEIGHT = 220;
+const MIN_PANEL_HEIGHT = 100;
+// Keep this much of the window free above the dock
+const MIN_FREE_SPACE = 160;
+const KEYBOARD_STEP = 20;
 const MAX_LINES = 1000;
 
 // ANSI escape sequences (colours, cursor movement) and OSC sequences
@@ -127,8 +140,13 @@ export default {
     },
     data() {
         let open = false;
+        let panelHeight = DEFAULT_PANEL_HEIGHT;
         try {
             open = localStorage.getItem(STORAGE_KEY) === "1";
+            const saved = parseInt(localStorage.getItem(HEIGHT_STORAGE_KEY), 10);
+            if (saved >= MIN_PANEL_HEIGHT) {
+                panelHeight = saved;
+            }
         } catch (e) {
             // Storage can be unavailable, e.g. in a private window
         }
@@ -142,6 +160,9 @@ export default {
             partial: "",
             stickToBottom: true,
             boundName: "",
+            MIN_PANEL_HEIGHT,
+            panelHeight,
+            resizing: false,
         };
     },
     computed: {
@@ -207,9 +228,13 @@ export default {
         },
     },
     mounted() {
+        this.panelHeight = this.clampHeight(this.panelHeight);
         this.updateDockHeight();
+        window.addEventListener("resize", this.onWindowResize);
     },
     unmounted() {
+        window.removeEventListener("resize", this.onWindowResize);
+        this.stopResize();
         if (this.boundName) {
             this.$root.unbindTerminal(this.boundName);
         }
@@ -327,6 +352,110 @@ export default {
                     panel.scrollTop = panel.scrollHeight;
                 }
             });
+        },
+
+        /**
+         * Largest log panel height that still leaves room for the page
+         * @returns {number} Height in pixels
+         */
+        maxPanelHeight() {
+            return Math.max(MIN_PANEL_HEIGHT, window.innerHeight - MIN_FREE_SPACE);
+        },
+
+        /**
+         * Keep a height between the minimum and the maximum
+         * @param {number} height Height in pixels
+         * @returns {number} Clamped height
+         */
+        clampHeight(height) {
+            return Math.round(Math.min(Math.max(height, MIN_PANEL_HEIGHT), this.maxPanelHeight()));
+        },
+
+        /**
+         * Set the log panel height, remember it and update the page padding
+         * @param {number} height Height in pixels
+         * @param {boolean} save Store it for the next visit
+         * @returns {void}
+         */
+        setPanelHeight(height, save = true) {
+            this.panelHeight = this.clampHeight(height);
+            this.updateDockHeight();
+            if (this.stickToBottom) {
+                this.scrollToBottom();
+            }
+            if (save) {
+                try {
+                    localStorage.setItem(HEIGHT_STORAGE_KEY, String(this.panelHeight));
+                } catch (e) {
+                    // Ignore, the setting is only a convenience
+                }
+            }
+        },
+
+        /**
+         * Start dragging the resize handle
+         * @param {PointerEvent} event Pointer event
+         * @returns {void}
+         */
+        startResize(event) {
+            if (event.button !== 0) {
+                return;
+            }
+            event.preventDefault();
+            this.resizing = true;
+            this.resizeStartY = event.clientY;
+            this.resizeStartHeight = this.panelHeight;
+            window.addEventListener("pointermove", this.onResizeMove);
+            window.addEventListener("pointerup", this.stopResize);
+            window.addEventListener("pointercancel", this.stopResize);
+        },
+
+        /**
+         * Dragging up makes the panel taller
+         * @param {PointerEvent} event Pointer event
+         * @returns {void}
+         */
+        onResizeMove(event) {
+            this.setPanelHeight(this.resizeStartHeight + (this.resizeStartY - event.clientY), false);
+        },
+
+        /**
+         * Stop dragging and remember the height
+         * @returns {void}
+         */
+        stopResize() {
+            window.removeEventListener("pointermove", this.onResizeMove);
+            window.removeEventListener("pointerup", this.stopResize);
+            window.removeEventListener("pointercancel", this.stopResize);
+            if (this.resizing) {
+                this.resizing = false;
+                this.setPanelHeight(this.panelHeight);
+            }
+        },
+
+        /**
+         * Arrow keys on the focused handle change the height
+         * @param {KeyboardEvent} event Key event
+         * @returns {void}
+         */
+        onResizeKeydown(event) {
+            if (event.key === "ArrowUp") {
+                event.preventDefault();
+                this.setPanelHeight(this.panelHeight + KEYBOARD_STEP);
+            } else if (event.key === "ArrowDown") {
+                event.preventDefault();
+                this.setPanelHeight(this.panelHeight - KEYBOARD_STEP);
+            }
+        },
+
+        /**
+         * Shrink the panel if the window got too small for it
+         * @returns {void}
+         */
+        onWindowResize() {
+            if (this.panelHeight > this.maxPanelHeight()) {
+                this.setPanelHeight(this.panelHeight, false);
+            }
         },
 
         /**
@@ -499,8 +628,45 @@ export default {
     }
 }
 
+// Thin strip over the dock's top border; the line turns blue on hover
+.resize-handle {
+    position: absolute;
+    top: -4px;
+    left: 0;
+    right: 0;
+    height: 8px;
+    z-index: 1;
+    cursor: ns-resize;
+    touch-action: none;
+
+    &::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 3px;
+        height: 2px;
+        background-color: transparent;
+        transition: background-color 0.15s;
+    }
+
+    &:hover::after,
+    &:focus-visible::after,
+    .resizing &::after {
+        background-color: $primary;
+    }
+
+    &:focus-visible {
+        outline: none;
+    }
+}
+
+// No text selection while dragging
+.resizing {
+    user-select: none;
+}
+
 .log-panel {
-    height: 220px;
     overflow: auto;
     padding: 14px 24px;
     background-color: $bg-input;
