@@ -177,6 +177,51 @@
                         </div>
                     </template>
                 </div>
+
+                <!-- Volumes (view mode), same layout as networks -->
+                <div class="networks-section">
+                    <div class="section-head">
+                        <h2 class="section-title">{{ $tc("volume", 2) }}</h2>
+                        <button class="btn btn-light-outline toolbar-btn" @click="openVolumeDrawer()">
+                            <AssetIcon :src="icons.plus" width="10.8333" height="10.8333" tone="neutral" />
+                            {{ $t("addVolume") }}
+                        </button>
+                    </div>
+
+                    <p v-if="volumeGroups.every((group) => group.items.length === 0)" class="group-hint">{{ $t("noVolumes") }}</p>
+
+                    <template v-for="group in volumeGroups" :key="group.key">
+                        <div v-if="group.items.length > 0" class="network-group">
+                            <div class="group-label">{{ group.label }}</div>
+                            <div v-for="volume in group.items" :key="volume.name" class="network-row">
+                                <span class="network-icon" :class="{ external: group.key === 'external' }">
+                                    <AssetIcon :src="group.key === 'external' ? icons.volumeExternal : icons.volume" width="15" height="16.5" :box="18" />
+                                </span>
+                                <div class="network-body">
+                                    <div class="network-name">{{ volume.name }}</div>
+                                    <div class="network-used">
+                                        <template v-if="volume.usedBy.length > 0">{{ $t("usedBy", [ volume.usedBy.join(", ") ]) }}</template>
+                                        <template v-else>{{ $t("notUsedByAnyContainer") }}</template>
+                                    </div>
+                                </div>
+                                <div class="tags">
+                                    <span v-if="volume.driver" class="tag-pill"><img :src="icons.dotNeutral" width="6" height="6" alt="" />{{ volume.driver }}</span>
+                                    <span v-if="group.key === 'external'" class="tag-pill tag-blue"><img :src="icons.dotAccent" width="6" height="6" alt="" />{{ $t("externalNetwork") }}</span>
+                                </div>
+                                <button class="icon-btn" :title="$t('Edit')" :aria-label="$t('Edit')" @click="openVolumeDrawer(volume.name)">
+                                    <AssetIcon :src="icons.pen" width="14.7317" height="14.7317" tone="neutral" />
+                                </button>
+                                <button
+                                    class="icon-btn danger" :title="$t('deleteVolumeTitle')" :aria-label="$t('deleteVolumeTitle')" :disabled="processing"
+                                    @click="volumeToDelete = volume.name"
+                                >
+                                    <AssetIcon :src="icons.trash" width="13.5" height="14.8333" />
+                                </button>
+                            </div>
+                            <div class="group-hint">{{ group.hint }}</div>
+                        </div>
+                    </template>
+                </div>
             </div>
 
             <!-- Edit mode: compose.yaml / .env editor -->
@@ -392,6 +437,26 @@
                 {{ $t("deleteNetworkMsg", [ networkToDelete ]) }}
             </BModal>
 
+            <VolumeDrawer
+                :open="volumeDrawer.open"
+                :volume-name="volumeDrawer.volumeName"
+                :json-config="jsonConfig"
+                :stack-name="stack.name"
+                :endpoint="endpoint"
+                :busy="processing && !isEditMode"
+                @close="volumeDrawer.open = false"
+                @submit="applyVolumeDrawer"
+            />
+
+            <!-- Delete volume confirmation -->
+            <BModal
+                :modelValue="volumeToDelete !== ''" :title="$t('deleteVolumeTitle')" :cancelTitle="$t('cancel')"
+                :okTitle="$t('deleteStack')" okVariant="danger"
+                @update:model-value="(show) => { if (!show) volumeToDelete = '' }" @ok="deleteVolume(volumeToDelete)"
+            >
+                {{ $t("deleteVolumeMsg", [ volumeToDelete ]) }}
+            </BModal>
+
             <!-- Delete Dialog -->
             <BModal v-model="showDeleteDialog" :cancelTitle="$t('cancel')" :okTitle="$t('deleteStack')" okVariant="danger" @ok="deleteDialog">
                 {{ $t("deleteStackMsg") }}
@@ -424,6 +489,7 @@ import ContainerDrawer from "../components/ContainerDrawer.vue";
 import EnvDrawer from "../components/EnvDrawer.vue";
 import { rowsToEnv } from "../components/EnvEditor.vue";
 import NetworkDrawer from "../components/NetworkDrawer.vue";
+import VolumeDrawer from "../components/VolumeDrawer.vue";
 import AssetIcon from "../components/AssetIcon.vue";
 import ConsoleDock from "../components/ConsoleDock.vue";
 import iconPlusOnAccent from "../assets/stack/plus-on-accent.svg";
@@ -436,6 +502,8 @@ import iconTrash from "../assets/stack/trash.svg";
 import iconFile from "../assets/stack/file.svg";
 import iconNetwork from "../assets/stack/network.svg";
 import iconNetworkExternal from "../assets/stack/network-external.svg";
+import iconVolume from "../assets/stack/volume.svg";
+import iconVolumeExternal from "../assets/stack/volume-external.svg";
 import iconPen from "../assets/stack/pen.svg";
 import iconDotNeutral from "../assets/stack/dot-neutral.svg";
 import iconDotAccent from "../assets/stack/dot-accent.svg";
@@ -462,6 +530,8 @@ const icons = {
     file: iconFile,
     network: iconNetwork,
     networkExternal: iconNetworkExternal,
+    volume: iconVolume,
+    volumeExternal: iconVolumeExternal,
     pen: iconPen,
     dotNeutral: iconDotNeutral,
     dotAccent: iconDotAccent,
@@ -516,6 +586,24 @@ services:
 const blankTemplate = "services: {}\n";
 const envDefault = "# VARIABLE=value #comment";
 
+/**
+ * The named volume a service mount uses: "data:/path" or { source: "data" }.
+ * Bind mounts (paths) are not named volumes.
+ * @param {string|object} mount Entry of a service's "volumes" list
+ * @returns {string} Volume name, or "" for a bind mount or anonymous volume
+ */
+function volumeSource(mount) {
+    if (typeof mount === "string") {
+        const colon = mount.indexOf(":");
+        const source = colon === -1 ? "" : mount.slice(0, colon);
+        return /^[./~$]/.test(source) ? "" : source;
+    }
+    if (mount && typeof mount === "object" && (mount.type ?? "volume") === "volume") {
+        return mount.source ?? "";
+    }
+    return "";
+}
+
 let yamlErrorTimeout = null;
 
 let serviceStatusTimeout = null;
@@ -526,6 +614,7 @@ export default {
         ContainerDrawer,
         EnvDrawer,
         NetworkDrawer,
+        VolumeDrawer,
         AssetIcon,
         ConsoleDock,
         FontAwesomeIcon,
@@ -602,6 +691,13 @@ export default {
             showDeleteDialog: false,
             // Network waiting for delete confirmation ("" when none)
             networkToDelete: "",
+            // Volume waiting for delete confirmation ("" when none)
+            volumeToDelete: "",
+            volumeDrawer: {
+                open: false,
+                volumeName: "",
+            },
+            hostVolumeDrivers: {},
             icons,
             activeFile: "yaml",
             startFrom: "template",
@@ -827,6 +923,47 @@ export default {
             ];
         },
 
+        /**
+         * Volumes declared in the compose file, split into the stack's own
+         * and external ones, with the services that mount each
+         * @returns {object[]} Groups with key, label, hint and items
+         */
+        volumeGroups() {
+            const services = this.jsonConfig.services ?? {};
+            const volumes = this.jsonConfig.volumes ?? {};
+
+            const usedBy = (volumeName) => Object.keys(services).filter((serviceName) =>
+                (services[serviceName]?.volumes ?? []).some((mount) => volumeSource(mount) === volumeName));
+
+            const stackItems = [];
+            const externalItems = [];
+
+            for (const name of Object.keys(volumes)) {
+                const config = volumes[name] ?? {};
+                const item = {
+                    name,
+                    driver: config.driver ?? (config.external ? (this.hostVolumeDrivers[config.name ?? name] ?? "") : "local"),
+                    usedBy: usedBy(name),
+                };
+                (config.external ? externalItems : stackItems).push(item);
+            }
+
+            return [
+                {
+                    key: "stack",
+                    label: this.$t("stackVolumes"),
+                    hint: this.$t("stackVolumesHint"),
+                    items: stackItems,
+                },
+                {
+                    key: "external",
+                    label: this.$t("externalVolumes"),
+                    hint: this.$t("externalVolumesHint"),
+                    items: externalItems,
+                },
+            ];
+        },
+
         endpoint() {
             return this.stack.endpoint || this.$route.params.endpoint || "";
         },
@@ -930,6 +1067,7 @@ export default {
         this.requestServiceStatus();
         this.requestDockerStats();
         this.loadHostNetworkDrivers();
+        this.loadHostVolumeDrivers();
     },
     unmounted() {
 
@@ -1324,6 +1462,110 @@ export default {
                     this.hostNetworkDrivers = drivers;
                 }
             });
+        },
+
+        /**
+         * Load the drivers of the volumes on the host, to show them for
+         * external volumes. Older agents without this event are ignored.
+         * @returns {void}
+         */
+        loadHostVolumeDrivers() {
+            if (this.isAdd) {
+                return;
+            }
+            this.$root.emitAgent(this.endpoint, "getDockerVolumeDetails", (res) => {
+                if (res.ok) {
+                    const drivers = {};
+                    for (const volume of res.dockerVolumeDetails) {
+                        drivers[volume.name] = volume.driver;
+                    }
+                    this.hostVolumeDrivers = drivers;
+                }
+            });
+        },
+
+        /**
+         * Open the volume drawer
+         * @param {string} [volumeName] Volume to edit; omit to add one
+         * @returns {void}
+         */
+        openVolumeDrawer(volumeName = "") {
+            this.volumeDrawer.volumeName = typeof volumeName === "string" ? volumeName : "";
+            this.volumeDrawer.open = true;
+        },
+
+        /**
+         * Point every service mount of a volume at a new name, or remove
+         * those mounts
+         * @param {string} from Old volume name
+         * @param {string|null} to New volume name, or null to remove the mounts
+         * @returns {void}
+         */
+        renameServiceVolume(from, to) {
+            for (const service of Object.values(this.jsonConfig.services ?? {})) {
+                if (!Array.isArray(service?.volumes)) {
+                    continue;
+                }
+                const list = [];
+                for (const mount of service.volumes) {
+                    if (volumeSource(mount) !== from) {
+                        list.push(mount);
+                    } else if (to && typeof mount === "string") {
+                        list.push(to + mount.slice(from.length));
+                    } else if (to) {
+                        list.push({
+                            ...mount,
+                            source: to,
+                        });
+                    }
+                }
+                if (list.length > 0) {
+                    service.volumes = list;
+                } else {
+                    delete service.volumes;
+                }
+            }
+        },
+
+        /**
+         * Apply the volume drawer's result to the compose file
+         * @param {object} result Values emitted by the drawer
+         * @returns {void}
+         */
+        applyVolumeDrawer({ originalName, name, config }) {
+            const volumes = this.jsonConfig.volumes ?? {};
+
+            if (originalName && originalName !== name) {
+                // Rename while keeping the order
+                const renamed = {};
+                for (const [ key, value ] of Object.entries(volumes)) {
+                    renamed[key === originalName ? name : key] = key === originalName ? config : value;
+                }
+                this.jsonConfig.volumes = renamed;
+                this.renameServiceVolume(originalName, name);
+            } else {
+                volumes[name] = config;
+                this.jsonConfig.volumes = volumes;
+            }
+
+            this.volumeDrawer.open = false;
+            this.deployIfViewing();
+        },
+
+        /**
+         * Remove a volume from the stack and its mounts from every service.
+         * The data stays on the host: deploying does not delete volumes.
+         * @param {string} volumeName Volume to remove
+         * @returns {void}
+         */
+        deleteVolume(volumeName) {
+            const volumes = this.jsonConfig.volumes ?? {};
+            delete volumes[volumeName];
+            if (Object.keys(volumes).length === 0) {
+                delete this.jsonConfig.volumes;
+            }
+            this.renameServiceVolume(volumeName, null);
+            this.deployIfViewing();
         },
 
         /**

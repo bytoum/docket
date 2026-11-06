@@ -286,6 +286,67 @@
     }
 }
 
+// Disabled controls (e.g. the other type when editing)
+.choice-chip:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.field-input:disabled {
+    background-color: $surface-raised;
+    color: $muted;
+}
+
+// Pick-one list of host networks / volumes
+.host-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.host-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 60px;
+    padding: 10px;
+    text-align: left;
+    color: inherit;
+    background-color: $bg-input;
+    border: none;
+    border-radius: 4px;
+
+    &:hover {
+        background-color: darken($bg-input, 3%);
+    }
+
+    &.selected {
+        background-color: $accent-subtle;
+    }
+
+    img {
+        flex-shrink: 0;
+    }
+
+    .info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+        line-height: normal;
+    }
+
+    .name {
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .meta {
+        font-size: 13px;
+        color: $muted;
+    }
+}
+
 .divider-label {
     display: flex;
     align-items: center;
@@ -401,6 +462,22 @@
     .choice-chip.selected {
         color: $highlight;
         background-color: rgba($primary, 0.2);
+    }
+
+    .field-input:disabled {
+        background-color: $dark-header-bg;
+    }
+
+    .host-option {
+        background-color: $dark-bg-input;
+
+        &:hover {
+            background-color: $dark-bg-surface-raised;
+        }
+
+        &.selected {
+            background-color: rgba($primary, 0.2);
+        }
     }
 
     .divider-label .line {

@@ -345,6 +345,20 @@ export class DockerSocketHandler extends AgentSocketHandler {
                 callbackError(e, callback);
             }
         });
+
+        // Volumes on the host with their driver and container count
+        agentSocket.on("getDockerVolumeDetails", async (callback) => {
+            try {
+                checkLogin(socket);
+                const dockerVolumeDetails = await server.getDockerVolumeDetails();
+                callbackResult({
+                    ok: true,
+                    dockerVolumeDetails,
+                }, callback);
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
     }
 
     async saveStack(server : DockgeServer, name : unknown, composeYAML : unknown, composeENV : unknown, isAdd : unknown) : Promise<Stack> {

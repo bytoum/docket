@@ -45,6 +45,13 @@ export interface DockerNetworkDetails {
     containers: number;
 }
 
+/** A Docker volume on the host */
+export interface DockerVolumeDetails {
+    name: string;
+    driver: string;
+    containers: number;
+}
+
 export class DockgeServer {
     app : Express;
     httpServer : http.Server;
@@ -677,6 +684,48 @@ export class DockgeServer {
             driver: "",
             containers: 0,
         });
+    }
+
+    /**
+     * List the Docker volumes on this host with their driver and how many
+     * containers (running or not) mount each one
+     * @returns {Promise<DockerVolumeDetails[]>} Volumes sorted by name
+     */
+    async getDockerVolumeDetails() : Promise<DockerVolumeDetails[]> {
+        const res = await childProcessAsync.spawn("docker", [ "volume", "ls", "--format", "{{.Name}}\t{{.Driver}}" ], {
+            encoding: "utf-8",
+        });
+
+        const volumes : DockerVolumeDetails[] = [];
+        for (const line of (res.stdout ?? "").toString().split("\n")) {
+            const [ name, driver ] = line.split("\t");
+            if (name) {
+                volumes.push({
+                    name,
+                    driver: driver ?? "",
+                    containers: 0,
+                });
+            }
+        }
+        if (volumes.length === 0) {
+            return [];
+        }
+
+        // One call for all containers: each line is a container's mount names, comma separated
+        const mountsRes = await childProcessAsync.spawn("docker", [ "ps", "--all", "--no-trunc", "--format", "{{.Mounts}}" ], {
+            encoding: "utf-8",
+        });
+        const counts = new Map<string, number>();
+        for (const line of (mountsRes.stdout ?? "").toString().split("\n")) {
+            for (const mount of new Set(line.split(",").map((item) => item.trim()).filter((item) => item !== ""))) {
+                counts.set(mount, (counts.get(mount) ?? 0) + 1);
+            }
+        }
+
+        for (const volume of volumes) {
+            volume.containers = counts.get(volume.name) ?? 0;
+        }
+        return volumes.sort((a, b) => a.name.localeCompare(b.name));
     }
 
     async getDockerStats() : Promise<Map<string, object>> {

@@ -70,9 +70,9 @@
                         <span class="field-label">{{ $t("existingNetworks") }}</span>
                         <input v-model.trim="search" class="field-input" :placeholder="$t('searchNetworks')" autocomplete="off" :aria-label="$t('searchNetworks')" />
 
-                        <div class="network-options" role="radiogroup">
+                        <div class="host-options" role="radiogroup">
                             <button
-                                v-for="network in filteredHostNetworks" :key="network.name" type="button" class="network-option"
+                                v-for="network in filteredHostNetworks" :key="network.name" type="button" class="host-option"
                                 role="radio" :aria-checked="draft.external === network.name" :class="{ selected: draft.external === network.name }"
                                 @click="draft.external = network.name"
                             >
@@ -369,84 +369,4 @@ export default {
 
 <style lang="scss" scoped>
 @import "../styles/drawer.scss";
-
-.choice-chip:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.field-input:disabled {
-    background-color: $surface-raised;
-    color: $muted;
-}
-
-// External network list
-.network-options {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.network-option {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-height: 60px;
-    padding: 12px 14px;
-    text-align: left;
-    color: inherit;
-    background-color: $bg-surface;
-    border: 1px solid $surface-border;
-    border-radius: 12px;
-
-    &:hover {
-        background-color: $bg-input;
-    }
-
-    &.selected {
-        background-color: $accent-subtle;
-        border-color: $primary;
-    }
-
-    img {
-        flex-shrink: 0;
-    }
-
-    .info {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        min-width: 0;
-    }
-
-    .name {
-        font-size: 14px;
-        font-weight: 600;
-    }
-
-    .meta {
-        font-size: 13px;
-        color: $muted;
-    }
-}
-
-.side-drawer.dark {
-    .network-option {
-        background-color: $dark-bg;
-        border-color: $dark-border-color;
-
-        &:hover {
-            background-color: $dark-header-bg;
-        }
-
-        &.selected {
-            background-color: rgba($primary, 0.15);
-            border-color: $highlight;
-        }
-    }
-
-    .field-input:disabled {
-        background-color: $dark-header-bg;
-    }
-}
 </style>
