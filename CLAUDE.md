@@ -21,6 +21,8 @@ npm run reset-password   # CLI password reset (extra/reset-password.ts)
 
 There is no test suite. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs `lint`, `check-ts` and `build:frontend` on Linux, Windows and macOS. All three must pass.
 
+Releases: bump `version` in `package.json`, then push a matching tag (`git tag 1.6.0 && git push origin 1.6.0`). [.github/workflows/release.yml](.github/workflows/release.yml) builds amd64 and arm64 on native runners and pushes `bytoum/docket` to Docker Hub with the tags `1.6.0`, `1.6`, `1` and `latest`. A pre-release such as `1.6.0-beta.0` gets only its own tag. Running the workflow by hand tags the image with the branch name. It uses the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository secrets.
+
 The backend needs a working `docker` CLI with `docker compose`, because it shells out to it. Runtime config comes from CLI args or env vars: `DOCKGE_STACKS_DIR` (default `/opt/stacks`), `DOCKGE_DATA_DIR` (default `./data/`), `DOCKGE_PORT`, `DOCKGE_HOSTNAME`, `DOCKGE_SSL_KEY`/`DOCKGE_SSL_CERT`, and `DOCKGE_ENABLE_CONSOLE`.
 
 ### Local dev gotchas (macOS)
