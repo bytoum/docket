@@ -12,7 +12,7 @@
         <!-- Desktop header -->
         <header v-if="! $root.isMobile" class="app-header d-flex align-items-center">
             <router-link to="/" class="brand d-flex align-items-center me-auto text-decoration-none">
-                <object class="me-2" width="32" height="32" data="/icon.svg" />
+                <object width="32" height="32" data="/icon.svg" />
                 <span class="title">Docket</span>
             </router-link>
 
@@ -214,12 +214,15 @@ main {
 }
 
 .brand {
+    gap: 10px;
     color: $text-primary;
 }
 
 .title {
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 700;
+    letter-spacing: -0.2px;
+    line-height: normal;
 }
 
 .nav-pills {

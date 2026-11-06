@@ -79,9 +79,16 @@ Host lookups for the drawers are agent events in [backend/agent-socket-handlers/
 ### Design
 The UI follows the "Dockge – Redesign" Figma file (https://www.figma.com/design/F38NzF6eFkGRgcsJUoHSaD/Dockge-%E2%80%93-Redesign). Its variables (bg, border, text, accent, status) are defined in [frontend/src/styles/vars.scss](frontend/src/styles/vars.scss) with light and dark values. Use these tokens instead of hard-coded colours. The style is flat: 4px corners, filled inputs and no borders. Icons exported from Figma live in `frontend/src/assets/stack/` and `frontend/src/assets/drawer/`, and are shown with `AssetIcon`.
 
+The logo is the "Logo" layer inside the top bar's "Brand" in Figma: a `#2563EB` square with 4px corners and a white "D" with a dot. [frontend/public/icon.svg](frontend/public/icon.svg) is that SVG. Every other icon is rendered from it:
+- `icon-192x192.png` and `icon-512x512.png` (rounded corners, transparent background, used by `manifest.json`);
+- `apple-touch-icon.png` (180px, square and opaque, because iOS rounds the corners itself);
+- `favicon.ico` (16, 32 and 48px).
+
+When the logo changes, regenerate all of them. In the top bar, the logo is 32px with a 10px gap, next to "Docket" in 20px bold.
+
 ## Naming
 
-The product is called **Docket** in everything people see: the UI, `en.json` values, backend messages shown to users, docs, the npm package name (`docket`) and the Docker image (`bytoum/docket`).
+The product is called **Docket** in everything people see: the UI, `en.json` values, backend messages shown to users, docs, the npm package name (`docket`), the Docker image (`bytoum/docket`) and the GitHub repo (`bytoum/docket`, default branch `main`). `upstream` is the original `louislam/dockge`, whose default branch is still `master`.
 
 These stay `dockge` so existing installs and compose files keep working:
 - the `DOCKGE_*` env vars;

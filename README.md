@@ -1,5 +1,5 @@
 <div align="center" width="100%">
-    <img src="./frontend/public/icon.svg" width="128" alt="" />
+    <img src="./frontend/public/icon.svg" width="128" alt="Docket logo" />
 </div>
 
 # Docket
@@ -8,7 +8,7 @@ A fancy, easy-to-use and reactive self-hosted docker compose.yaml stack-oriented
 
 Docket is based on [Dockge](https://github.com/louislam/dockge) by Louis Lam, with a redesigned interface and visual editors for containers, networks, volumes and environment variables.
 
-[![GitHub last commit (branch)](https://img.shields.io/github/last-commit/bytoum/dockge/master?logo=github)](https://github.com/bytoum/dockge/commits/master/) [![Docker Image Version (latest semver)](https://img.shields.io/docker/v/bytoum/docket/latest?label=docker%20image%20ver.)](https://hub.docker.com/r/bytoum/docket/tags)
+[![GitHub last commit (branch)](https://img.shields.io/github/last-commit/bytoum/docket/main?logo=github)](https://github.com/bytoum/docket/commits/main/) [![Docker Image Version (latest semver)](https://img.shields.io/docker/v/bytoum/docket/latest?label=docker%20image%20ver.)](https://hub.docker.com/r/bytoum/docket/tags)
 
 ## ⭐ Features
 
@@ -53,7 +53,7 @@ mkdir -p /opt/stacks /opt/dockge
 cd /opt/dockge
 
 # Download the compose.yaml
-curl https://raw.githubusercontent.com/bytoum/dockge/master/compose.yaml --output compose.yaml
+curl https://raw.githubusercontent.com/bytoum/docket/main/compose.yaml --output compose.yaml
 
 # Start the server
 docker compose up -d
@@ -122,7 +122,7 @@ The frontend must be built first: the image copies `frontend-dist/`, not the `fr
 ## 🗣️ Community and Contribution
 
 ### Bug Report
-https://github.com/bytoum/dockge/issues
+https://github.com/bytoum/docket/issues
 
 ### Translation
 Translations come from Dockge. To translate into your language, please read the [Translation Guide](https://github.com/louislam/dockge/blob/master/frontend/src/lang/README.md).

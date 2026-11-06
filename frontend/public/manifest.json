@@ -3,6 +3,7 @@
     "short_name": "Docket",
     "start_url": "/",
     "background_color": "#fff",
+    "theme_color": "#2563EB",
     "display": "standalone",
     "icons": [
         {
