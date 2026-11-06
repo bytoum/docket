@@ -16,7 +16,7 @@
 
         <!-- List view -->
         <template v-if="mode === 'list'">
-            <div v-if="rows.length > 0" class="rows">
+            <div class="rows">
                 <div class="row-line column-headers">
                     <span class="env-key">{{ $t("envKey") }}</span>
                     <span class="env-value">{{ $t("envValue") }}</span>
@@ -25,7 +25,7 @@
                 <div v-for="(row, index) in rows" :key="index" class="row-line">
                     <input v-model.trim="row.key" class="field-input env-key" placeholder="KEY" :aria-label="$t('envKey')" />
                     <input v-model="row.value" class="field-input env-value" placeholder="value" :aria-label="$t('envValue')" />
-                    <button type="button" class="square-btn" :aria-label="$t('removeVariable')" @click="rows.splice(index, 1)">
+                    <button type="button" class="square-btn" :aria-label="$t('removeVariable')" @click="removeRow(index)">
                         <span class="icon"><img :src="icons.close" alt="" width="9.5" height="9.5" /></span>
                     </button>
                 </div>
@@ -289,6 +289,30 @@ export default {
         reset(rows) {
             this.rows = rows.map((row) => ({ ...row }));
             this.raw = rowsToText(this.rows);
+            this.ensureBlankRow();
+        },
+
+        /**
+         * Remove a row from the list view
+         * @param {number} index Row index
+         * @returns {void}
+         */
+        removeRow(index) {
+            this.rows.splice(index, 1);
+            this.ensureBlankRow();
+        },
+
+        /**
+         * The list view always shows at least one empty row to type into
+         * @returns {void}
+         */
+        ensureBlankRow() {
+            if (this.rows.length === 0) {
+                this.rows.push({
+                    key: "",
+                    value: "",
+                });
+            }
         },
 
         /**
@@ -332,6 +356,7 @@ export default {
                     return;
                 }
                 this.rows = rows;
+                this.ensureBlankRow();
             }
             this.mode = mode;
             try {
@@ -384,10 +409,12 @@ export default {
 <style lang="scss" scoped>
 @import "../styles/drawer.scss";
 
+// Fills the drawer body, so the raw editor gets all the height there is
 .env-editor-field {
+    flex: 1 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 16px;
 }
 
 .toggle-row {
@@ -429,7 +456,8 @@ export default {
     flex-direction: column;
     border-radius: 4px;
     overflow: hidden;
-    height: 420px;
+    flex: 1;
+    min-height: 320px;
     background-color: $bg-input;
 }
 
@@ -466,8 +494,15 @@ export default {
 .env-editor-body {
     flex: 1;
     min-height: 0;
+    position: relative;
 
-    :deep(.vue-codemirror),
+    // Out of the flow, so a long file scrolls inside the editor instead of
+    // stretching the drawer
+    :deep(.vue-codemirror) {
+        position: absolute;
+        inset: 0;
+    }
+
     :deep(.cm-editor) {
         height: 100%;
     }

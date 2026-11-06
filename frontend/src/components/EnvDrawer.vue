@@ -117,6 +117,11 @@ export default {
 <style lang="scss" scoped>
 @import "../styles/drawer.scss";
 
+// Wider than the other drawers, so long values fit in the editor
+.side-drawer {
+    width: 760px;
+}
+
 .drawer-body {
     gap: 16px;
 }
