@@ -340,20 +340,10 @@
             />
 
             <!-- Add / edit network drawer -->
-            <NetworkDrawer
-                :open="networkDrawer.open"
-                :network-name="networkDrawer.networkName"
-                :json-config="jsonConfig"
-                :stack-name="stack.name"
-                :endpoint="endpoint"
-                :busy="processing && !isEditMode"
-                @close="networkDrawer.open = false"
-                @submit="applyNetworkDrawer"
-                @delete="deleteNetwork"
-            />
 
             <!-- Add / edit container drawer -->
             <ContainerDrawer
+                ref="containerDrawer"
                 :open="containerDrawer.open"
                 :service-name="containerDrawer.serviceName"
                 :json-config="jsonConfig"
@@ -363,6 +353,7 @@
                 @close="containerDrawer.open = false"
                 @submit="applyContainerDrawer"
                 @delete="deleteContainer"
+                @create-network="openNetworkDrawerFromContainer"
             />
 
             <EnvDrawer
@@ -372,6 +363,19 @@
                 :busy="processing && !isEditMode"
                 @close="envDrawer.open = false"
                 @submit="applyEnvDrawer"
+            />
+
+            <!-- After the container drawer, so "Create network…" opens on top of it -->
+            <NetworkDrawer
+                :open="networkDrawer.open"
+                :network-name="networkDrawer.networkName"
+                :json-config="jsonConfig"
+                :stack-name="stack.name"
+                :endpoint="endpoint"
+                :busy="processing && !isEditMode"
+                @close="networkDrawer.open = false; networkDrawer.fromContainer = false"
+                @submit="applyNetworkDrawer"
+                @delete="deleteNetwork"
             />
 
             <!-- Delete Dialog -->
@@ -607,6 +611,8 @@ export default {
             networkDrawer: {
                 open: false,
                 networkName: "",
+                // Opened from the container drawer's "Create network…"
+                fromContainer: false,
             },
             containerDrawer: {
                 open: false,
@@ -1311,6 +1317,7 @@ export default {
          */
         openNetworkDrawer(networkName = "") {
             this.networkDrawer.networkName = typeof networkName === "string" ? networkName : "";
+            this.networkDrawer.fromContainer = false;
             this.networkDrawer.open = true;
         },
 
@@ -1386,7 +1393,26 @@ export default {
             }
 
             this.networkDrawer.open = false;
+
+            if (this.networkDrawer.fromContainer) {
+                // Select it in the container form; it is deployed when the container is saved
+                this.networkDrawer.fromContainer = false;
+                this.$refs.containerDrawer?.useCreatedNetwork(name, !!config?.external);
+                return;
+            }
+
             this.deployIfViewing();
+        },
+
+        /**
+         * Open the network drawer on top of the container drawer to create
+         * a network for the container being edited
+         * @returns {void}
+         */
+        openNetworkDrawerFromContainer() {
+            this.networkDrawer.networkName = "";
+            this.networkDrawer.fromContainer = true;
+            this.networkDrawer.open = true;
         },
 
         /**
@@ -1460,7 +1486,7 @@ export default {
          * @param {object} result Values emitted by the drawer
          * @returns {void}
          */
-        applyContainerDrawer({ originalName, name, service, urls, externalNetworks, internalNetwork }) {
+        applyContainerDrawer({ originalName, name, service, urls, externalNetworks, internalNetworks }) {
             const config = this.jsonConfig;
             config.services = config.services ?? {};
 
@@ -1487,10 +1513,13 @@ export default {
             }
 
             // Declare the networks the service now uses
-            if (internalNetwork !== "default" || externalNetworks.length > 0) {
+            const customInternal = internalNetworks.filter((networkName) => networkName !== "default");
+            if (customInternal.length > 0 || externalNetworks.length > 0) {
                 config.networks = config.networks ?? {};
-                if (internalNetwork !== "default" && !(internalNetwork in config.networks)) {
-                    config.networks[internalNetwork] = {};
+                for (const networkName of customInternal) {
+                    if (!(networkName in config.networks)) {
+                        config.networks[networkName] = {};
+                    }
                 }
                 for (const networkName of externalNetworks) {
                     if (!config.networks[networkName]) {

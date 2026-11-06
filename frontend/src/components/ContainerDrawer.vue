@@ -73,13 +73,23 @@
                         <span class="field-label">{{ $tc("network", 2) }}</span>
 
                         <div class="sub-field">
-                            <label class="group-label" for="drawer-internal-network">{{ $t("internalNetworkLabel") }}</label>
-                            <div class="select-wrapper">
-                                <select id="drawer-internal-network" v-model="draft.internalNetwork" class="field-input">
-                                    <option v-for="name in internalNetworkOptions" :key="name" :value="name">{{ name }}</option>
-                                </select>
-                                <span class="icon select-chevron"><img :src="iconChevron" alt="" width="9.5" height="5.5" /></span>
+                            <span class="group-label">{{ $t("internalNetworkLabel") }}</span>
+                            <div v-for="option in internalNetworkDetails" :key="option.name" class="network-toggle">
+                                <div class="info">
+                                    <div class="name">{{ option.name }}</div>
+                                    <div class="meta">{{ option.driver }}</div>
+                                </div>
+                                <button
+                                    type="button" class="switch" role="switch" :aria-checked="!!draft.internalNetworks[option.name]" :aria-label="option.name"
+                                    @click="draft.internalNetworks[option.name] = !draft.internalNetworks[option.name]"
+                                >
+                                    <img :src="draft.internalNetworks[option.name] ? iconSwitchOn : iconSwitchOff" alt="" width="44" height="26" />
+                                </button>
                             </div>
+                            <button type="button" class="add-row" @click="$emit('create-network')">
+                                <span class="icon"><img :src="iconPlus" alt="" width="10.8333" height="10.8333" /></span>
+                                {{ $t("createNetwork") }}
+                            </button>
                         </div>
 
                         <div class="sub-field">
@@ -239,7 +249,7 @@ export default {
             default: false,
         },
     },
-    emits: [ "close", "submit", "delete" ],
+    emits: [ "close", "submit", "delete", "create-network" ],
     data() {
         return {
             iconClose,
@@ -329,6 +339,18 @@ export default {
             return [ ...new Set([ ...declared, ...this.hostNetworks ]) ];
         },
 
+        /**
+         * Stack networks with their driver, for the network switches
+         * @returns {{name: string, driver: string}[]} Networks
+         */
+        internalNetworkDetails() {
+            const networks = this.jsonConfig.networks ?? {};
+            return this.internalNetworkOptions.map((name) => ({
+                name,
+                driver: networks[name]?.driver ?? "bridge",
+            }));
+        },
+
         otherServiceNames() {
             return Object.keys(this.services).filter((name) => name !== this.serviceName);
         },
@@ -344,6 +366,36 @@ export default {
     },
     methods: {
         /**
+         * Stack networks switched on, in the order they are listed
+         * @returns {string[]} Network names
+         */
+        selectedInternalNetworks() {
+            return this.internalNetworkOptions.filter((name) => this.draft.internalNetworks[name]);
+        },
+
+        /**
+         * External networks switched on
+         * @returns {string[]} Network names
+         */
+        selectedExternalNetworks() {
+            return Object.keys(this.draft.externalNetworks).filter((name) => this.draft.externalNetworks[name]);
+        },
+
+        /**
+         * Switch on a network created with "Create network…"
+         * @param {string} name Network name
+         * @param {boolean} external Whether it is an external network
+         * @returns {void}
+         */
+        useCreatedNetwork(name, external) {
+            if (external) {
+                this.draft.externalNetworks[name] = true;
+            } else {
+                this.draft.internalNetworks[name] = true;
+            }
+        },
+
+        /**
          * A blank form
          * @returns {object} Draft values
          */
@@ -354,7 +406,7 @@ export default {
                 ports: [],
                 volumes: [],
                 restart: "unless-stopped",
-                internalNetwork: "default",
+                internalNetworks: { default: true },
                 externalNetworks: {},
                 dependsOn: [],
                 urls: [],
@@ -378,13 +430,17 @@ export default {
                 draft.volumes = (service.volumes ?? []).filter((v) => typeof v !== "object").map(String);
                 draft.restart = service.restart ?? "";
 
+                // No "networks" key means the service is on "default" only
                 const declared = this.jsonConfig.networks ?? {};
-                const attached = networksOf(service) ?? [];
-                for (const name of attached) {
-                    if (declared[name]?.external) {
-                        draft.externalNetworks[name] = true;
-                    } else if (draft.internalNetwork === "default") {
-                        draft.internalNetwork = name;
+                const attached = networksOf(service);
+                if (attached) {
+                    draft.internalNetworks = {};
+                    for (const name of attached) {
+                        if (declared[name]?.external) {
+                            draft.externalNetworks[name] = true;
+                        } else {
+                            draft.internalNetworks[name] = true;
+                        }
                     }
                 }
 
@@ -461,13 +517,18 @@ export default {
                 return;
             }
 
+            if (this.selectedInternalNetworks().length + this.selectedExternalNetworks().length === 0) {
+                this.$root.toastError(this.$t("networkRequired"));
+                return;
+            }
+
             this.$emit("submit", {
                 originalName: this.serviceName,
                 name,
                 service: this.buildService(),
                 urls: this.draft.urls.filter((url) => url !== ""),
-                externalNetworks: Object.keys(this.draft.externalNetworks).filter((n) => this.draft.externalNetworks[n]),
-                internalNetwork: this.draft.internalNetwork,
+                externalNetworks: this.selectedExternalNetworks(),
+                internalNetworks: this.selectedInternalNetworks(),
             });
         },
 
@@ -499,9 +560,10 @@ export default {
             }
 
             // Networks: "default" alone is the same as no "networks" key
-            const external = Object.keys(this.draft.externalNetworks).filter((n) => this.draft.externalNetworks[n]);
-            const networkNames = [ this.draft.internalNetwork, ...external ];
-            if (external.length === 0 && this.draft.internalNetwork === "default") {
+            const internal = this.selectedInternalNetworks();
+            const external = this.selectedExternalNetworks();
+            const networkNames = [ ...internal, ...external ];
+            if (external.length === 0 && internal.length === 1 && internal[0] === "default") {
                 delete service.networks;
             } else if (original.networks && !Array.isArray(original.networks)) {
                 const networks = {};

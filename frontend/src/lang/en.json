@@ -226,6 +226,8 @@
     "envInvalidLine": "Line {0} is not a valid KEY=value line.",
     "envInvalidKey": "Variable names cannot contain spaces, = or #.",
     "removeVariable": "Remove variable",
+    "networkRequired": "Switch on at least one network.",
+    "createNetwork": "Create network…",
     "remove": "Remove",
     "GlobalEnv": "Global .env",
     "LongSyntaxNotSupported": "Long syntax is not supported here. Please use the YAML editor.",
