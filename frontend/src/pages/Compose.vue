@@ -96,16 +96,6 @@
                 </a>
             </div>
 
-            <!-- Progress Terminal: kept hidden (output is not shown), only used to detect that a deploy has started -->
-            <Terminal
-                v-show="false"
-                ref="progressTerminal"
-                :name="terminalName"
-                :endpoint="endpoint"
-                :rows="progressTerminalRows"
-                @has-data="submitted = true"
-            ></Terminal>
-
             <!-- View mode -->
             <div v-if="stack.isManagedByDockge && !isEditMode">
                 <!-- Containers -->
@@ -384,6 +374,7 @@
             <!-- Combined container logs, docked to the bottom of the page -->
             <ConsoleDock
                 v-if="!isAdd && !isEditMode && stack.name"
+                ref="consoleDock"
                 :name="combinedTerminalName"
                 :endpoint="endpoint"
                 :services="Object.keys(jsonConfig.services ?? {})"
@@ -481,7 +472,6 @@ import {
     copyYAMLComments, envsubstYAML,
     getCombinedTerminalName,
     getComposeTerminalName,
-    PROGRESS_TERMINAL_ROWS,
     RUNNING
 } from "../../../common/util-common";
 import { BModal } from "bootstrap-vue-next";
@@ -678,7 +668,6 @@ export default {
             envsubstJSONConfig: {},
             yamlError: "",
             processing: true,
-            progressTerminalRows: PROGRESS_TERMINAL_ROWS,
             combinedTerminalRows: COMBINED_TERMINAL_ROWS,
             combinedTerminalCols: COMBINED_TERMINAL_COLS,
             stack: {
@@ -688,6 +677,7 @@ export default {
             dockerStats: {},
             isEditMode: false,
             submitted: false,
+            boundProgressTerminal: "",
             showDeleteDialog: false,
             // Network waiting for delete confirmation ("" when none)
             networkToDelete: "",
@@ -1070,7 +1060,7 @@ export default {
         this.loadHostVolumeDrivers();
     },
     unmounted() {
-
+        this.unbindProgressTerminal();
     },
     methods: {
         startServiceStatusTimeout() {
@@ -1140,8 +1130,42 @@ export default {
             this.$root.emitAgent(this.endpoint, "leaveCombinedTerminal", this.stack.name, () => {});
         },
 
+        /**
+         * Receive the output of compose commands (up, restart, pull...).
+         * It marks a new stack as submitted and is shown in the console dock.
+         * @returns {void}
+         */
         bindTerminal() {
-            this.$refs.progressTerminal?.bind(this.endpoint, this.terminalName);
+            this.unbindProgressTerminal();
+            if (!this.terminalName) {
+                return;
+            }
+            this.boundProgressTerminal = this.terminalName;
+            this.$root.bindTerminal(this.endpoint, this.terminalName, {
+                write: (data) => {
+                    if (!data) {
+                        return;
+                    }
+                    this.submitted = true;
+                    this.$refs.consoleDock?.appendProgress(data);
+                },
+            });
+        },
+
+        unbindProgressTerminal() {
+            if (this.boundProgressTerminal) {
+                this.$root.unbindTerminal(this.boundProgressTerminal);
+                this.boundProgressTerminal = "";
+            }
+        },
+
+        /**
+         * Open the console dock so the user sees the output of a start.
+         * The dock is not shown in edit mode, so wait for it to render.
+         * @returns {void}
+         */
+        showConsole() {
+            this.$nextTick(() => this.$refs.consoleDock?.show());
         },
 
         loadStack() {
@@ -1190,6 +1214,7 @@ export default {
             }
 
             this.bindTerminal();
+            this.showConsole();
 
             this.$root.emitAgent(this.stack.endpoint, "deployStack", this.stack.name, this.stack.composeYAML, this.stack.composeENV, this.isAdd, (res) => {
                 this.processing = false;
@@ -1199,6 +1224,7 @@ export default {
                     this.markSaved();
                     this.isEditMode = false;
                     this.$router.push(this.url);
+                    this.showConsole();
                 }
             });
         },
@@ -1220,6 +1246,7 @@ export default {
 
         startStack() {
             this.processing = true;
+            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "startStack", this.stack.name, (res) => {
                 this.processing = false;
@@ -1229,6 +1256,7 @@ export default {
 
         stopStack() {
             this.processing = true;
+            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "stopStack", this.stack.name, (res) => {
                 this.processing = false;
@@ -1238,6 +1266,7 @@ export default {
 
         downStack() {
             this.processing = true;
+            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "downStack", this.stack.name, (res) => {
                 this.processing = false;
@@ -1247,6 +1276,7 @@ export default {
 
         restartStack() {
             this.processing = true;
+            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "restartStack", this.stack.name, (res) => {
                 this.processing = false;
@@ -1256,6 +1286,7 @@ export default {
 
         updateStack() {
             this.processing = true;
+            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "updateStack", this.stack.name, (res) => {
                 this.processing = false;
@@ -1851,6 +1882,7 @@ export default {
 
         startService(serviceName) {
             this.processing = true;
+            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "startService", this.stack.name, serviceName, (res) => {
                 this.processing = false;
@@ -1864,6 +1896,7 @@ export default {
 
         stopService(serviceName) {
             this.processing = true;
+            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "stopService", this.stack.name, serviceName, (res) => {
                 this.processing = false;
@@ -1877,6 +1910,7 @@ export default {
 
         restartService(serviceName) {
             this.processing = true;
+            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "restartService", this.stack.name, serviceName, (res) => {
                 this.processing = false;

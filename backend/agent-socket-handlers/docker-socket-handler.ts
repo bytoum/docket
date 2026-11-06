@@ -9,9 +9,10 @@ export class DockerSocketHandler extends AgentSocketHandler {
         // Do not call super.create()
 
         agentSocket.on("deployStack", async (name : unknown, composeYAML : unknown, composeENV : unknown, isAdd : unknown, callback) => {
+            let stack : Stack | undefined;
             try {
                 checkLogin(socket);
-                const stack = await this.saveStack(server, name, composeYAML, composeENV, isAdd);
+                stack = await this.saveStack(server, name, composeYAML, composeENV, isAdd);
                 await stack.deploy(socket);
                 server.sendStackList();
                 callbackResult({
@@ -22,6 +23,8 @@ export class DockerSocketHandler extends AgentSocketHandler {
                 stack.joinCombinedTerminal(socket);
             } catch (e) {
                 callbackError(e, callback);
+                // Show the container logs, they usually tell why it failed
+                stack?.joinCombinedTerminal(socket);
             }
         });
 
@@ -107,6 +110,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
 
         // startStack
         agentSocket.on("startStack", async (stackName : unknown, callback) => {
+            let stack : Stack | undefined;
             try {
                 checkLogin(socket);
 
@@ -114,7 +118,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     throw new ValidationError("Stack name must be a string");
                 }
 
-                const stack = await Stack.getStack(server, stackName);
+                stack = await Stack.getStack(server, stackName);
                 await stack.start(socket);
                 callbackResult({
                     ok: true,
@@ -127,6 +131,8 @@ export class DockerSocketHandler extends AgentSocketHandler {
 
             } catch (e) {
                 callbackError(e, callback);
+                // Show the container logs, they usually tell why it failed
+                stack?.joinCombinedTerminal(socket);
             }
         });
 
@@ -156,6 +162,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
 
         // restartStack
         agentSocket.on("restartStack", async (stackName : unknown, callback) => {
+            let stack : Stack | undefined;
             try {
                 checkLogin(socket);
 
@@ -163,7 +170,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     throw new ValidationError("Stack name must be a string");
                 }
 
-                const stack = await Stack.getStack(server, stackName);
+                stack = await Stack.getStack(server, stackName);
                 await stack.restart(socket);
                 callbackResult({
                     ok: true,
@@ -171,13 +178,17 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     msgi18n: true,
                 }, callback);
                 server.sendStackList();
+                stack.joinCombinedTerminal(socket);
             } catch (e) {
                 callbackError(e, callback);
+                // Show the container logs, they usually tell why it failed
+                stack?.joinCombinedTerminal(socket);
             }
         });
 
         // updateStack
         agentSocket.on("updateStack", async (stackName : unknown, callback) => {
+            let stack : Stack | undefined;
             try {
                 checkLogin(socket);
 
@@ -185,7 +196,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     throw new ValidationError("Stack name must be a string");
                 }
 
-                const stack = await Stack.getStack(server, stackName);
+                stack = await Stack.getStack(server, stackName);
                 await stack.update(socket);
                 callbackResult({
                     ok: true,
@@ -193,8 +204,11 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     msgi18n: true,
                 }, callback);
                 server.sendStackList();
+                stack.joinCombinedTerminal(socket);
             } catch (e) {
                 callbackError(e, callback);
+                // Show the container logs, they usually tell why it failed
+                stack?.joinCombinedTerminal(socket);
             }
         });
 
@@ -258,6 +272,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
 
         // Start a service
         agentSocket.on("startService", async (stackName: unknown, serviceName: unknown, callback) => {
+            let stack : Stack | undefined;
             try {
                 checkLogin(socket);
 
@@ -265,7 +280,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     throw new ValidationError("Stack name and service name must be strings");
                 }
 
-                const stack = await Stack.getStack(server, stackName);
+                stack = await Stack.getStack(server, stackName);
                 await stack.startService(socket, serviceName);
                 stack.joinCombinedTerminal(socket); // Ensure the combined terminal is joined
                 callbackResult({
@@ -275,6 +290,8 @@ export class DockerSocketHandler extends AgentSocketHandler {
                 server.sendStackList();
             } catch (e) {
                 callbackError(e, callback);
+                // Show the container logs, they usually tell why it failed
+                stack?.joinCombinedTerminal(socket);
             }
         });
 
@@ -300,6 +317,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
         });
 
         agentSocket.on("restartService", async (stackName: unknown, serviceName: unknown, callback) => {
+            let stack : Stack | undefined;
             try {
                 checkLogin(socket);
 
@@ -307,7 +325,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     throw new Error("Invalid stackName or serviceName");
                 }
 
-                const stack = await Stack.getStack(server, stackName, true);
+                stack = await Stack.getStack(server, stackName, true);
                 await stack.restartService(socket, serviceName);
                 callbackResult({
                     ok: true,
@@ -315,6 +333,8 @@ export class DockerSocketHandler extends AgentSocketHandler {
                 }, callback);
             } catch (e) {
                 callbackError(e, callback);
+                // Show the container logs, they usually tell why it failed
+                stack?.joinCombinedTerminal(socket);
             }
         });
 

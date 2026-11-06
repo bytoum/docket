@@ -95,6 +95,13 @@ const MAX_LINES = 1000;
 // eslint-disable-next-line no-control-regex
 const ANSI_PATTERN = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*(\x07|\x1b\\)|\x1b[@-Z\\-_]/g;
 
+// Cursor up, used by "docker compose up" to redraw its progress block
+// eslint-disable-next-line no-control-regex
+const CURSOR_UP_PATTERN = /\x1b\[(\d*)[AF]/;
+
+// How many recent progress lines can still be redrawn
+const MAX_PROGRESS_LINES = 200;
+
 // "redis-1  | message" as printed by "docker compose logs"
 const SOURCE_PATTERN = /^(\S+)\s+\|\s?(.*)$/;
 
@@ -105,6 +112,7 @@ let nextLineId = 1;
 
 /**
  * Bottom dock with the stack's combined container logs ("docker compose logs -f").
+ * It also shows the output of compose commands such as start and restart.
  * It can be collapsed to a bar, filtered by container and by text, and cleared.
  */
 export default {
@@ -158,6 +166,8 @@ export default {
             searchText: "",
             lines: [],
             partial: "",
+            progressPartial: "",
+            progressIds: [],
             stickToBottom: true,
             boundName: "",
             MIN_PANEL_HEIGHT,
@@ -256,6 +266,8 @@ export default {
             }
             this.lines = [];
             this.partial = "";
+            this.progressPartial = "";
+            this.progressIds = [];
             this.boundName = this.name;
             this.$root.bindTerminal(this.endpoint, this.name, {
                 write: (data) => this.append(data),
@@ -279,6 +291,75 @@ export default {
                 }
             }
 
+            this.afterAppend();
+        },
+
+        /**
+         * Add the output of a compose command (up, restart, pull...).
+         * Compose redraws its progress block by moving the cursor up,
+         * so the lines it redraws are replaced instead of repeated.
+         * @param {string} data Output chunk, may end mid-line
+         * @returns {void}
+         */
+        appendProgress(data) {
+            const text = this.progressPartial + String(data);
+            const end = text.lastIndexOf("\n");
+            // Keep the unfinished line, and any escape code cut in half, for the next chunk
+            this.progressPartial = text.slice(end + 1);
+            if (end < 0) {
+                return;
+            }
+
+            // split() with a capture group alternates text and cursor-up counts
+            const parts = text.slice(0, end + 1).split(CURSOR_UP_PATTERN);
+            parts.forEach((part, index) => {
+                if (index % 2 === 1) {
+                    this.removeProgressLines(parseInt(part, 10) || 1);
+                    return;
+                }
+                const rows = part.split("\n");
+                // The last piece has no line break: it is overwritten by the redraw
+                rows.pop();
+                for (const row of rows) {
+                    const line = row.replace(ANSI_PATTERN, "").replace(/\r+$/, "")
+                        .split("\r")
+                        .pop()
+                        .trimEnd();
+                    if (line === "") {
+                        // Blank lines still count when compose moves the cursor up
+                        this.progressIds.push(null);
+                    } else {
+                        const parsed = this.parseLine(line);
+                        this.lines.push(parsed);
+                        this.progressIds.push(parsed.id);
+                    }
+                }
+            });
+
+            if (this.progressIds.length > MAX_PROGRESS_LINES) {
+                this.progressIds.splice(0, this.progressIds.length - MAX_PROGRESS_LINES);
+            }
+            this.afterAppend();
+        },
+
+        /**
+         * Remove the last progress lines, because compose is about to redraw them
+         * @param {number} count Number of lines
+         * @returns {void}
+         */
+        removeProgressLines(count) {
+            const removed = new Set(this.progressIds.splice(Math.max(0, this.progressIds.length - count)));
+            removed.delete(null);
+            if (removed.size > 0) {
+                this.lines = this.lines.filter((line) => !removed.has(line.id));
+            }
+        },
+
+        /**
+         * Trim old lines and follow the end of the log
+         * @returns {void}
+         */
+        afterAppend() {
             if (this.lines.length > MAX_LINES) {
                 this.lines.splice(0, this.lines.length - MAX_LINES);
             }
@@ -286,6 +367,16 @@ export default {
             if (this.open && this.stickToBottom) {
                 this.scrollToBottom();
             }
+        },
+
+        /**
+         * Open the dock and follow the end of the log
+         * @returns {void}
+         */
+        show() {
+            this.open = true;
+            this.stickToBottom = true;
+            this.scrollToBottom();
         },
 
         /**
@@ -331,6 +422,7 @@ export default {
          */
         clearLog() {
             this.lines = [];
+            this.progressIds = [];
             this.stickToBottom = true;
         },
 
