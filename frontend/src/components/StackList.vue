@@ -356,7 +356,7 @@ export default {
 
 .search-icon {
     position: absolute;
-    left: 14px;
+    left: 10px;
     top: 50%;
     transform: translateY(-50%);
     color: $muted;
@@ -375,9 +375,9 @@ export default {
 }
 
 .search-input {
-    height: 42px;
+    height: 33px;
     font-size: 14px;
-    padding: 11px 14px 11px 40px;
+    padding: 8px 10px 8px 36px;
     border-radius: 10px;
     border-color: $surface-border;
     background-color: $bg-input;
@@ -403,7 +403,7 @@ export default {
 .chip {
     border: none;
     border-radius: 999px;
-    padding: 5px 12px;
+    padding: 4px 10px;
     font-size: 12px;
     font-weight: 500;
     line-height: normal;

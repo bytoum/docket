@@ -55,7 +55,7 @@ $sidebar-width: 320px;
     display: flex;
     flex-direction: column;
     gap: 16px;
-    padding: 20px;
+    padding: 16px;
     background-color: $bg-surface;
     border-right: 1px solid $surface-border;
 
@@ -71,7 +71,7 @@ $sidebar-width: 320px;
     justify-content: center;
     gap: 8px;
     width: 100%;
-    padding: 11px 18px;
+    padding: 8px 14px;
     border-radius: 10px;
     font-size: 14px;
     font-weight: 600;
@@ -80,7 +80,7 @@ $sidebar-width: 320px;
 .content {
     flex: 1;
     min-width: 0;
-    padding: 40px 40px calc(40px + var(--console-dock-height, 0px));
+    padding: 32px 32px calc(32px + var(--console-dock-height, 0px));
 
     .mobile & {
         padding: 16px;

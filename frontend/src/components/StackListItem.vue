@@ -141,7 +141,7 @@ export default {
     border-radius: 12px;
     transition: background-color ease-in-out 0.15s;
     width: 100%;
-    padding: 12px 14px;
+    padding: 10px;
     color: $text-primary;
     font-size: 14px;
     font-weight: 500;

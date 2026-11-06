@@ -23,6 +23,22 @@
 
             <span class="spacer"></span>
 
+            <div v-if="open" class="log-search">
+                <AssetIcon v-if="searchText === ''" :src="icons.search" width="13.5" height="13.5" class="log-search-icon" />
+                <button v-else type="button" class="log-search-icon clear" :title="$t('clearFilter')" @click="searchText = ''">
+                    <font-awesome-icon icon="times" />
+                </button>
+                <input v-model="searchText" class="form-control log-search-input" autocomplete="off" :placeholder="$t('consoleFilter')" :aria-label="$t('consoleFilter')" />
+            </div>
+
+            <button
+                v-if="open" type="button" class="clear-btn" :disabled="lines.length === 0"
+                :title="$t('consoleClear')" @click="clearLog"
+            >
+                <font-awesome-icon icon="trash" />
+                <span>{{ $t("consoleClear") }}</span>
+            </button>
+
             <button
                 type="button" class="toggle-btn" :aria-expanded="open"
                 :aria-label="open ? $t('hideConsole') : $t('showConsole')" :title="open ? $t('hideConsole') : $t('showConsole')"
@@ -34,7 +50,7 @@
 
         <!-- Log panel -->
         <div v-show="open" ref="panel" class="log-panel" @scroll="onScroll">
-            <div v-if="visibleLines.length === 0" class="log-empty">{{ $t("consoleEmpty") }}</div>
+            <div v-if="visibleLines.length === 0" class="log-empty">{{ lines.length > 0 ? $t("consoleNoMatch") : $t("consoleEmpty") }}</div>
             <div v-for="line in visibleLines" :key="line.id" class="log-line">
                 <span v-if="line.source" class="log-source" :style="sourceStyle">{{ line.source }}</span>
                 <span v-if="line.time" class="log-text">{{ line.before }}</span><span v-if="line.time" class="log-time">{{ line.time }}</span><span class="log-text">{{ line.time ? line.after : line.message }}</span>
@@ -49,12 +65,14 @@ import iconConsole from "../assets/stack/console.svg";
 import iconChevronUp from "../assets/stack/chevron-up.svg";
 import iconChevronDown from "../assets/stack/chevron-down-dock.svg";
 import iconDotSuccess from "../assets/stack/dot-success.svg";
+import iconSearch from "../assets/stack/search.svg";
 
 const icons = {
     console: iconConsole,
     chevronUp: iconChevronUp,
     chevronDown: iconChevronDown,
     dotSuccess: iconDotSuccess,
+    search: iconSearch,
 };
 
 const STORAGE_KEY = "consoleDockOpen";
@@ -74,7 +92,7 @@ let nextLineId = 1;
 
 /**
  * Bottom dock with the stack's combined container logs ("docker compose logs -f").
- * It can be collapsed to a bar, and filtered by container.
+ * It can be collapsed to a bar, filtered by container and by text, and cleared.
  */
 export default {
     components: {
@@ -119,6 +137,7 @@ export default {
             icons,
             open,
             filter: "",
+            searchText: "",
             lines: [],
             partial: "",
             stickToBottom: true,
@@ -140,10 +159,18 @@ export default {
         },
 
         visibleLines() {
-            if (!this.filter) {
+            const search = this.searchText.trim().toLowerCase();
+            if (!this.filter && !search) {
                 return this.lines;
             }
-            return this.lines.filter((line) => this.belongsTo(line.source, this.filter));
+            return this.lines.filter((line) => {
+                if (this.filter && !this.belongsTo(line.source, this.filter)) {
+                    return false;
+                }
+                return !search
+                    || line.message.toLowerCase().includes(search)
+                    || line.source.toLowerCase().includes(search);
+            });
         },
 
         /**
@@ -272,6 +299,16 @@ export default {
                 || new RegExp(`^${service.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-\\d+$`).test(source);
         },
 
+        /**
+         * Clear the log lines shown in the dock. Only clears this view;
+         * new output keeps coming in.
+         * @returns {void}
+         */
+        clearLog() {
+            this.lines = [];
+            this.stickToBottom = true;
+        },
+
         toggle() {
             this.open = !this.open;
         },
@@ -387,6 +424,67 @@ export default {
     flex: 1;
 }
 
+.log-search {
+    position: relative;
+    width: 220px;
+}
+
+.log-search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: $muted;
+
+    &.clear {
+        border: none;
+        background: none;
+        padding: 0;
+        font-size: 13px;
+        cursor: pointer;
+
+        &:hover {
+            color: $text-secondary;
+        }
+    }
+}
+
+.log-search-input {
+    height: 32px;
+    font-size: 13px;
+    padding: 6px 10px 6px 32px;
+    border-radius: 4px;
+    border-color: $surface-border;
+    background-color: $bg-input;
+
+    &::placeholder {
+        color: $muted;
+    }
+}
+
+.clear-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: normal;
+    color: $text-secondary;
+    background-color: $surface-raised;
+    border: none;
+    border-radius: 4px;
+
+    &:hover:not(:disabled) {
+        background-color: darken($surface-raised, 4%);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+    }
+}
+
 .toggle-btn {
     display: inline-flex;
     align-items: center;
@@ -457,6 +555,17 @@ export default {
             background-color: rgba($primary, 0.2);
             border-color: $highlight;
         }
+    }
+
+    .log-search-input {
+        background-color: $dark-bg;
+        border-color: $dark-border-color;
+        color: $dark-font-color;
+    }
+
+    .clear-btn {
+        color: $dark-font-color;
+        background-color: $dark-bg;
     }
 
     .toggle-btn {

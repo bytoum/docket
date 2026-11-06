@@ -205,7 +205,7 @@ main {
 
 .app-header {
     height: 64px;
-    padding: 0 20px;
+    padding: 0 18px;
     background-color: $bg-surface;
     border-bottom: 1px solid $surface-border;
     position: sticky;

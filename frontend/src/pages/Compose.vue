@@ -96,18 +96,15 @@
                 </a>
             </div>
 
-            <!-- Progress Terminal -->
-            <transition name="slide-fade" appear>
-                <Terminal
-                    v-show="showProgressTerminal"
-                    ref="progressTerminal"
-                    class="mb-3 terminal"
-                    :name="terminalName"
-                    :endpoint="endpoint"
-                    :rows="progressTerminalRows"
-                    @has-data="showProgressTerminal = true; submitted = true;"
-                ></Terminal>
-            </transition>
+            <!-- Progress Terminal: kept hidden (output is not shown), only used to detect that a deploy has started -->
+            <Terminal
+                v-show="false"
+                ref="progressTerminal"
+                :name="terminalName"
+                :endpoint="endpoint"
+                :rows="progressTerminalRows"
+                @has-data="submitted = true"
+            ></Terminal>
 
             <!-- View mode -->
             <div v-if="stack.isManagedByDockge && !isEditMode">
@@ -561,7 +558,6 @@ export default {
             envsubstJSONConfig: {},
             yamlError: "",
             processing: true,
-            showProgressTerminal: false,
             progressTerminalRows: PROGRESS_TERMINAL_ROWS,
             combinedTerminalRows: COMBINED_TERMINAL_ROWS,
             combinedTerminalCols: COMBINED_TERMINAL_COLS,
@@ -1554,10 +1550,6 @@ export default {
 <style scoped lang="scss">
 @import "../styles/vars.scss";
 
-.terminal {
-    height: 200px;
-}
-
 // Header
 .stack-page {
     display: flex;
@@ -1598,7 +1590,7 @@ export default {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 11px 18px;
+    padding: 8px 14px;
     border-radius: 10px;
     font-size: 14px;
     font-weight: 600;
@@ -1609,7 +1601,7 @@ export default {
     display: inline-flex;
     align-items: center;
     gap: 2px;
-    padding: 4px;
+    padding: 3px;
     background-color: $surface-raised;
     border: 1px solid $surface-border;
     border-radius: 10px;
@@ -1619,7 +1611,7 @@ export default {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 7px 14px;
+        padding: 5px 10px;
         border: none;
         border-radius: 7px;
         background: transparent;
@@ -1639,7 +1631,7 @@ export default {
     }
 
     :deep(.action-more) {
-        padding: 7px 8px;
+        padding: 5px 6px;
     }
 
     .play-icon {
@@ -1660,8 +1652,8 @@ export default {
 }
 
 .btn-soft-danger {
-    padding-left: 16px;
-    padding-right: 16px;
+    padding-left: 12px;
+    padding-right: 12px;
     color: $danger-strong;
     background-color: $status-danger-subtle;
     border: none;
