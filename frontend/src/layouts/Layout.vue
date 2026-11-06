@@ -13,7 +13,7 @@
         <header v-if="! $root.isMobile" class="app-header d-flex align-items-center">
             <router-link to="/" class="brand d-flex align-items-center me-auto text-decoration-none">
                 <object class="me-2" width="32" height="32" data="/icon.svg" />
-                <span class="title">Dockge</span>
+                <span class="title">Docket</span>
             </router-link>
 
             <a v-if="hasNewVersion" target="_blank" href="https://github.com/louislam/dockge/releases" class="btn btn-warning me-3">

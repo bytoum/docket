@@ -7,7 +7,7 @@ import { log } from "../backend/log";
 import { io } from "socket.io-client";
 import { BaseRes } from "../common/util-common";
 
-console.log("== Dockge Reset Password Tool ==");
+console.log("== Docket Reset Password Tool ==");
 
 const rl = readline.createInterface({
     input: process.stdin,

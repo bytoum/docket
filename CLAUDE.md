@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Dockge is a self-hosted web UI for managing `docker compose` stacks. It has a TypeScript backend (Express + socket.io, run directly with `tsx`, no compile step) and a Vue 3 + Vite frontend. Both share one `package.json`. Node >= 22.14.0.
+Docket is a self-hosted web UI for managing `docker compose` stacks. It is a fork of [Dockge](https://github.com/louislam/dockge), rebranded as Docket. The code still calls itself Dockge in many places; see "Naming" below. It has a TypeScript backend (Express + socket.io, run directly with `tsx`, no compile step) and a Vue 3 + Vite frontend. Both share one `package.json`. Node >= 22.14.0.
 
 ## Commands
 
@@ -78,6 +78,21 @@ Host lookups for the drawers are agent events in [backend/agent-socket-handlers/
 
 ### Design
 The UI follows the "Dockge – Redesign" Figma file (https://www.figma.com/design/F38NzF6eFkGRgcsJUoHSaD/Dockge-%E2%80%93-Redesign). Its variables (bg, border, text, accent, status) are defined in [frontend/src/styles/vars.scss](frontend/src/styles/vars.scss) with light and dark values. Use these tokens instead of hard-coded colours. The style is flat: 4px corners, filled inputs and no borders. Icons exported from Figma live in `frontend/src/assets/stack/` and `frontend/src/assets/drawer/`, and are shown with `AssetIcon`.
+
+## Naming
+
+The product is called **Docket** in everything people see: the UI, `en.json` values, backend messages shown to users, docs, the npm package name (`docket`) and the Docker image (`bytoum/docket`).
+
+These stay `dockge` so existing installs and compose files keep working:
+- the `DOCKGE_*` env vars;
+- the `x-dockge` key in compose files;
+- the `/opt/dockge` install directory and the `dockge` service name (`backend/stack.ts` hides its own stack by the project name `dockge`);
+- `data/dockge.db`;
+- code identifiers (`DockgeServer`, `DockgeSocket`, `isManagedByDockge`, `backend/dockge-server.ts`);
+- i18n keys (`dockgeAgent`, ...);
+- the `louislam/dockge:base` and `louislam/dockge:build-healthcheck` base images in the Dockerfile.
+
+Other `frontend/src/lang/*.json` files still say "Dockge" and must not be edited here (they come from Weblate).
 
 ## Conventions (from CONTRIBUTING.md)
 
