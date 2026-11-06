@@ -61,7 +61,23 @@ Replies to the browser come back wrapped as `"agent"` events (`socket.emitAgent`
 [backend/database.ts](backend/database.ts) uses `redbean-node` (`R`) on top of knex. SQLite is the default (`data/dockge.db`), and MySQL is possible via `data/db-config.json`. Migrations are knex migrations in [backend/migrations/](backend/migrations/), named `YYYY-MM-DD-HHMM-description.ts`, and they run automatically at startup (`Database.patch()`). The DB only holds users, settings and agents.
 
 ### Frontend
-Vue 3 with the Options API, using mixins. [frontend/src/mixins/socket.ts](frontend/src/mixins/socket.ts) holds the global socket connection and shared state (stack list, agent list and status, terminals). It is mixed into the root app, and components reach it via `this.$root`. Bootstrap 5 / bootstrap-vue-next components are auto-imported (see `frontend/components.d.ts`). `common/` is imported by both backend and frontend.
+Vue 3 with the Options API, using mixins. [frontend/src/mixins/socket.ts](frontend/src/mixins/socket.ts) holds the global socket connection and shared state (stack list, agent list and status, terminals). It is mixed into the root app, and components reach it via `this.$root`. Bootstrap 5 / bootstrap-vue-next components are auto-imported (see `frontend/components.d.ts`, which the Vite plugin regenerates; commit it when components are added or removed). `common/` is imported by both backend and frontend.
+
+### Stack page and drawers
+[frontend/src/pages/Compose.vue](frontend/src/pages/Compose.vue) is the stack page (view, edit and new-stack modes). It keeps the parsed compose file in `jsonConfig`; a deep watcher writes it back to `compose.yaml`, keeping comments. The visual editors are side drawers that emit a result, and Compose applies it to `jsonConfig`. In view mode, Compose then deploys right away (`deployIfViewing()`); in edit mode the change only lands in the editor.
+
+- [ContainerDrawer.vue](frontend/src/components/ContainerDrawer.vue): add or edit a service (name, image, ports, volumes, restart policy, networks as switches, dependencies, URLs). It does not touch `environment` or `env_file`, and it keeps settings it does not show.
+- [EnvDrawer.vue](frontend/src/components/EnvDrawer.vue) and [EnvEditor.vue](frontend/src/components/EnvEditor.vue): a service's `environment`, as a key/value list or a raw `KEY=value` CodeMirror editor. The drawer's width can be resized.
+- [NetworkDrawer.vue](frontend/src/components/NetworkDrawer.vue) and [VolumeDrawer.vue](frontend/src/components/VolumeDrawer.vue): a top-level network or volume, either new or external (picked from the host). Rename and delete also update the services that use it.
+- Delete buttons are on the container cards and the network/volume rows, not in the drawers.
+- Shared drawer styles are in [frontend/src/styles/drawer.scss](frontend/src/styles/drawer.scss). Drawers teleport to `body`, so a drawer later in the template stacks on top.
+
+Host lookups for the drawers are agent events in [backend/agent-socket-handlers/docker-socket-handler.ts](backend/agent-socket-handlers/docker-socket-handler.ts): `getDockerNetworkDetails` and `getDockerVolumeDetails`, each returning name, driver and container count. Older remote agents lack them, so the frontend treats a failed call as "no data".
+
+[ConsoleDock.vue](frontend/src/components/ConsoleDock.vue) is the bottom log dock (`docker compose logs -f` through the combined terminal). It filters by container and by text, can be cleared and resized, and sets `--console-dock-height` so the page leaves room for it.
+
+### Design
+The UI follows the "Dockge – Redesign" Figma file (https://www.figma.com/design/F38NzF6eFkGRgcsJUoHSaD/Dockge-%E2%80%93-Redesign). Its variables (bg, border, text, accent, status) are defined in [frontend/src/styles/vars.scss](frontend/src/styles/vars.scss) with light and dark values. Use these tokens instead of hard-coded colours. The style is flat: 4px corners, filled inputs and no borders. Icons exported from Figma live in `frontend/src/assets/stack/` and `frontend/src/assets/drawer/`, and are shown with `AssetIcon`.
 
 ## Conventions (from CONTRIBUTING.md)
 

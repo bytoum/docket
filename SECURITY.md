@@ -2,11 +2,11 @@
 
 ## Reporting a Vulnerability
 
-1. Please report security issues to https://github.com/louislam/dockge/security/advisories/new.
-1. Please also create an empty security issue to alert me, as GitHub Advisories do not send a notification, I probably will miss it without this. https://github.com/louislam/dockge/issues/new?assignees=&labels=help&template=security.md
+1. Please report security issues through [GitHub Security Advisories](https://github.com/louislam/dockge/security/advisories/new).
+1. Please also [create an empty security issue](https://github.com/louislam/dockge/issues/new?assignees=&labels=help&template=security.md) to alert me. GitHub Advisories do not send a notification, so without it I will probably miss your report.
 
-Do not use the public issue tracker or discuss it in public as it will cause more damage.
+Do not describe the vulnerability in the public issue tracker or discuss it in public, as that could cause more damage.
 
 ## Do you accept other 3rd-party bug bounty platforms?
 
-At this moment, I DO NOT accept other bug bounty platforms, because I am not familiar with these platforms and someone has tried to send a phishing link to me by doing this already. To minimize my own risk, please report through GitHub Advisories only. I will ignore all 3rd-party bug bounty platforms emails.
+At this moment, I DO NOT accept other bug bounty platforms, because I am not familiar with them and someone has already tried to send me a phishing link this way. To minimize my own risk, please report through GitHub Advisories only. I will ignore all emails from 3rd-party bug bounty platforms.

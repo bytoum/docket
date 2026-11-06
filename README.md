@@ -18,6 +18,9 @@ View Video: https://youtu.be/AWAlOQeNpgU?t=48
   - Create/Edit/Start/Stop/Restart/Delete
   - Update Docker Images
 - ⌨️ Interactive Editor for `compose.yaml`
+- 🧩 Visual stack editor - Add and edit containers, networks and volumes in side panels. Changes are written to your `compose.yaml`
+- 🔑 Environment variable editor for each container, as a list or as raw `KEY=value` text
+- 📜 Live logs in a console dock - Filter by container or text, clear, and resize
 - 🦦 Interactive Web Terminal
 - 🕷️ (1.4.0 🆕) Multiple agents support - You can manage multiple stacks from different Docker hosts in one single interface
 - 🏪 Convert `docker run ...` commands into `compose.yaml`
@@ -196,7 +199,7 @@ Yes or no. Portainer provides a lot of Docker features. While Dockge is currentl
 
 If you want to manage your container with docker-compose only, the answer may be yes.
 
-If you still need to manage something like docker networks, single containers, the answer may be no.
+If you still need to manage things outside of compose stacks, like single containers or host-wide networks and volumes, the answer may be no. Networks and volumes that belong to a stack can be managed in Dockge.
 
 #### Can I install both Dockge and Portainer?
 
