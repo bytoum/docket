@@ -1,4 +1,5 @@
-// Shared styles for the side drawers (container and network)
+// Shared styles for the side drawers (container, env and network).
+// Flat style from the Figma design: 4px corners, filled inputs, no borders.
 @import "vars.scss";
 
 .drawer-scrim {
@@ -38,8 +39,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 20px 20px 20px 24px;
-    border-bottom: 1px solid $surface-border;
+    padding: 16px 16px 16px 18px;
 }
 
 .drawer-title {
@@ -67,12 +67,12 @@
     justify-content: center;
     width: 44px;
     height: 44px;
-    border: 1px solid $surface-border;
-    border-radius: 10px;
-    background-color: $bg-surface;
+    border: none;
+    border-radius: 4px;
+    background-color: $surface-raised;
 
     &:hover {
-        background-color: $bg-surface-raised;
+        background-color: darken($surface-raised, 4%);
     }
 }
 
@@ -89,7 +89,7 @@
     display: flex;
     flex-direction: column;
     gap: 28px;
-    padding: 24px 24px 28px;
+    padding: 18px 18px 20px;
 }
 
 .field {
@@ -130,12 +130,12 @@
 .field-input {
     width: 100%;
     height: 44px;
-    padding: 11px 14px;
+    padding: 8px 10px;
     font-size: 14px;
     color: inherit;
-    background-color: $bg-surface;
-    border: 1px solid $border-strong;
-    border-radius: 10px;
+    background-color: $bg-input;
+    border: 1px solid transparent;
+    border-radius: 4px;
     outline: none;
 
     &::placeholder {
@@ -186,7 +186,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 0;
+    padding: 3px 0;
     border: none;
     background: none;
     font-size: 14px;
@@ -206,22 +206,22 @@
 }
 
 .choice-chip {
-    padding: 8px 14px;
+    padding: 6px 10px;
     font-size: 13px;
     font-weight: 500;
+    line-height: normal;
     color: $text-secondary;
-    background-color: $bg-surface;
-    border: 1px solid $border-strong;
+    background-color: $surface-raised;
+    border: none;
     border-radius: 999px;
 
     &:hover {
-        background-color: $bg-surface-raised;
+        background-color: darken($surface-raised, 4%);
     }
 
     &.selected {
         color: $primary;
-        background-color: rgba($primary, 0.08);
-        border-color: $primary;
+        background-color: $accent-subtle;
     }
 }
 
@@ -237,7 +237,7 @@
 
     .select-chevron {
         position: absolute;
-        right: 14px;
+        right: 10px;
         top: 50%;
         transform: translateY(-50%);
         pointer-events: none;
@@ -249,9 +249,9 @@
     align-items: center;
     gap: 12px;
     min-height: 60px;
-    padding: 12px 14px;
-    border: 1px solid $surface-border;
-    border-radius: 12px;
+    padding: 10px;
+    background-color: $bg-input;
+    border-radius: 4px;
 
     .info {
         flex: 1;
@@ -313,8 +313,7 @@
     justify-content: flex-end;
     align-items: center;
     gap: 12px;
-    padding: 20px 24px;
-    border-top: 1px solid $surface-border;
+    padding: 16px 18px;
     background-color: $bg-surface;
 }
 
@@ -322,13 +321,15 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 11px 18px;
+    padding: 8px 14px;
     font-size: 14px;
     font-weight: 600;
-    border-radius: 10px;
+    line-height: normal;
+    border: none;
+    border-radius: 4px;
 
     &.danger {
-        padding: 11px 16px;
+        padding: 8px 12px;
         color: $danger-strong;
         background-color: $status-danger-subtle;
         border: none;
@@ -344,18 +345,16 @@
 
     &.secondary {
         color: $text-primary;
-        background-color: $bg-surface-raised;
-        border: 1px solid $border-strong;
+        background-color: $surface-raised;
 
         &:hover {
-            background-color: #e9ebef;
+            background-color: darken($surface-raised, 4%);
         }
     }
 
     &.primary {
         color: $text-on-accent;
         background-color: $accent-primary;
-        border: 1px solid $accent-primary;
 
         &:hover {
             background-color: $accent-primary-hover;
@@ -383,27 +382,25 @@
     }
 
     .field-input,
+    .network-toggle {
+        color: $dark-text-primary;
+        background-color: $dark-bg-input;
+    }
+
     .square-btn,
     .choice-chip {
         color: $dark-text-primary;
-        background-color: $dark-bg;
-        border-color: $dark-border-strong;
+        background-color: $dark-header-bg;
     }
 
     .square-btn:hover,
     .choice-chip:hover {
-        background-color: $dark-header-bg;
+        background-color: $dark-bg2;
     }
 
     .choice-chip.selected {
         color: $highlight;
         background-color: rgba($primary, 0.2);
-        border-color: $highlight;
-    }
-
-    .network-toggle,
-    .divider-label .line {
-        border-color: $dark-border-color;
     }
 
     .divider-label .line {
@@ -422,7 +419,6 @@
     .footer-btn.primary {
         color: $dark-text-on-accent;
         background-color: $dark-accent-primary;
-        border-color: $dark-accent-primary;
 
         &:hover {
             background-color: lighten($dark-accent-primary, 6%);
@@ -432,7 +428,6 @@
     .footer-btn.secondary {
         color: $dark-text-primary;
         background-color: $dark-header-bg;
-        border-color: $dark-border-strong;
     }
 }
 

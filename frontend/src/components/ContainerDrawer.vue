@@ -34,62 +34,39 @@
                         <p class="field-hint">{{ $t("imageHint") }}</p>
                     </div>
 
-                    <!-- Ports / Volumes -->
-                    <div v-for="list in simpleLists" :key="list.key" class="field">
-                        <span class="field-label">{{ $tc(list.label, 2) }}</span>
-                        <div v-if="draft[list.key].length > 0" class="rows">
-                            <div v-for="(item, index) in draft[list.key]" :key="index" class="row-line">
-                                <input v-model.trim="draft[list.key][index]" class="field-input" :placeholder="list.placeholder" />
-                                <button type="button" class="square-btn" :aria-label="$t('deleteContainer')" @click="draft[list.key].splice(index, 1)">
-                                    <span class="icon"><img :src="iconClose" alt="" width="9.5" height="9.5" /></span>
+                    <!-- Ports, volumes, restart policy -->
+                    <template v-for="list in simpleLists" :key="list.key">
+                        <div v-if="list.key === 'restart'" class="field">
+                            <span class="field-label">{{ $t("restartPolicy") }}</span>
+                            <div class="chips" role="radiogroup">
+                                <button
+                                    v-for="option in restartOptions" :key="option.value" type="button" class="choice-chip"
+                                    role="radio" :aria-checked="draft.restart === option.value" :class="{ selected: draft.restart === option.value }"
+                                    @click="draft.restart = option.value"
+                                >
+                                    {{ $t(option.label) }}
                                 </button>
                             </div>
+                            <p class="field-hint">{{ $t("restartPolicyHint") }}</p>
                         </div>
-                        <button type="button" class="add-row" @click="draft[list.key].push('')">
-                            <span class="icon"><img :src="iconPlus" alt="" width="10.8333" height="10.8333" /></span>
-                            {{ $t(list.addLabel) }}
-                        </button>
-                        <p class="field-hint">{{ $t(list.hint) }}</p>
-                    </div>
 
-                    <!-- Restart policy -->
-                    <div class="field">
-                        <span class="field-label">{{ $t("restartPolicy") }}</span>
-                        <div class="chips" role="radiogroup">
-                            <button
-                                v-for="option in restartOptions" :key="option.value" type="button" class="choice-chip"
-                                role="radio" :aria-checked="draft.restart === option.value" :class="{ selected: draft.restart === option.value }"
-                                @click="draft.restart = option.value"
-                            >
-                                {{ $t(option.label) }}
+                        <div v-else class="field">
+                            <span class="field-label">{{ $tc(list.label, 2) }}</span>
+                            <div v-if="draft[list.key].length > 0" class="rows">
+                                <div v-for="(item, index) in draft[list.key]" :key="index" class="row-line">
+                                    <input v-model.trim="draft[list.key][index]" class="field-input" :placeholder="list.placeholder" />
+                                    <button type="button" class="square-btn" :aria-label="$t('remove')" @click="draft[list.key].splice(index, 1)">
+                                        <span class="icon"><img :src="iconClose" alt="" width="9.5" height="9.5" /></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <button type="button" class="add-row" @click="draft[list.key].push('')">
+                                <span class="icon"><img :src="iconPlus" alt="" width="10.8333" height="10.8333" /></span>
+                                {{ $t(list.addLabel) }}
                             </button>
+                            <p class="field-hint">{{ $t(list.hint) }}</p>
                         </div>
-                        <p class="field-hint">{{ $t("restartPolicyHint") }}</p>
-                    </div>
-
-                    <!-- Environment variables -->
-                    <div class="field">
-                        <span class="field-label">{{ $tc("environmentVariable", 2) }}</span>
-                        <div v-if="draft.environment.length > 0" class="rows">
-                            <div class="row-line column-headers">
-                                <span class="env-key">{{ $t("envKey") }}</span>
-                                <span class="env-value">{{ $t("envValue") }}</span>
-                                <span class="square-spacer"></span>
-                            </div>
-                            <div v-for="(row, index) in draft.environment" :key="index" class="row-line">
-                                <input v-model.trim="row.key" class="field-input env-key" placeholder="KEY" />
-                                <input v-model="row.value" class="field-input env-value" placeholder="value" />
-                                <button type="button" class="square-btn" :aria-label="$t('deleteContainer')" @click="draft.environment.splice(index, 1)">
-                                    <span class="icon"><img :src="iconClose" alt="" width="9.5" height="9.5" /></span>
-                                </button>
-                            </div>
-                        </div>
-                        <button type="button" class="add-row" @click="draft.environment.push({ key: '', value: '' })">
-                            <span class="icon"><img :src="iconPlus" alt="" width="10.8333" height="10.8333" /></span>
-                            {{ $t("addVariable") }}
-                        </button>
-                        <p class="field-hint">{{ $t("envHint") }}</p>
-                    </div>
+                    </template>
 
                     <!-- Networks -->
                     <div class="field field-networks">
@@ -176,7 +153,7 @@
                 <footer class="drawer-footer">
                     <button v-if="!isAdd" type="button" class="footer-btn danger" :disabled="busy" @click="showDeleteDialog = true">
                         <AssetIcon :src="iconTrash" width="13.5" height="14.8333" />
-                        {{ $t("deleteStack") }}
+                        {{ $t("deleteContainerTitle") }}
                     </button>
                     <span class="footer-spacer"></span>
                     <button type="button" class="footer-btn secondary" @click="close">{{ $t("cancel") }}</button>
@@ -279,6 +256,7 @@ export default {
             simpleLists: [
                 {
                     key: "ports",
+                    composeKey: "ports",
                     label: "port",
                     addLabel: "addPort",
                     hint: "portsHint",
@@ -286,10 +264,14 @@ export default {
                 },
                 {
                     key: "volumes",
+                    composeKey: "volumes",
                     label: "volume",
                     addLabel: "addVolume",
                     hint: "volumesHint",
                     placeholder: "app-data:/data",
+                },
+                {
+                    key: "restart",
                 },
             ],
             restartOptions: [
@@ -372,7 +354,6 @@ export default {
                 ports: [],
                 volumes: [],
                 restart: "unless-stopped",
-                environment: [],
                 internalNetwork: "default",
                 externalNetworks: {},
                 dependsOn: [],
@@ -396,20 +377,6 @@ export default {
                 draft.ports = (service.ports ?? []).filter((p) => typeof p !== "object").map(String);
                 draft.volumes = (service.volumes ?? []).filter((v) => typeof v !== "object").map(String);
                 draft.restart = service.restart ?? "";
-
-                const env = service.environment;
-                if (Array.isArray(env)) {
-                    draft.environment = env.map((line) => {
-                        const text = String(line);
-                        const index = text.indexOf("=");
-                        return index === -1 ? { key: text,
-                            value: "" } : { key: text.slice(0, index),
-                            value: text.slice(index + 1) };
-                    });
-                } else if (env && typeof env === "object") {
-                    draft.environment = Object.entries(env).map(([ key, value ]) => ({ key,
-                        value: value ?? "" }));
-                }
 
                 const declared = this.jsonConfig.networks ?? {};
                 const attached = networksOf(service) ?? [];
@@ -523,23 +490,12 @@ export default {
             setOrDelete("image", this.draft.image, !this.draft.image);
             setOrDelete("restart", this.draft.restart, !this.draft.restart);
 
-            // Ports and volumes: keep long-syntax objects, replace the short ones
-            for (const key of [ "ports", "volumes" ]) {
-                const longSyntax = (original[key] ?? []).filter((item) => typeof item === "object");
-                const list = [ ...this.draft[key].filter((item) => item !== ""), ...longSyntax ];
-                setOrDelete(key, list, list.length === 0);
-            }
-
-            // Environment: keep the original form (list or map)
-            const envRows = this.draft.environment.filter((row) => row.key !== "");
-            if (original.environment && !Array.isArray(original.environment)) {
-                const env = {};
-                for (const row of envRows) {
-                    env[row.key] = row.value;
-                }
-                setOrDelete("environment", env, envRows.length === 0);
-            } else {
-                setOrDelete("environment", envRows.map((row) => `${row.key}=${row.value}`), envRows.length === 0);
+            // Ports and volumes: keep long-syntax objects, replace the short ones.
+            // Environment variables are edited in the env drawer and kept as they are.
+            for (const list of this.simpleLists.filter((item) => item.composeKey)) {
+                const longSyntax = (original[list.composeKey] ?? []).filter((item) => typeof item === "object");
+                const values = [ ...this.draft[list.key].filter((item) => item !== ""), ...longSyntax ];
+                setOrDelete(list.composeKey, values, values.length === 0);
             }
 
             // Networks: "default" alone is the same as no "networks" key

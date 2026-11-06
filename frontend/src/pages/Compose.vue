@@ -129,6 +129,7 @@
                         @stop-service="stopService"
                         @restart-service="restartService"
                         @edit-service="openContainerDrawer"
+                        @edit-env="openEnvDrawer"
                         @delete-service="deleteContainer"
                     />
                 </div>
@@ -364,6 +365,15 @@
                 @delete="deleteContainer"
             />
 
+            <EnvDrawer
+                :open="envDrawer.open"
+                :service-name="envDrawer.serviceName"
+                :json-config="jsonConfig"
+                :busy="processing && !isEditMode"
+                @close="envDrawer.open = false"
+                @submit="applyEnvDrawer"
+            />
+
             <!-- Delete Dialog -->
             <BModal v-model="showDeleteDialog" :cancelTitle="$t('cancel')" :okTitle="$t('deleteStack')" okVariant="danger" @ok="deleteDialog">
                 {{ $t("deleteStackMsg") }}
@@ -393,6 +403,8 @@ import {
 } from "../../../common/util-common";
 import { BModal } from "bootstrap-vue-next";
 import ContainerDrawer from "../components/ContainerDrawer.vue";
+import EnvDrawer from "../components/EnvDrawer.vue";
+import { rowsToEnv } from "../components/EnvEditor.vue";
 import NetworkDrawer from "../components/NetworkDrawer.vue";
 import AssetIcon from "../components/AssetIcon.vue";
 import ConsoleDock from "../components/ConsoleDock.vue";
@@ -494,6 +506,7 @@ let dockerStatsTimeout = null;
 export default {
     components: {
         ContainerDrawer,
+        EnvDrawer,
         NetworkDrawer,
         AssetIcon,
         ConsoleDock,
@@ -596,6 +609,10 @@ export default {
                 networkName: "",
             },
             containerDrawer: {
+                open: false,
+                serviceName: "",
+            },
+            envDrawer: {
                 open: false,
                 serviceName: "",
             },
@@ -1494,6 +1511,46 @@ export default {
             }
 
             this.containerDrawer.open = false;
+
+            if (!this.isEditMode) {
+                // Wait for the jsonConfig watcher to regenerate the YAML, then deploy
+                this.$nextTick(() => this.deployStack());
+            }
+        },
+
+        /**
+         * Open the environment variables drawer for a container
+         * @param {string} serviceName Service to edit
+         * @returns {void}
+         */
+        openEnvDrawer(serviceName) {
+            this.envDrawer.serviceName = serviceName;
+            this.envDrawer.open = true;
+        },
+
+        /**
+         * Write the env drawer's variables to the service, keeping the
+         * original form (list or map). In view mode the stack is deployed.
+         * @param {object} result Drawer result
+         * @param {string} result.serviceName Service that was edited
+         * @param {{key: string, value: string}[]} result.rows Variables
+         * @returns {void}
+         */
+        applyEnvDrawer({ serviceName, rows }) {
+            const service = this.jsonConfig.services?.[serviceName];
+            if (!service) {
+                this.envDrawer.open = false;
+                return;
+            }
+
+            const env = rowsToEnv(rows, service.environment);
+            if (env === undefined) {
+                delete service.environment;
+            } else {
+                service.environment = env;
+            }
+
+            this.envDrawer.open = false;
 
             if (!this.isEditMode) {
                 // Wait for the jsonConfig watcher to regenerate the YAML, then deploy

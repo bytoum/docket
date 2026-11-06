@@ -41,8 +41,14 @@
                             {{ $t("stopStack") }}
                         </button>
                     </div>
-                    <button class="icon-btn" :title="$t('Edit')" @click="editService">
+                    <button class="icon-btn" :title="$t('editEnv')" :aria-label="$t('editEnv')" @click="editEnv">
+                        <AssetIcon :src="icons.env" width="10.5" height="12.8333" :box="14" tone="neutral" />
+                    </button>
+                    <button class="icon-btn" :title="$t('Edit')" :aria-label="$t('Edit')" @click="editService">
                         <AssetIcon :src="icons.pen" width="13.0569" height="13.0569" :box="14" tone="neutral" />
+                    </button>
+                    <button class="icon-btn danger" :title="$t('deleteContainer')" :aria-label="$t('deleteContainer')" @click="showDeleteDialog = true">
+                        <AssetIcon :src="icons.trash" width="11.6667" height="12.8333" :box="14" />
                     </button>
                 </template>
 
@@ -88,6 +94,13 @@
             </div>
         </div>
 
+        <BModal
+            v-model="showDeleteDialog" :title="$t('deleteContainerTitle')" :cancelTitle="$t('cancel')"
+            :okTitle="$t('deleteContainer')" okVariant="danger" @ok="remove"
+        >
+            {{ $t("deleteContainerMsg", [ name ]) }}
+        </BModal>
+
         <transition name="slide-fade" appear>
             <div v-if="!isEditMode && expandedStats" class="d-flex flex-column gap-3 mt-3">
                 <DockerStat
@@ -104,12 +117,15 @@
 import { defineComponent } from "vue";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { parseDockerPort } from "../../../common/util-common";
+import { BModal } from "bootstrap-vue-next";
 import DockerStat from "./DockerStat.vue";
 import AssetIcon from "./AssetIcon.vue";
 import iconTerminal from "../assets/stack/terminal-sm.svg";
 import iconRestart from "../assets/stack/restart-sm.svg";
 import iconStop from "../assets/stack/stop-sm.svg";
 import iconPen from "../assets/stack/pen-sm.svg";
+import iconEnv from "../assets/stack/env-sm.svg";
+import iconTrash from "../assets/stack/trash-row.svg";
 import iconDotSuccess from "../assets/stack/dot-success.svg";
 import iconDotNeutral from "../assets/stack/dot-neutral.svg";
 
@@ -119,6 +135,8 @@ const icons = {
     restart: iconRestart,
     stop: iconStop,
     pen: iconPen,
+    env: iconEnv,
+    trash: iconTrash,
     dotSuccess: iconDotSuccess,
     dotNeutral: iconDotNeutral,
 };
@@ -128,6 +146,7 @@ export default defineComponent({
         FontAwesomeIcon,
         DockerStat,
         AssetIcon,
+        BModal,
     },
     props: {
         name: {
@@ -156,12 +175,14 @@ export default defineComponent({
         "stop-service",
         "restart-service",
         "edit-service",
+        "edit-env",
         "delete-service",
     ],
     data() {
         return {
             icons,
             expandedStats: false,
+            showDeleteDialog: false,
         };
     },
     computed: {
@@ -332,6 +353,13 @@ export default defineComponent({
         editService() {
             this.$emit("edit-service", this.name);
         },
+        /**
+         * Open this container's environment variables in the edit drawer
+         * @returns {void}
+         */
+        editEnv() {
+            this.$emit("edit-env", this.name);
+        },
 
     }
 });
@@ -345,17 +373,17 @@ export default defineComponent({
     flex-direction: column;
     gap: 10px;
     margin-bottom: 12px;
-    padding: 14px 16px;
+    padding: 10px 12px;
+    line-height: normal;
     background-color: $bg-surface;
-    border: 1px solid $surface-border;
-    border-radius: 14px;
+    border-radius: 4px;
 }
 
 .card-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
 }
 
 .identity {
@@ -388,22 +416,22 @@ export default defineComponent({
     align-items: center;
     flex-wrap: wrap;
     justify-content: flex-end;
-    gap: 12px;
+    gap: 8px;
 }
 
 .service-actions {
     display: inline-flex;
     padding: 3px;
-    border-radius: 8px;
+    border-radius: 4px;
     background-color: $surface-raised;
 
     .action {
         display: inline-flex;
         align-items: center;
         gap: 5px;
-        padding: 5px 9px;
+        padding: 4px 7px;
         border: none;
-        border-radius: 6px;
+        border-radius: 4px;
         background: transparent;
         font-size: 12px;
         font-weight: 500;
@@ -429,11 +457,19 @@ export default defineComponent({
     width: 30px;
     height: 30px;
     border: none;
-    border-radius: 8px;
+    border-radius: 4px;
     background-color: $surface-raised;
 
     &:hover {
         background-color: darken($surface-raised, 4%);
+    }
+
+    &.danger {
+        background-color: $status-danger-subtle;
+
+        &:hover {
+            background-color: $status-danger-subtle-hover;
+        }
     }
 }
 
@@ -454,7 +490,7 @@ export default defineComponent({
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px 4px 8px;
+    padding: 3px 8px 3px 6px;
     border-radius: 999px;
     font-size: 10px;
     font-weight: 600;
@@ -528,13 +564,12 @@ export default defineComponent({
 
 .dark {
     .container-card {
-        background-color: $dark-bg;
-        border-color: $dark-border-color;
+        background-color: $dark-bg-surface;
     }
 
     .service-actions,
     .icon-btn {
-        background-color: $dark-header-bg;
+        background-color: $dark-bg-surface-raised;
     }
 
     .service-actions .action {
@@ -547,6 +582,14 @@ export default defineComponent({
 
     .icon-btn:hover {
         background-color: $dark-bg2;
+    }
+
+    .icon-btn.danger {
+        background-color: $dark-status-danger-subtle;
+
+        &:hover {
+            background-color: lighten($dark-status-danger-subtle, 4%);
+        }
     }
 
     .identity .image .image-name,
