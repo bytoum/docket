@@ -27,6 +27,16 @@
                         <p class="field-hint">{{ $t("containerNameHint") }}</p>
                     </div>
 
+                    <!-- Custom container name ("container_name") -->
+                    <div class="field">
+                        <label class="field-label" for="drawer-docker-container-name">{{ $t("dockerContainerName") }}</label>
+                        <input
+                            id="drawer-docker-container-name" v-model.trim="draft.containerName" class="field-input"
+                            :placeholder="containerNamePlaceholder" autocomplete="off"
+                        />
+                        <p class="field-hint">{{ $t("dockerContainerNameHint") }}</p>
+                    </div>
+
                     <!-- Image -->
                     <div class="field">
                         <label class="field-label" for="drawer-image">{{ $t("dockerImage") }}</label>
@@ -184,6 +194,9 @@ import iconSwitchOff from "../assets/drawer/switch-off.svg";
 // Service names allowed by Docker Compose
 const SERVICE_NAME_PATTERN = /^[a-z0-9][a-z0-9_.-]*$/;
 
+// Container names allowed by Docker ("container_name")
+const CONTAINER_NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/;
+
 /**
  * Names of the networks a service is attached to
  * @param {object} service Compose service
@@ -293,6 +306,15 @@ export default {
         },
 
         /**
+         * Name Compose gives the container when "container_name" is not set
+         * @returns {string} e.g. "mystack-web-app-1"
+         */
+        containerNamePlaceholder() {
+            const name = this.draft.name.toLowerCase() || "web-app";
+            return this.stackName ? `${this.stackName}-${name}-1` : `${name}-1`;
+        },
+
+        /**
          * Networks defined by this stack, plus the implicit "default" network
          * @returns {string[]} Network names
          */
@@ -381,6 +403,7 @@ export default {
         emptyDraft() {
             return {
                 name: "",
+                containerName: "",
                 image: "",
                 ports: [],
                 volumes: [],
@@ -404,6 +427,7 @@ export default {
             if (!this.isAdd) {
                 const service = this.services[this.serviceName] ?? {};
                 draft.name = this.serviceName;
+                draft.containerName = service.container_name ?? "";
                 draft.image = service.image ?? "";
                 draft.ports = (service.ports ?? []).filter((p) => typeof p !== "object").map(String);
                 draft.volumes = (service.volumes ?? []).filter((v) => typeof v !== "object").map(String);
@@ -491,6 +515,18 @@ export default {
                 this.$root.toastError(this.$t("containerNameExists"));
                 return;
             }
+            if (this.draft.containerName) {
+                if (!CONTAINER_NAME_PATTERN.test(this.draft.containerName)) {
+                    this.$root.toastError(this.$t("dockerContainerNameInvalid"));
+                    return;
+                }
+                const takenBy = Object.keys(this.services).find((other) =>
+                    other !== this.serviceName && this.services[other]?.container_name === this.draft.containerName);
+                if (takenBy) {
+                    this.$root.toastError(this.$t("dockerContainerNameExists", [ takenBy ]));
+                    return;
+                }
+            }
             if (this.isAdd && !this.draft.image) {
                 this.$root.toastError(this.$t("imageRequired"));
                 return;
@@ -527,6 +563,7 @@ export default {
                 }
             };
 
+            setOrDelete("container_name", this.draft.containerName, !this.draft.containerName);
             setOrDelete("image", this.draft.image, !this.draft.image);
             setOrDelete("restart", this.draft.restart, !this.draft.restart);
 

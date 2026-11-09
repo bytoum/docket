@@ -48,6 +48,15 @@
                         </div>
 
                         <div class="field">
+                            <label class="field-label" for="drawer-network-docker-name">{{ $t("networkDockerName") }}</label>
+                            <input
+                                id="drawer-network-docker-name" v-model.trim="draft.dockerName" class="field-input"
+                                :placeholder="dockerNamePlaceholder" autocomplete="off" @input="dockerNameEdited = true"
+                            />
+                            <p class="field-hint">{{ $t("networkDockerNameHint") }}</p>
+                        </div>
+
+                        <div class="field">
                             <label class="field-label" for="drawer-network-driver">{{ $t("networkDriver") }}</label>
                             <div class="select-wrapper">
                                 <select id="drawer-network-driver" v-model="draft.driver" class="field-input">
@@ -121,6 +130,9 @@ const icons = {
 // Network names allowed by Docker Compose
 const NETWORK_NAME_PATTERN = /^[a-z0-9][a-z0-9_.-]*$/;
 
+// Names Docker accepts for a network ("name:" key)
+const DOCKER_NETWORK_NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/;
+
 // IPv4 or IPv6 CIDR, e.g. 172.20.0.0/16
 const SUBNET_PATTERN = /^[0-9a-fA-F:.]+\/\d{1,3}$/;
 
@@ -169,6 +181,8 @@ export default {
             icons,
             draft: this.emptyDraft(),
             search: "",
+            // Set once the user types a Docker name, so it stops following the network key
+            dockerNameEdited: false,
             hostNetworks: [],
             typeOptions: [
                 {
@@ -193,6 +207,18 @@ export default {
         },
 
         /**
+         * Docker name used when the field is left empty: the network key for a
+         * new network, or the name Compose already gave an existing one
+         * @returns {string} e.g. "backend" or "mystack_backend"
+         */
+        dockerNamePlaceholder() {
+            if (this.isAdd) {
+                return this.draft.name.toLowerCase() || "backend";
+            }
+            return this.stackName ? `${this.stackName}_${this.networkName}` : this.networkName;
+        },
+
+        /**
          * Host networks that can be attached: not this stack's own networks,
          * not already in the compose file, and matching the search
          * @returns {object[]} Networks with name, driver and container count
@@ -207,6 +233,13 @@ export default {
         },
     },
     watch: {
+        /** A new network's Docker name follows its key until the user edits it */
+        "draft.name"(name) {
+            if (this.isAdd && !this.dockerNameEdited) {
+                this.draft.dockerName = name.toLowerCase();
+            }
+        },
+
         open(isOpen) {
             if (isOpen) {
                 this.load();
@@ -222,6 +255,7 @@ export default {
                 name: "",
                 driver: "bridge",
                 subnet: "",
+                dockerName: "",
                 external: "",
             };
         },
@@ -233,6 +267,7 @@ export default {
         load() {
             const draft = this.emptyDraft();
             this.search = "";
+            this.dockerNameEdited = false;
 
             if (!this.isAdd) {
                 const config = this.networks[this.networkName] ?? {};
@@ -243,6 +278,7 @@ export default {
                     draft.name = this.networkName;
                     draft.driver = config.driver ?? "bridge";
                     draft.subnet = config.ipam?.config?.[0]?.subnet ?? "";
+                    draft.dockerName = config.name ?? this.dockerNamePlaceholder;
                 }
             }
 
@@ -307,6 +343,10 @@ export default {
                 this.$root.toastError(this.$t("networkNameExists"));
                 return;
             }
+            if (this.draft.dockerName && !DOCKER_NETWORK_NAME_PATTERN.test(this.draft.dockerName)) {
+                this.$root.toastError(this.$t("networkDockerNameInvalid"));
+                return;
+            }
             if (this.draft.subnet && !SUBNET_PATTERN.test(this.draft.subnet)) {
                 this.$root.toastError(this.$t("subnetInvalid"));
                 return;
@@ -328,12 +368,11 @@ export default {
             const original = this.isAdd ? {} : (this.networks[this.networkName] ?? {});
             const config = JSON.parse(JSON.stringify(original));
 
-            // "bridge" is the default, so only write it when it was already there
-            if (this.draft.driver === "bridge" && !original.driver) {
-                delete config.driver;
-            } else {
-                config.driver = this.draft.driver;
-            }
+            // Always write the driver, even the default "bridge", so the file shows it
+            config.driver = this.draft.driver;
+
+            // Always write the Docker name, so the file shows it
+            config.name = this.draft.dockerName || this.dockerNamePlaceholder;
 
             const ipamConfig = [ ...(config.ipam?.config ?? []) ];
             const first = { ...(ipamConfig[0] ?? {}) };

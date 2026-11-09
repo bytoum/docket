@@ -142,7 +142,10 @@
                                     <AssetIcon :src="group.key === 'external' ? icons.networkExternal : icons.network" width="16.5" height="16.5" :box="18" />
                                 </span>
                                 <div class="network-body">
-                                    <div class="network-name">{{ network.name }}</div>
+                                    <div class="network-name">
+                                        {{ network.name }}
+                                        <span v-if="network.dockerName" class="network-docker-name">{{ network.dockerName }}</span>
+                                    </div>
                                     <div class="network-used">
                                         <template v-if="network.usedBy.length > 0">{{ $t("usedBy", [ network.usedBy.join(", ") ]) }}</template>
                                         <template v-else>{{ $t("notUsedByAnyContainer") }}</template>
@@ -892,6 +895,8 @@ export default {
                 const item = {
                     name,
                     driver: config.driver ?? (config.external ? (this.hostNetworkDrivers[config.name ?? name] ?? "") : "bridge"),
+                    // Custom name on the host ("name:"), shown when it differs
+                    dockerName: !config.external && config.name && config.name !== name ? config.name : "",
                     usedBy: usedBy(name),
                 };
                 (config.external ? externalItems : stackItems).push(item);
@@ -2144,6 +2149,14 @@ export default {
 .network-name {
     font-size: 14px;
     font-weight: 600;
+}
+
+.network-docker-name {
+    margin-left: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 400;
+    color: $muted;
 }
 
 .network-used {
