@@ -20,6 +20,8 @@ Docket is based on [Dockge](https://github.com/louislam/dockge) by Louis Lam, wi
 - 🔑 Environment variable editor for each container, as a list or as raw `KEY=value` text
 - 📜 Live logs in a console dock - Filter by container or text, clear, and resize
 - 🦦 Interactive Web Terminal
+- 👥 Multiple users - Each person logs in with their own account. The owner adds, disables and removes users
+- ⏱️ Session expiry - Logins end after a set time (1 day by default)
 - 🕷️ Multiple agents support - You can manage multiple stacks from different Docker hosts in one single interface
 - 🏪 Convert `docker run ...` commands into `compose.yaml`
 - 📙 File based structure - Docket won't kidnap your compose files, they are stored on your drive as usual. You can interact with them using normal `docker compose` commands
@@ -108,6 +110,36 @@ services:
       - PGID=1000 # Set the stack file/dir ownership to this group
 ```
 
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `DOCKET_STACKS_DIR` | `/opt/stacks` | Directory that holds your stacks |
+| `DOCKET_DATA_DIR` | `./data/` | Directory for the database (users, settings, agents) |
+| `DOCKET_PORT` | `5001` | Port to listen on |
+| `DOCKET_HOSTNAME` | all interfaces | Address to bind to |
+| `DOCKET_SSL_KEY`, `DOCKET_SSL_CERT` | | Key and certificate files to serve over HTTPS |
+| `DOCKET_SSL_KEY_PASSPHRASE` | | Passphrase for the SSL key |
+| `DOCKET_SESSION_EXPIRY` | `1d` | How long a login lasts, such as `30m`, `12h` or `7d`, or `never` |
+| `DOCKET_ENABLE_CONSOLE` | `false` | Allow the host console (a shell on the Docker host) |
+| `PUID`, `PGID` | | Owner of the stack files and folders. Both must be set |
+| `TZ` | system timezone | Timezone, such as `Europe/Paris` |
+
+[.env.example](./.env.example) lists them all with comments.
+
+## 👥 Users
+
+The account created on first start is the **owner**. Under **Settings → Users**, the owner can add users, disable or enable them, and delete them. Disabled and deleted users are logged out right away. Every user has full access to stacks, terminals, settings and agents.
+
+When upgrading from a single-user install, the existing user becomes the owner.
+
+To reset a forgotten password, run the command below. With several users, it asks which one to reset.
+
+```bash
+cd /opt/docket
+docker compose exec docket npm run reset-password
+```
+
 ## How to Update
 
 ```bash
@@ -124,6 +156,18 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 ```
 
 The frontend must be built first: the image copies `frontend-dist/`, not the `frontend/` sources.
+
+## Run from Source
+
+Requires Node.js 22 and Docker with `docker compose`.
+
+```bash
+npm install
+cp .env.example .env   # then edit .env, for example DOCKET_STACKS_DIR
+npm run dev            # frontend on :5000, backend on :5001
+```
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for more.
 
 ## 🗣️ Community and Contribution
 
