@@ -17,7 +17,7 @@
 
                 <!-- List view -->
                 <div v-if="view === 'list'" class="global-env-list">
-                    <p v-if="readonlyList" class="global-env-note">{{ $t("globalEnvCommentsNote") }}</p>
+                    <p v-if="readonlyList" class="global-env-note">{{ $t(hasCommentLines ? "globalEnvCommentsNote" : "globalEnvRawOnlyNote") }}</p>
                     <EnvEditor ref="list" list-only :readonly="readonlyList" />
                 </div>
 
@@ -48,7 +48,7 @@
 import CodeMirror from "vue-codemirror6";
 import { lineNumbers, highlightActiveLine, highlightActiveLineGutter } from "@codemirror/view";
 import EnvEditor from "../EnvEditor.vue";
-import { envLanguage, envHighlighting, hasComments, rowsToText, textToRows } from "../env-text";
+import { envLanguage, envHighlighting, hasComments, isListSafe, rowsToText, textToRows } from "../env-text";
 
 const VIEW_STORAGE_KEY = "docket.globalEnvView";
 
@@ -111,8 +111,13 @@ export default {
             return this.settings.globalENV || "";
         },
 
-        /** Whether the list view would drop comments or blank lines, so it is read-only */
+        /** The list is read-only unless the text round-trips through it exactly */
         readonlyList() {
+            return !isListSafe(this.text);
+        },
+
+        /** Whether the text has comments or blank lines (picks the note) */
+        hasCommentLines() {
             return hasComments(this.text);
         },
 
@@ -157,7 +162,10 @@ export default {
             if (rows === null) {
                 return false;
             }
-            this.settings.globalENV = rowsToText(rows);
+            // An untouched list must never rewrite the file
+            if (JSON.stringify(rows) !== JSON.stringify(textToRows(this.text).rows)) {
+                this.settings.globalENV = rowsToText(rows);
+            }
             return true;
         },
 

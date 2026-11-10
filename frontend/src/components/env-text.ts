@@ -102,3 +102,17 @@ export function hasComments(text: string): boolean {
         return trimmed === "" || trimmed.startsWith("#");
     });
 }
+
+/**
+ * Whether the list view can show and save the text without changing it: no
+ * invalid lines, and writing the parsed rows back gives exactly the same text
+ * @param {string} text Editor text
+ * @returns {boolean} True when the text round-trips exactly
+ */
+export function isListSafe(text: string): boolean {
+    if (text === "") {
+        return true;
+    }
+    const { rows, errorLine } = textToRows(text);
+    return !errorLine && rowsToText(rows) === text;
+}
