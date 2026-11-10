@@ -23,7 +23,7 @@ export class UserSocketHandler extends SocketHandler {
             try {
                 checkLogin(socket);
 
-                const rows = await R.getAll("SELECT id, username, active, is_owner, twofa_status FROM `user` ORDER BY id");
+                const rows = await R.getAll("SELECT id, username, active, is_owner, twofa_status, last_active FROM `user` ORDER BY id");
 
                 callbackResult({
                     ok: true,
@@ -33,6 +33,7 @@ export class UserSocketHandler extends SocketHandler {
                         active: !!row.active,
                         isOwner: !!row.is_owner,
                         twoFA: !!row.twofa_status,
+                        lastActive: toISOStringUTC(row.last_active),
                     })),
                     currentUserID: socket.userID,
                 }, callback);
@@ -179,6 +180,22 @@ export class UserSocketHandler extends SocketHandler {
             }
         });
     }
+}
+
+/**
+ * Turn a stored UTC datetime into an ISO string the browser can parse.
+ * SQLite returns "YYYY-MM-DD HH:mm:ss" text, MySQL a Date.
+ * @param {unknown} value Value from the last_active column
+ * @returns {string|null} ISO 8601 string in UTC, or null when never set
+ */
+function toISOStringUTC(value : unknown) : string | null {
+    if (value instanceof Date) {
+        return value.toISOString();
+    }
+    if (typeof value === "string" && value) {
+        return value.replace(" ", "T") + "Z";
+    }
+    return null;
 }
 
 /**

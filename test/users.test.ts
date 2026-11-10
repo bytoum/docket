@@ -33,6 +33,16 @@ describe("owner resets a user's password", () => {
         await backend?.stop();
     });
 
+    it("0. getUserList reports when each user was last active", async () => {
+        const res = await call(owner, "getUserList");
+        assert.equal(res.ok, true);
+        for (const user of res.userList) {
+            assert.equal(typeof user.lastActive, "string", `${user.username} has lastActive`);
+            const age = Date.now() - new Date(user.lastActive).getTime();
+            assert.ok(age >= -5000 && age < 5 * 60 * 1000, `${user.username} was active just now (${user.lastActive})`);
+        }
+    });
+
     it("1. a non-owner cannot reset a password", async () => {
         const res = await call(tester, "resetUserPassword", ownerID, NEW_PASSWORD);
         assert.notEqual(res.ok, true);

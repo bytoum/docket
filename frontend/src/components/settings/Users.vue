@@ -15,34 +15,85 @@
         <div class="settings-section">
             <h3>{{ $t("usersAccounts") }}</h3>
 
-            <ul class="user-list">
-                <li v-for="user in userList" :key="user.id" class="user-row" :class="{ 'user-disabled': !user.active }">
-                    <div class="user-info">
+            <div class="user-table" role="table" :aria-label="$t('usersAccounts')">
+                <div class="user-table-head" role="row">
+                    <span class="col-user" role="columnheader">{{ $t("userColumn") }}</span>
+                    <span class="col-role" role="columnheader">{{ $t("roleColumn") }}</span>
+                    <span class="col-2fa" role="columnheader">{{ $t("twoFABadge") }}</span>
+                    <span class="col-status" role="columnheader">{{ $t("statusColumn") }}</span>
+                    <span class="col-last" role="columnheader">{{ $t("lastActiveColumn") }}</span>
+                    <span class="col-actions" role="columnheader"><span class="visually-hidden">{{ $t("userActions") }}</span></span>
+                </div>
+
+                <div v-for="user in userList" :key="user.id" class="user-row" :class="{ 'user-disabled': !user.active }" role="row">
+                    <div class="col-user" role="cell">
                         <span class="user-avatar" :class="{ 'user-avatar--disabled': !user.active }" aria-hidden="true">{{ initial(user) }}</span>
                         <strong class="user-name">{{ user.username }}</strong>
                         <span v-if="user.id === currentUserID" class="status-badge status-badge--accent">{{ $t("youBadge") }}</span>
+                    </div>
+
+                    <div class="col-role" role="cell">
+                        <span class="cell-label">{{ $t("roleColumn") }}</span>
                         <span v-if="user.isOwner" class="status-badge status-badge--success">{{ $t("ownerBadge") }}</span>
-                        <span v-if="!user.active" class="status-badge status-badge--neutral">{{ $t("disabledBadge") }}</span>
+                        <span v-else class="cell-text">{{ $t("roleUser") }}</span>
+                    </div>
+
+                    <div class="col-2fa" role="cell">
+                        <span class="cell-label">{{ $t("twoFABadge") }}</span>
                         <span class="status-badge" :class="twoFABadgeClass(user)">{{ user.twoFA ? $t("twoFAOn") : $t("twoFAOff") }}</span>
                     </div>
 
-                    <div v-if="isOwner && user.id !== currentUserID" class="user-actions">
-                        <button type="button" class="btn-subtle" :disabled="processing" @click="openResetPassword(user)">
-                            {{ $t("resetPassword") }}
-                        </button>
-                        <button v-if="user.twoFA" type="button" class="btn-subtle" :disabled="processing" @click="confirmReset2FA(user)">
-                            {{ $t("reset2FA") }}
-                        </button>
-                        <button type="button" class="btn-subtle" :disabled="processing" @click="setActive(user, !user.active)">
-                            {{ user.active ? $t("disableUser") : $t("enableUser") }}
-                        </button>
-                        <button type="button" class="btn-danger-subtle" :disabled="processing" @click="confirmDelete(user)">
-                            <span class="trash-icon" :style="trashIconStyle" aria-hidden="true"></span>
-                            {{ $t("deleteUser") }}
-                        </button>
+                    <div class="col-status" role="cell">
+                        <span class="cell-label">{{ $t("statusColumn") }}</span>
+                        <span class="status-badge" :class="user.active ? 'status-badge--success' : 'status-badge--neutral'">
+                            {{ user.active ? $t("Active") : $t("disabledBadge") }}
+                        </span>
                     </div>
-                </li>
-            </ul>
+
+                    <div class="col-last" role="cell">
+                        <span class="cell-label">{{ $t("lastActiveColumn") }}</span>
+                        <span class="cell-text" :title="lastActiveTitle(user)">{{ lastActiveText(user) }}</span>
+                    </div>
+
+                    <div class="col-actions" role="cell">
+                        <div v-if="isOwner && user.id !== currentUserID" class="dropdown">
+                            <button
+                                type="button" class="row-menu-btn" data-bs-toggle="dropdown" aria-expanded="false"
+                                :disabled="processing" :aria-label="$t('userActionsFor', [ user.username ])"
+                            >
+                                <span class="mask-icon" :style="icons.more" aria-hidden="true"></span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end row-menu">
+                                <li>
+                                    <button type="button" class="dropdown-item" @click="openResetPassword(user)">
+                                        <span class="mask-icon" :style="icons.key" aria-hidden="true"></span>
+                                        {{ $t("resetPassword") }}
+                                    </button>
+                                </li>
+                                <li v-if="user.twoFA">
+                                    <button type="button" class="dropdown-item" @click="confirmReset2FA(user)">
+                                        <span class="mask-icon" :style="icons.shield" aria-hidden="true"></span>
+                                        {{ $t("reset2FA") }}
+                                    </button>
+                                </li>
+                                <li>
+                                    <button type="button" class="dropdown-item" @click="setActive(user, !user.active)">
+                                        <span class="mask-icon" :style="user.active ? icons.ban : icons.check" aria-hidden="true"></span>
+                                        {{ user.active ? $t("disableUserMenu") : $t("enableUserMenu") }}
+                                    </button>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <button type="button" class="dropdown-item dropdown-item--danger" @click="confirmDelete(user)">
+                                        <span class="mask-icon" :style="icons.trash" aria-hidden="true"></span>
+                                        {{ $t("deleteUserMenu") }}
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <p v-if="loaded && !isOwner" class="settings-help">{{ $t("ownerOnlyHint") }}</p>
         </div>
@@ -55,7 +106,7 @@
                         <div class="dialog-header">
                             <div class="dialog-title">
                                 <h5>{{ passwordTarget ? $t("resetPasswordTitle") : $t("addUser") }}</h5>
-                                <p>{{ passwordTarget ? $t("resetPasswordSubtitle", [ passwordTarget.username ]) : $t("addUserSubtitle") }}</p>
+                                <p>{{ passwordTarget ? $t("resetPasswordSubtitle") : $t("addUserSubtitle") }}</p>
                             </div>
                             <button type="button" class="btn-subtle dialog-close" data-bs-dismiss="modal" aria-label="Close">
                                 <span class="close-icon" aria-hidden="true"></span>
@@ -63,6 +114,13 @@
                         </div>
 
                         <div class="dialog-body">
+                            <!-- Whose password is being reset -->
+                            <div v-if="passwordTarget" class="target-user">
+                                <span class="user-avatar" :class="{ 'user-avatar--disabled': !passwordTarget.active }" aria-hidden="true">{{ initial(passwordTarget) }}</span>
+                                <strong class="user-name">{{ passwordTarget.username }}</strong>
+                                <span class="status-badge" :class="twoFABadgeClass(passwordTarget)">{{ passwordTarget.twoFA ? $t("twoFAOn") : $t("twoFAOff") }}</span>
+                            </div>
+
                             <div v-if="!passwordTarget" class="settings-field">
                                 <label for="new-user-username">{{ $t("Username") }}</label>
                                 <input
@@ -76,7 +134,7 @@
                                 <div class="settings-field-inline">
                                     <input
                                         id="new-user-password" v-model="newUser.password" :type="showPassword ? 'text' : 'password'"
-                                        class="form-control" :placeholder="$t('passwordPlaceholder')" autocomplete="new-password" required
+                                        class="form-control" :placeholder="passwordTarget ? $t('newPasswordPlaceholder') : $t('passwordPlaceholder')" autocomplete="new-password" required
                                     />
                                     <button type="button" class="btn-subtle" @click="generatePassword">{{ $t("generatePassword") }}</button>
                                     <button v-if="showPassword && newUser.password" type="button" class="btn-subtle" @click="copyPassword">{{ $t("copyPassword") }}</button>
@@ -86,11 +144,11 @@
                             </div>
 
                             <div class="settings-field">
-                                <label for="new-user-repeat-password">{{ $t("Repeat Password") }}</label>
+                                <label for="new-user-repeat-password">{{ passwordTarget ? $t("Repeat New Password") : $t("Repeat Password") }}</label>
                                 <input
                                     id="new-user-repeat-password" v-model="newUser.repeatPassword" :type="showPassword ? 'text' : 'password'"
                                     class="form-control" :class="{ 'is-invalid': invalidPassword }"
-                                    :placeholder="$t('repeatUserPasswordPlaceholder')" autocomplete="new-password" required
+                                    :placeholder="passwordTarget ? $t('repeatPasswordPlaceholder') : $t('repeatUserPasswordPlaceholder')" autocomplete="new-password" required
                                 />
                                 <div v-if="invalidPassword" class="field-error">{{ $t("passwordNotMatchMsg") }}</div>
                             </div>
@@ -125,10 +183,26 @@
 import { Modal } from "bootstrap";
 import Confirm from "../../components/Confirm.vue";
 import iconTrash from "../../assets/settings/trash.svg";
+import iconMore from "../../assets/settings/more.svg";
+import iconKey from "../../assets/settings/key.svg";
+import iconBan from "../../assets/settings/ban.svg";
+import iconShield from "../../assets/settings/security.svg";
 import { genSecret } from "../../../../common/util-common";
 
 // Length of generated passwords
 const GENERATED_PASSWORD_LENGTH = 20;
+
+// Check mark for "Enable user" (the design only has the "Disable user" icon)
+const iconCheck = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='8' cy='8' r='5.5'/%3E%3Cpath d='M5.75 8.1l1.6 1.6 2.9-3.2'/%3E%3C/svg%3E";
+
+/**
+ * Style that passes an icon to the .mask-icon CSS mask
+ * @param {string} url Icon URL
+ * @returns {object} Style object with the --icon variable
+ */
+function maskStyle(url) {
+    return { "--icon": `url("${url}")` };
+}
 
 /**
  * Settings page to list users. The owner can also add, disable and delete them,
@@ -141,8 +215,16 @@ export default {
 
     data() {
         return {
-            // The URL is quoted because inlined SVG data URIs contain single quotes
-            trashIconStyle: { "--trash-icon": `url("${iconTrash}")` },
+            // Icons are CSS masks, so they take the text colour.
+            // The URL is quoted because inlined SVG data URIs contain single quotes.
+            icons: {
+                more: maskStyle(iconMore),
+                key: maskStyle(iconKey),
+                ban: maskStyle(iconBan),
+                check: maskStyle(iconCheck),
+                shield: maskStyle(iconShield),
+                trash: maskStyle(iconTrash),
+            },
             loaded: false,
             processing: false,
             userList: [],
@@ -297,6 +379,49 @@ export default {
          */
         initial(user) {
             return (user.username || "?").charAt(0).toUpperCase();
+        },
+
+        /**
+         * "Last active" as relative time in the UI language, e.g. "2 hours ago"
+         * @param {object} user User to show
+         * @returns {string} Relative time, "Just now" or "Never"
+         */
+        lastActiveText(user) {
+            if (!user.lastActive) {
+                return this.$t("lastActiveNever");
+            }
+            const seconds = Math.round((new Date(user.lastActive).getTime() - Date.now()) / 1000);
+            if (Number.isNaN(seconds)) {
+                return this.$t("lastActiveNever");
+            }
+            if (seconds > -60) {
+                return this.$t("lastActiveJustNow");
+            }
+
+            const units = [
+                [ "year", 365 * 24 * 3600 ],
+                [ "month", 30 * 24 * 3600 ],
+                [ "week", 7 * 24 * 3600 ],
+                [ "day", 24 * 3600 ],
+                [ "hour", 3600 ],
+                [ "minute", 60 ],
+            ];
+            const [ unit, size ] = units.find(([ , size ]) => -seconds >= size);
+            try {
+                const format = new Intl.RelativeTimeFormat(this.$i18n.locale, { numeric: "auto" });
+                return format.format(Math.round(seconds / size), unit);
+            } catch (e) {
+                return new Date(user.lastActive).toLocaleString();
+            }
+        },
+
+        /**
+         * Full date and time of "Last active", for the tooltip
+         * @param {object} user User to show
+         * @returns {string} Local date and time, or empty when never active
+         */
+        lastActiveTitle(user) {
+            return user.lastActive ? new Date(user.lastActive).toLocaleString() : "";
         },
 
         /**
@@ -457,37 +582,254 @@ export default {
 <style lang="scss" scoped>
 @import "../../styles/vars.scss";
 
-.user-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
+// User table (Figma "User List"): a filled header row, then rows split by dividers
+// The actions column is up to 340px wide as in Figma; it gives way first on a narrower card.
+$user-columns: minmax(0, 1fr) 100px 110px 110px 140px minmax(32px, 340px);
+
+.user-table {
     display: flex;
     flex-direction: column;
-    gap: 8px;
 }
 
+.user-table-head,
 .user-row {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: $user-columns;
     align-items: center;
-    gap: 12px;
-    min-height: 57px;
-    padding: 12px 12px 12px 14px;
-    background-color: $bg-input;
+    padding: 0 14px;
+}
+
+.user-table-head {
+    padding-top: 9px;
+    padding-bottom: 9px;
     border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: normal;
+    text-transform: uppercase;
+    color: $text-muted;
+    background-color: $bg-input;
 
     .dark & {
+        color: $dark-text-muted;
         background-color: $dark-bg-input;
     }
 }
 
-.user-info {
-    flex: 1 1 auto;
+.user-row {
+    min-height: 57px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+
+    & + & {
+        border-top: 1px solid $border-default;
+
+        .dark & {
+            border-top-color: $dark-border-default;
+        }
+    }
+}
+
+.col-user {
     min-width: 0;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 10px;
+}
+
+.col-role,
+.col-2fa,
+.col-status,
+.col-last {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.col-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.cell-text {
+    font-size: 13px;
+    line-height: normal;
+    white-space: nowrap;
+    color: $text-secondary;
+
+    .dark & {
+        color: $dark-text-secondary;
+    }
+}
+
+// Column names, shown next to each value only when the table is stacked
+.cell-label {
+    display: none;
+    min-width: 72px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: $text-muted;
+
+    .dark & {
+        color: $dark-text-muted;
+    }
+}
+
+// Narrow card: hide the header and stack each row's cells
+@media (max-width: 991.98px) {
+    .user-table-head {
+        display: none;
+    }
+
+    .user-row {
+        grid-template-columns: minmax(0, 1fr) 32px;
+        row-gap: 8px;
+    }
+
+    .col-user {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .col-actions {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .col-role,
+    .col-2fa,
+    .col-status,
+    .col-last {
+        grid-column: 1 / -1;
+    }
+
+    .cell-label {
+        display: inline;
+    }
+}
+
+// Row menu button (32px, filled) and its dropdown
+.row-menu-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 4px;
+    color: $text-secondary;
+    background-color: $bg-input;
+
+    .dark & {
+        color: $dark-text-secondary;
+        background-color: $dark-bg-input;
+    }
+
+    &:hover,
+    &.show {
+        color: $accent-primary;
+        background-color: $accent-primary-subtle;
+
+        .dark & {
+            color: $dark-accent-primary;
+            background-color: $dark-accent-primary-subtle;
+        }
+    }
+
+    &:focus-visible {
+        outline: 2px solid $accent-primary;
+        outline-offset: 2px;
+    }
+}
+
+.row-menu {
+    width: 220px;
+    padding: 6px;
+    border: 0;
+    border-radius: 4px;
+    background-color: $bg-surface-raised;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+
+    .dark & {
+        background-color: $dark-bg-surface-raised;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    li + li {
+        margin-top: 2px;
+    }
+
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 10px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: normal;
+        color: $text-primary;
+
+        .dark & {
+            color: $dark-text-primary;
+        }
+
+        .mask-icon {
+            color: $text-secondary;
+
+            .dark & {
+                color: $dark-text-secondary;
+            }
+        }
+
+        &:hover,
+        &:focus-visible {
+            background-color: $bg-input;
+
+            .dark & {
+                background-color: $dark-bg-input;
+            }
+        }
+
+        &--danger,
+        &--danger .mask-icon {
+            color: $status-danger;
+
+            .dark & {
+                color: $dark-status-danger;
+            }
+        }
+    }
+
+    .dropdown-divider {
+        margin: 2px 0;
+        border-top-color: $border-default;
+        opacity: 1;
+
+        .dark & {
+            border-top-color: $dark-border-default;
+        }
+    }
+}
+
+// Reset password dialog: the user whose password is being reset
+.target-user {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding: 10px 12px;
+    border-radius: 4px;
+    background-color: $bg-input;
+
+    .dark & {
+        background-color: $dark-bg-input;
+    }
 }
 
 .user-name {
@@ -538,15 +880,8 @@ export default {
     }
 }
 
-.user-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-}
-
 // Icons are masks, so they take the text colour
-.trash-icon,
+.mask-icon,
 .plus-icon,
 .close-icon {
     flex-shrink: 0;
@@ -555,9 +890,9 @@ export default {
     background-color: currentColor;
 }
 
-.trash-icon {
-    mask: var(--trash-icon) center / contain no-repeat;
-    -webkit-mask: var(--trash-icon) center / contain no-repeat;
+.mask-icon {
+    mask: var(--icon) center / contain no-repeat;
+    -webkit-mask: var(--icon) center / contain no-repeat;
 }
 
 $plus-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M8 3.5v9M3.5 8h9'/%3E%3C/svg%3E");

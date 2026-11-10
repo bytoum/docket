@@ -387,6 +387,16 @@ export class DocketServer {
         socket.userID = user.id;
         socket.join(user.id.toString());
 
+        // Shown as "Last active" on the Users settings page
+        try {
+            await R.exec("UPDATE `user` SET last_active = ? WHERE id = ?", [
+                dayjs.utc().format("YYYY-MM-DD HH:mm:ss"),
+                user.id,
+            ]);
+        } catch (e) {
+            log.error("server", e);
+        }
+
         if (expiresAt === undefined && this.sessionExpirySeconds) {
             expiresAt = Date.now() + this.sessionExpirySeconds * 1000;
         }
