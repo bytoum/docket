@@ -51,4 +51,6 @@ jobs:
 
       - name: Build
         run: npm run build:frontend
-      # more things can be add later like tests etc..
+
+      - name: Test
+        run: npm test
