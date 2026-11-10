@@ -1,73 +1,109 @@
 <template>
-    <div class="my-4">
+    <div>
         <div v-if="settingsLoaded && settings.disableAuth" class="alert alert-warning">
             {{ $t("authDisabledUsersHint") }}
         </div>
 
-        <!-- User list -->
-        <ul class="list-group mb-3">
-            <li
-                v-for="user in userList" :key="user.id"
-                class="list-group-item d-flex align-items-center gap-2" :class="{ 'user-disabled': !user.active }"
-            >
-                <strong class="me-1">{{ user.username }}</strong>
-                <span v-if="user.id === currentUserID" class="badge bg-primary">{{ $t("youBadge") }}</span>
-                <span v-if="user.isOwner" class="badge bg-info">{{ $t("ownerBadge") }}</span>
-                <span v-if="!user.active" class="badge bg-secondary">{{ $t("disabledBadge") }}</span>
-                <span v-if="user.twoFA" class="badge bg-success">{{ $t("twoFABadge") }}</span>
+        <!-- Header action (owner only), shown in the card header -->
+        <Teleport v-if="isOwner" to="#settings-header-actions">
+            <button type="button" class="btn btn-primary" @click="openAddUser">
+                <span class="plus-icon" aria-hidden="true"></span>
+                {{ $t("addUser") }}
+            </button>
+        </Teleport>
 
-                <span class="flex-grow-1"></span>
+        <div class="settings-section">
+            <h3>{{ $t("usersAccounts") }}</h3>
 
-                <template v-if="isOwner && user.id !== currentUserID">
-                    <button v-if="user.twoFA" type="button" class="btn btn-sm btn-normal" :disabled="processing" @click="confirmReset2FA(user)">
-                        {{ $t("reset2FA") }}
-                    </button>
-                    <button type="button" class="btn btn-sm btn-normal" :disabled="processing" @click="setActive(user, !user.active)">
-                        {{ user.active ? $t("disableUser") : $t("enableUser") }}
-                    </button>
-                    <button type="button" class="btn btn-sm btn-danger" :disabled="processing" @click="confirmDelete(user)">
-                        {{ $t("deleteUser") }}
-                    </button>
-                </template>
-            </li>
-        </ul>
-
-        <p v-if="loaded && !isOwner" class="form-text">{{ $t("ownerOnlyHint") }}</p>
-
-        <!-- Add user (owner only) -->
-        <template v-if="isOwner">
-            <h5 class="my-4 settings-subheading">{{ $t("addUser") }}</h5>
-            <form class="mb-3" @submit.prevent="addUser">
-                <div class="mb-3">
-                    <label for="new-user-username" class="form-label">{{ $t("Username") }}</label>
-                    <input id="new-user-username" v-model.trim="newUser.username" class="form-control" autocomplete="off" required />
-                </div>
-
-                <div class="mb-3">
-                    <label for="new-user-password" class="form-label">{{ $t("Password") }}</label>
-                    <div class="input-group">
-                        <input
-                            id="new-user-password" v-model="newUser.password" :type="showPassword ? 'text' : 'password'"
-                            class="form-control" autocomplete="new-password" required
-                        />
-                        <button type="button" class="btn btn-normal" @click="generatePassword">{{ $t("generatePassword") }}</button>
-                        <button v-if="showPassword && newUser.password" type="button" class="btn btn-normal" @click="copyPassword">{{ $t("copyPassword") }}</button>
+            <ul class="user-list">
+                <li v-for="user in userList" :key="user.id" class="user-row" :class="{ 'user-disabled': !user.active }">
+                    <div class="user-info">
+                        <span class="user-avatar" :class="{ 'user-avatar--disabled': !user.active }" aria-hidden="true">{{ initial(user) }}</span>
+                        <strong class="user-name">{{ user.username }}</strong>
+                        <span v-if="user.id === currentUserID" class="status-badge status-badge--accent">{{ $t("youBadge") }}</span>
+                        <span v-if="user.isOwner" class="status-badge status-badge--success">{{ $t("ownerBadge") }}</span>
+                        <span v-if="!user.active" class="status-badge status-badge--neutral">{{ $t("disabledBadge") }}</span>
+                        <span class="status-badge" :class="twoFABadgeClass(user)">{{ user.twoFA ? $t("twoFAOn") : $t("twoFAOff") }}</span>
                     </div>
-                    <div v-if="showPassword" class="form-text">{{ $t("generatedPasswordHint") }}</div>
-                </div>
 
-                <div class="mb-3">
-                    <label for="new-user-repeat-password" class="form-label">{{ $t("Repeat Password") }}</label>
-                    <input
-                        id="new-user-repeat-password" v-model="newUser.repeatPassword" :type="showPassword ? 'text' : 'password'" class="form-control"
-                        :class="{ 'is-invalid': invalidPassword }" autocomplete="new-password" required
-                    />
-                    <div class="invalid-feedback">{{ $t("passwordNotMatchMsg") }}</div>
-                </div>
+                    <div v-if="isOwner && user.id !== currentUserID" class="user-actions">
+                        <button v-if="user.twoFA" type="button" class="btn-subtle" :disabled="processing" @click="confirmReset2FA(user)">
+                            {{ $t("reset2FA") }}
+                        </button>
+                        <button type="button" class="btn-subtle" :disabled="processing" @click="setActive(user, !user.active)">
+                            {{ user.active ? $t("disableUser") : $t("enableUser") }}
+                        </button>
+                        <button type="button" class="btn-danger-subtle" :disabled="processing" @click="confirmDelete(user)">
+                            <span class="trash-icon" :style="{ '--trash-icon': `url('${iconTrash}')` }" aria-hidden="true"></span>
+                            {{ $t("deleteUser") }}
+                        </button>
+                    </div>
+                </li>
+            </ul>
 
-                <button class="btn btn-primary" type="submit" :disabled="processing">{{ $t("addUser") }}</button>
-            </form>
-        </template>
+            <p v-if="loaded && !isOwner" class="settings-help">{{ $t("ownerOnlyHint") }}</p>
+        </div>
+
+        <!-- Add user dialog (owner only) -->
+        <form v-if="isOwner" @submit.prevent="addUser">
+            <div ref="modal" class="modal fade" tabindex="-1" data-bs-backdrop="static">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content add-user-dialog">
+                        <div class="dialog-header">
+                            <div class="dialog-title">
+                                <h5>{{ $t("addUser") }}</h5>
+                                <p>{{ $t("addUserSubtitle") }}</p>
+                            </div>
+                            <button type="button" class="btn-subtle dialog-close" data-bs-dismiss="modal" aria-label="Close">
+                                <span class="close-icon" aria-hidden="true"></span>
+                            </button>
+                        </div>
+
+                        <div class="dialog-body">
+                            <div class="settings-field">
+                                <label for="new-user-username">{{ $t("Username") }}</label>
+                                <input
+                                    id="new-user-username" v-model.trim="newUser.username" class="form-control"
+                                    :placeholder="$t('usernamePlaceholder')" autocomplete="off" required
+                                />
+                            </div>
+
+                            <div class="settings-field">
+                                <label for="new-user-password">{{ $t("Password") }}</label>
+                                <div class="settings-field-inline">
+                                    <input
+                                        id="new-user-password" v-model="newUser.password" :type="showPassword ? 'text' : 'password'"
+                                        class="form-control" :placeholder="$t('passwordPlaceholder')" autocomplete="new-password" required
+                                    />
+                                    <button type="button" class="btn-subtle" @click="generatePassword">{{ $t("generatePassword") }}</button>
+                                    <button v-if="showPassword && newUser.password" type="button" class="btn-subtle" @click="copyPassword">{{ $t("copyPassword") }}</button>
+                                </div>
+                                <div class="settings-help">{{ $t("newUserPasswordHelp") }}</div>
+                                <div v-if="showPassword" class="settings-help">{{ $t("generatedPasswordHint") }}</div>
+                            </div>
+
+                            <div class="settings-field">
+                                <label for="new-user-repeat-password">{{ $t("Repeat Password") }}</label>
+                                <input
+                                    id="new-user-repeat-password" v-model="newUser.repeatPassword" :type="showPassword ? 'text' : 'password'"
+                                    class="form-control" :class="{ 'is-invalid': invalidPassword }"
+                                    :placeholder="$t('repeatPasswordPlaceholder')" autocomplete="new-password" required
+                                />
+                                <div v-if="invalidPassword" class="field-error">{{ $t("passwordNotMatchMsg") }}</div>
+                            </div>
+                        </div>
+
+                        <div class="dialog-footer">
+                            <button type="button" class="btn-subtle" data-bs-dismiss="modal">{{ $t("cancel") }}</button>
+                            <button class="btn btn-primary" type="submit" :disabled="processing">
+                                <span class="plus-icon" aria-hidden="true"></span>
+                                {{ $t("addUser") }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
 
         <Confirm ref="confirmDelete" btn-style="btn-danger" :yes-text="$t('deleteUser')" :no-text="$t('cancel')" :title="$t('deleteUserTitle')" @yes="deleteUser">
             {{ $t("deleteUserMsg", [ userToDelete?.username ?? "" ]) }}
@@ -80,7 +116,9 @@
 </template>
 
 <script>
+import { Modal } from "bootstrap";
 import Confirm from "../../components/Confirm.vue";
+import iconTrash from "../../assets/settings/trash.svg";
 import { genSecret } from "../../../../common/util-common";
 
 // Length of generated passwords
@@ -96,6 +134,7 @@ export default {
 
     data() {
         return {
+            iconTrash,
             loaded: false,
             processing: false,
             userList: [],
@@ -140,7 +179,79 @@ export default {
         this.loadUsers();
     },
 
+    beforeUnmount() {
+        this.removeModal();
+    },
+
     methods: {
+        /**
+         * Create the Bootstrap modal on first use. The form only exists for the owner.
+         * @returns {void}
+         */
+        ensureModal() {
+            if (this.modal || !this.$refs.modal) {
+                return;
+            }
+            this.modal = new Modal(this.$refs.modal);
+            this.modalElement = this.$refs.modal;
+            this.modalElement.addEventListener("hidden.bs.modal", this.resetForm);
+        },
+
+        /**
+         * Dispose of the modal and its listener
+         * @returns {void}
+         */
+        removeModal() {
+            this.modalElement?.removeEventListener("hidden.bs.modal", this.resetForm);
+            this.modal?.dispose();
+            this.modal = null;
+            this.modalElement = null;
+        },
+
+        /**
+         * Open the Add user dialog
+         * @returns {void}
+         */
+        openAddUser() {
+            this.ensureModal();
+            this.modal?.show();
+        },
+
+        /**
+         * Clear the Add user form and its error
+         * @returns {void}
+         */
+        resetForm() {
+            this.newUser = {
+                username: "",
+                password: "",
+                repeatPassword: "",
+            };
+            this.showPassword = false;
+            this.invalidPassword = false;
+        },
+
+        /**
+         * First letter of the username, for the avatar
+         * @param {object} user User to show
+         * @returns {string} Uppercase initial
+         */
+        initial(user) {
+            return (user.username || "?").charAt(0).toUpperCase();
+        },
+
+        /**
+         * Badge colour for the 2FA state. A disabled user's badge is neutral.
+         * @param {object} user User to show
+         * @returns {string} Badge modifier class
+         */
+        twoFABadgeClass(user) {
+            if (!user.active) {
+                return "status-badge--neutral";
+            }
+            return user.twoFA ? "status-badge--success" : "status-badge--warning";
+        },
+
         /**
          * Load the user list from the server
          * @returns {void}
@@ -175,12 +286,8 @@ export default {
                 this.processing = false;
                 this.$root.toastRes(res);
                 if (res.ok) {
-                    this.newUser = {
-                        username: "",
-                        password: "",
-                        repeatPassword: "",
-                    };
-                    this.showPassword = false;
+                    this.modal?.hide();
+                    this.resetForm();
                     this.loadUsers();
                 }
             });
@@ -289,7 +396,196 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.user-disabled strong {
-    opacity: 0.5;
+@import "../../styles/vars.scss";
+
+.user-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.user-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    min-height: 57px;
+    padding: 12px 12px 12px 14px;
+    background-color: $bg-input;
+    border-radius: 4px;
+
+    .dark & {
+        background-color: $dark-bg-input;
+    }
+}
+
+.user-info {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: $text-primary;
+    overflow-wrap: anywhere;
+
+    .dark & {
+        color: $dark-text-primary;
+    }
+}
+
+.user-disabled .user-name {
+    color: $text-secondary;
+
+    .dark & {
+        color: $dark-text-secondary;
+    }
+}
+
+.user-avatar {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: $accent-primary;
+    background-color: $accent-primary-subtle;
+
+    .dark & {
+        color: $dark-accent-primary;
+        background-color: $dark-accent-primary-subtle;
+    }
+
+    &--disabled {
+        color: $status-neutral;
+        background-color: $status-neutral-subtle;
+
+        .dark & {
+            color: $dark-status-neutral;
+            background-color: $dark-status-neutral-subtle;
+        }
+    }
+}
+
+.user-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+// Icons are masks, so they take the text colour
+.trash-icon,
+.plus-icon,
+.close-icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    background-color: currentColor;
+}
+
+.trash-icon {
+    mask: var(--trash-icon) center / contain no-repeat;
+    -webkit-mask: var(--trash-icon) center / contain no-repeat;
+}
+
+$plus-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M8 3.5v9M3.5 8h9'/%3E%3C/svg%3E");
+$close-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M4.5 4.5l7 7M11.5 4.5l-7 7'/%3E%3C/svg%3E");
+
+.plus-icon {
+    mask: $plus-icon center / contain no-repeat;
+    -webkit-mask: $plus-icon center / contain no-repeat;
+}
+
+.close-icon {
+    mask: $close-icon center / contain no-repeat;
+    -webkit-mask: $close-icon center / contain no-repeat;
+}
+
+// Add user dialog
+.add-user-dialog {
+    border: 0;
+    border-radius: 4px;
+    background-color: $bg-surface;
+
+    .dark & {
+        background-color: $dark-bg-surface;
+    }
+}
+
+.dialog-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 20px 16px 0 24px;
+}
+
+.dialog-title {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    h5 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: $text-primary;
+
+        .dark & {
+            color: $dark-text-primary;
+        }
+    }
+
+    p {
+        margin: 0;
+        font-size: 13px;
+        color: $text-muted;
+
+        .dark & {
+            color: $dark-text-muted;
+        }
+    }
+}
+
+.dialog-close {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+}
+
+.dialog-body {
+    padding: 20px 24px 6px;
+}
+
+.dialog-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 0 24px 24px;
+}
+
+.field-error {
+    font-size: 12px;
+    color: $status-danger;
+
+    .dark & {
+        color: $dark-status-danger;
+    }
 }
 </style>
