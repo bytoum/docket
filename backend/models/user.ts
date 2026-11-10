@@ -16,6 +16,9 @@ export class User extends BeanModel {
             generatePasswordHash(newPassword),
             userID
         ]);
+
+        // Forget a half-finished 2FA setup, so a secret seen before the change cannot be enabled later
+        await R.exec("UPDATE `user` SET twofa_secret = NULL WHERE id = ? AND twofa_status = 0", [ userID ]);
     }
 
     /**

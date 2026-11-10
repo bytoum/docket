@@ -126,10 +126,12 @@ function disconnectAllSocketClients(username : string, password : string) : Prom
             socket.emit("login", {
                 username,
                 password,
-            }, (res : BaseRes) => {
+            }, (res : BaseRes & { tokenRequired? : boolean }) => {
                 if (res.ok) {
                     console.log("Logged in.");
                     socket.emit("disconnectOtherSocketClients");
+                } else if (res.tokenRequired) {
+                    console.warn("This user has 2FA turned on, so other sessions were not ended. Restart the server to end them.");
                 } else {
                     console.warn("Login failed.");
                     console.warn("Please restart the server to disconnect all sessions.");

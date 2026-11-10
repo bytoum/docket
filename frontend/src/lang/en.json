@@ -343,6 +343,7 @@
     "Show secret": "Show secret",
     "twoFAVerifyLabel": "Scan the QR code with your authenticator app, then enter the 6-digit code to verify:",
     "tokenValidSettingsMsg": "The code is valid. You can now save the 2FA settings.",
+    "tokenInvalidSettingsMsg": "The code is not valid. Check your authenticator app and try again.",
     "confirmEnableTwoFAMsg": "Enable two-factor authentication? You will need a code from your authenticator app every time you log in.",
     "confirmDisableTwoFAMsg": "Disable two-factor authentication? You will be able to log in with just your password.",
     "reset2FATitle": "Reset two-factor authentication",

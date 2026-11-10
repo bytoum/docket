@@ -1,7 +1,7 @@
 import { SocketHandler } from "../socket-handler.js";
 import { DocketServer } from "../docket-server";
 import { R } from "redbean-node";
-import { twoFaRateLimiter } from "../rate-limiter";
+import { KumaRateLimiterCallback, twoFaRateLimiter } from "../rate-limiter";
 import { callbackError, callbackResult, checkLogin, DocketSocket, doubleCheckPassword } from "../util-server";
 import { buildURI, clearTwoFA, generateSecret, verifyToken } from "../two-fa";
 
@@ -61,12 +61,12 @@ export class TwoFASocketHandler extends SocketHandler {
         });
 
         // Check a code against the stored secret, to confirm the authenticator app works
-        socket.on("verifyToken", async (token : unknown, currentPassword : unknown, callback : unknown) => {
+        socket.on("verifyToken", async (token : unknown, currentPassword : unknown, callback : KumaRateLimiterCallback) => {
             try {
-                if (!await twoFaRateLimiter.pass(callback as never)) {
+                checkLogin(socket);
+                if (!await twoFaRateLimiter.pass(callback)) {
                     return;
                 }
-                checkLogin(socket);
                 const user = await doubleCheckPassword(socket, currentPassword);
 
                 callbackResult({

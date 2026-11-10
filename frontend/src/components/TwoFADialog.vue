@@ -48,10 +48,11 @@
                             <div v-if="uri && twoFAStatus == false" class="mt-3">
                                 <label for="basic-url" class="form-label">{{ $t("twoFAVerifyLabel") }}</label>
                                 <div class="input-group">
-                                    <input v-model="token" type="text" maxlength="6" class="form-control" autocomplete="one-time-code" required>
+                                    <input v-model="token" type="text" maxlength="7" class="form-control" autocomplete="one-time-code" required>
                                     <button class="btn btn-outline-primary" type="button" @click="verifyToken()">{{ $t("Verify Token") }}</button>
                                 </div>
                                 <p v-show="tokenValid" class="mt-2 token-valid">{{ $t("tokenValidSettingsMsg") }}</p>
+                                <p v-show="tokenInvalid" class="mt-2 token-invalid">{{ $t("tokenInvalidSettingsMsg") }}</p>
                             </div>
                         </div>
                     </div>
@@ -80,8 +81,6 @@
 import { Modal } from "bootstrap";
 import Confirm from "./Confirm.vue";
 import VueQrcode from "vue-qrcode";
-import { useToast } from "vue-toastification";
-const toast = useToast();
 
 export default {
     components: {
@@ -96,6 +95,7 @@ export default {
             processing: false,
             uri: null,
             tokenValid: false,
+            tokenInvalid: false,
             twoFAStatus: null,
             token: null,
             showSecret: false,
@@ -117,6 +117,13 @@ export default {
             }
         },
     },
+    watch: {
+        /** A new code has not been checked yet, so clear both results */
+        token() {
+            this.tokenValid = false;
+            this.tokenInvalid = false;
+        },
+    },
     mounted() {
         this.modal = new Modal(this.$refs.modal);
         this.$refs.modal.addEventListener("hidden.bs.modal", this.resetForm);
@@ -132,6 +139,7 @@ export default {
             this.token = null;
             this.uri = null;
             this.tokenValid = false;
+            this.tokenInvalid = false;
             this.showSecret = false;
         },
 
@@ -160,7 +168,7 @@ export default {
                 if (res.ok) {
                     this.uri = res.uri;
                 } else {
-                    toast.error(res.msg);
+                    this.$root.toastRes(res);
                 }
             });
         },
@@ -178,7 +186,7 @@ export default {
                     this.$emit("changed");
                     this.modal.hide();
                 } else {
-                    toast.error(res.msg);
+                    this.$root.toastRes(res);
                 }
             });
         },
@@ -196,7 +204,7 @@ export default {
                     this.$emit("changed");
                     this.modal.hide();
                 } else {
-                    toast.error(res.msg);
+                    this.$root.toastRes(res);
                 }
             });
         },
@@ -205,9 +213,10 @@ export default {
         verifyToken() {
             this.$root.getSocket().emit("verifyToken", this.token, this.currentPassword, (res) => {
                 if (res.ok) {
-                    this.tokenValid = res.valid;
+                    this.tokenValid = !!res.valid;
+                    this.tokenInvalid = !res.valid;
                 } else {
-                    toast.error(res.msg);
+                    this.$root.toastRes(res);
                 }
             });
         },
@@ -218,7 +227,7 @@ export default {
                 if (res.ok) {
                     this.twoFAStatus = res.status;
                 } else {
-                    toast.error(res.msg);
+                    this.$root.toastRes(res);
                 }
             });
         },
@@ -268,6 +277,10 @@ export default {
     color: $status-success;
 }
 
+.token-invalid {
+    color: $status-danger;
+}
+
 .dark {
     .modal-dialog .form-text, .modal-dialog p {
         color: $dark-font-color;
@@ -275,6 +288,10 @@ export default {
 
     .modal-dialog p.token-valid {
         color: $dark-status-success;
+    }
+
+    .modal-dialog p.token-invalid {
+        color: $dark-status-danger;
     }
 
     .status-badge.active {
