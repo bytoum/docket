@@ -87,12 +87,13 @@ export default {
 <style lang="scss" scoped>
 @import "../../styles/vars.scss";
 
-// The previews always show the same fixed palettes, whatever theme is active,
-// so they use literal colours (as in the Figma frame) except where a token matches.
-$preview-dark-bg: #0f1117;
-$preview-dark-bar: #1a1d26;
-$preview-dark-line: #2e3340;
-$preview-light-line: #d5dae1;
+// The previews always show the same fixed palettes, whatever theme is active.
+// SCSS tokens are compile-time values, so the light preview uses the light tokens
+// and the dark preview the $dark-* tokens.
+$preview-dark-bg: $dark-bg;
+$preview-dark-bar: $dark-bg-surface-raised;
+$preview-dark-line: $dark-border-strong;
+$preview-light-line: $border-strong;
 
 .appearance-theme {
     border: 0;
