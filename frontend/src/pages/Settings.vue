@@ -13,7 +13,7 @@
                     :to="`/settings/${key}`"
                     class="menu-item"
                 >
-                    <span class="menu-icon" :style="{ '--menu-icon': `url(${item.icon})` }" aria-hidden="true"></span>
+                    <span class="menu-icon" :style="iconStyle(item.icon)" aria-hidden="true"></span>
                     <span class="menu-label">{{ item.title }}</span>
                 </router-link>
 
@@ -130,6 +130,16 @@ export default {
     },
 
     methods: {
+
+        /**
+         * Inline style that passes a menu icon to the CSS mask.
+         * The URL is quoted because inlined SVG data URIs contain single quotes.
+         * @param {string} icon Imported SVG URL
+         * @returns {Object} Style object with the --menu-icon variable
+         */
+        iconStyle(icon) {
+            return { "--menu-icon": `url("${icon}")` };
+        },
 
         /**
          * Load the general settings page
