@@ -89,6 +89,11 @@ export function textToRows(text) {
     };
 }
 
+// What the backend returns for Global .env when global.env doesn't exist yet,
+// and doesn't write back when it is unchanged (getSettings and setSettings in
+// backend/socket-handlers/main-socket-handler.ts). The list treats it as empty.
+export const GLOBAL_ENV_PLACEHOLDER = "# VARIABLE=value #comment";
+
 /**
  * Whether the text has anything the list view would drop: a # comment, or a
  * blank line between content (leading and trailing blank lines don't count)
@@ -106,13 +111,15 @@ export function hasComments(text: string): boolean {
 /**
  * Whether the list view can show and save the text without changing it: no
  * invalid lines, and writing the parsed rows back gives exactly the same text
+ * (a missing final newline and the fresh-install placeholder count as safe)
  * @param {string} text Editor text
  * @returns {boolean} True when the text round-trips exactly
  */
 export function isListSafe(text: string): boolean {
-    if (text === "") {
+    if (text === "" || text === GLOBAL_ENV_PLACEHOLDER) {
         return true;
     }
     const { rows, errorLine } = textToRows(text);
-    return !errorLine && rowsToText(rows) === text;
+    // A missing final newline is fine, the list adds it when it saves an edit
+    return !errorLine && rowsToText(rows) === (text.endsWith("\n") ? text : text + "\n");
 }
