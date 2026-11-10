@@ -341,6 +341,7 @@ export default defineComponent({
             }, (res) => {
                 if (res.tokenRequired) {
                     callback(res);
+                    return;
                 }
 
                 if (res.ok) {

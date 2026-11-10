@@ -1,6 +1,8 @@
 {
     "languageName": "English",
     "Create your admin account": "Create your admin account",
+    "Token": "Authentication code",
+    "authInvalidToken": "Invalid or already used authentication code.",
     "authIncorrectCreds": "Incorrect username or password.",
     "PasswordsDoNotMatch": "Passwords do not match.",
     "Repeat Password": "Repeat Password",

@@ -16,7 +16,7 @@
 
                 <div v-if="tokenRequired">
                     <div class="form-floating mt-3">
-                        <input id="otp" v-model="token" type="text" maxlength="6" class="form-control" placeholder="123456" autocomplete="one-time-code" required>
+                        <input id="otp" v-model="token" type="text" inputmode="numeric" maxlength="6" class="form-control" placeholder="123456" autocomplete="one-time-code" required>
                         <label for="otp">{{ $t("Token") }}</label>
                     </div>
                 </div>
@@ -76,6 +76,9 @@ export default {
 
                 if (res.tokenRequired) {
                     this.tokenRequired = true;
+                    this.res = null;
+                    this.token = "";
+                    this.$nextTick(() => document.getElementById("otp")?.focus());
                 } else {
                     this.res = res;
                 }

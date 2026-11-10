@@ -4,9 +4,11 @@ import { SocketHandler } from "../socket-handler.js";
 import { DocketServer } from "../docket-server";
 import { log } from "../log";
 import { R } from "redbean-node";
+import type { Knex } from "knex";
 import { loginRateLimiter, twoFaRateLimiter } from "../rate-limiter";
 import { generatePasswordHash, needRehashPassword, shake256, SHAKE256_LENGTH, verifyPassword } from "../password-hash";
 import { User } from "../models/user";
+import { verifyToken } from "../two-fa";
 import {
     callbackError,
     checkLogin,
@@ -158,11 +160,23 @@ export class MainSocketHandler extends SocketHandler {
                 return;
             }
 
-            const user = await this.login(data.username, data.password);
+            try {
+                const user = await this.login(data.username, data.password);
 
-            if (user) {
-                if (user.twofa_status === 0) {
-                    server.afterLogin(socket, user);
+                if (!user) {
+                    log.warn("auth", `Incorrect username or password for user ${data.username}. IP=${clientIP}`);
+
+                    callback({
+                        ok: false,
+                        msg: "authIncorrectCreds",
+                        msgi18n: true,
+                    });
+                    return;
+                }
+
+                if (!user.twofa_status) {
+                    // 2FA is off
+                    await server.afterLogin(socket, user);
 
                     log.info("auth", `Successfully logged in user ${data.username}. IP=${clientIP}`);
 
@@ -170,49 +184,62 @@ export class MainSocketHandler extends SocketHandler {
                         ok: true,
                         token: User.createJWT(user, server.jwtSecret, server.sessionExpirySeconds),
                     });
+                    return;
                 }
 
-                if (user.twofa_status === 1 && !data.token) {
-
+                if (!data.token) {
+                    // 2FA is on, but no code was sent yet
                     log.info("auth", `2FA token required for user ${data.username}. IP=${clientIP}`);
 
                     callback({
                         tokenRequired: true,
                     });
+                    return;
                 }
 
-                if (data.token) {
-                    // @ts-ignore
-                    const verify = notp.totp.verify(data.token, user.twofa_secret, twoFAVerifyOptions);
-
-                    if (user.twofa_last_token !== data.token && verify) {
-                        server.afterLogin(socket, user);
-
-                        await R.exec("UPDATE `user` SET twofa_last_token = ? WHERE id = ? ", [
-                            data.token,
-                            socket.userID,
-                        ]);
-
-                        log.info("auth", `Successfully logged in user ${data.username}. IP=${clientIP}`);
-
-                        callback({
-                            ok: true,
-                            token: User.createJWT(user, server.jwtSecret, server.sessionExpirySeconds),
-                        });
-                    } else {
-
-                        log.warn("auth", `Invalid token provided for user ${data.username}. IP=${clientIP}`);
-
-                        callback({
-                            ok: false,
-                            msg: "authInvalidToken",
-                            msgi18n: true,
-                        });
-                    }
+                // 2FA is on and a code was sent
+                if (!await twoFaRateLimiter.pass(callback)) {
+                    log.info("auth", `Too many 2FA attempts for user ${data.username}. IP=${clientIP}`);
+                    return;
                 }
-            } else {
 
-                log.warn("auth", `Incorrect username or password for user ${data.username}. IP=${clientIP}`);
+                // Normalized the same way as verifyToken, so "123 456" and "123456" are one code
+                const code = typeof data.token === "string" ? data.token.replace(/\s/g, "") : "";
+                let accepted = false;
+
+                if (code !== user.twofa_last_token && verifyToken(code, user.twofa_secret)) {
+                    // Atomically claim the code, so two concurrent logins can't both use it
+                    const claimed = await R.knex("user")
+                        .where("id", user.id)
+                        .andWhere((qb : Knex.QueryBuilder) => {
+                            qb.whereNull("twofa_last_token").orWhere("twofa_last_token", "!=", code);
+                        })
+                        .update({ twofa_last_token: code });
+                    accepted = claimed > 0;
+                }
+
+                if (!accepted) {
+                    log.warn("auth", `Invalid token provided for user ${data.username}. IP=${clientIP}`);
+
+                    callback({
+                        ok: false,
+                        msg: "authInvalidToken",
+                        msgi18n: true,
+                    });
+                    return;
+                }
+
+                await server.afterLogin(socket, user);
+
+                log.info("auth", `Successfully logged in user ${data.username}. IP=${clientIP}`);
+
+                callback({
+                    ok: true,
+                    token: User.createJWT(user, server.jwtSecret, server.sessionExpirySeconds),
+                });
+            } catch (e) {
+                // Includes a malformed stored secret; reject without leaking details
+                log.error("auth", `Login failed for user ${data.username}: ${e instanceof Error ? e.message : e}. IP=${clientIP}`);
 
                 callback({
                     ok: false,
@@ -220,7 +247,6 @@ export class MainSocketHandler extends SocketHandler {
                     msgi18n: true,
                 });
             }
-
         });
 
         // Change Password
