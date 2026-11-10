@@ -49,8 +49,8 @@ Requirements:
 
 ```
 # Create directories that store your stacks and Docket's own compose file
-mkdir -p /opt/stacks /opt/dockge
-cd /opt/dockge
+mkdir -p /opt/stacks /opt/docket
+cd /opt/docket
 
 # Download the compose.yaml
 curl https://raw.githubusercontent.com/bytoum/docket/main/compose.yaml --output compose.yaml
@@ -64,18 +64,24 @@ docker compose up -d
 
 Docket is now running on http://localhost:5001
 
-> Docket keeps Dockge's directory (`/opt/dockge`), service name (`dockge`) and `DOCKGE_*` environment variables, so you can switch an existing Dockge install to Docket by changing only the image.
+### Switching from Dockge
+
+1. In your Dockge `compose.yaml`, change the image to `bytoum/docket:latest`.
+2. Rename the environment variables from `DOCKGE_*` to `DOCKET_*`, for example `DOCKGE_STACKS_DIR` to `DOCKET_STACKS_DIR`. The old names are no longer read, and Docket logs a warning for each one it finds.
+3. Run `docker compose up -d`.
+
+Your data carries over: on first start, `data/dockge.db` is renamed to `data/docket.db`, and stack URLs saved under `x-dockge` in your compose files still work (they move to `x-docket` the next time you save them). You can keep the `/opt/dockge` directory and the `dockge` service name.
 
 ### Custom stacks directory
 
-Copy and paste the compose file below. To store your stacks in another directory, change both the stacks volume and the `DOCKGE_STACKS_DIR` environment variable.
+Copy and paste the compose file below. To store your stacks in another directory, change both the stacks volume and the `DOCKET_STACKS_DIR` environment variable.
 
 Add `PUID` and `PGID` to set the owner of the stack files and folders; otherwise they are owned by `root`.
 
 compose:
 ```
 services:
-  dockge:
+  docket:
     image: bytoum/docket:latest
     restart: unless-stopped
     ports:
@@ -96,7 +102,7 @@ services:
       - /opt/stacks:/opt/stacks
     environment:
       # Tell Docket where your stacks directory is
-      - DOCKGE_STACKS_DIR=/opt/stacks
+      - DOCKET_STACKS_DIR=/opt/stacks
       # Both PUID and PGID must be set for it to do anything
       - PUID=1000 # Set the stack file/dir ownership to this user
       - PGID=1000 # Set the stack file/dir ownership to this group
@@ -105,7 +111,7 @@ services:
 ## How to Update
 
 ```bash
-cd /opt/dockge
+cd /opt/docket
 docker compose pull && docker compose up -d
 ```
 

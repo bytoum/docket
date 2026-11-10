@@ -1,5 +1,5 @@
 services:
-  dockge:
+  docket:
     image: bytoum/docket:latest
     restart: unless-stopped
     ports:
@@ -19,4 +19,4 @@ services:
       - /opt/stacks:/opt/stacks
     environment:
       # Tell Docket where your stacks directory is
-      - DOCKGE_STACKS_DIR=/opt/stacks
+      - DOCKET_STACKS_DIR=/opt/stacks

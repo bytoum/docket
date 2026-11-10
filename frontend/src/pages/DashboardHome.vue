@@ -207,7 +207,7 @@ export default {
         },
 
         /**
-         * Hostname of the Dockge instance this page was loaded from
+         * Hostname of the Docket instance this page was loaded from
          * @returns {string} Hostname
          */
         currentHost() {

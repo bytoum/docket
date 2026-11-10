@@ -184,6 +184,7 @@
 </template>
 
 <script>
+import { getComposeExtension } from "../../../common/util-common";
 import iconClose from "../assets/drawer/close.svg";
 import iconPlus from "../assets/drawer/plus.svg";
 import iconPlusOnAccent from "../assets/drawer/plus-on-accent.svg";
@@ -421,7 +422,7 @@ export default {
          */
         load() {
             const draft = this.emptyDraft();
-            const urls = this.jsonConfig["x-dockge"]?.urls;
+            const urls = getComposeExtension(this.jsonConfig)?.urls;
             draft.urls = Array.isArray(urls) ? [ ...urls ] : [];
 
             if (!this.isAdd) {

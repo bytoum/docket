@@ -11,14 +11,14 @@
             <div v-else class="stack-header">
                 <Uptime :stack="globalStack" />
                 <h1>{{ stack.name }}</h1>
-                <span v-if="stack.isManagedByDockge" class="meta">{{ $tc("containerCount", serviceCount) }}</span>
+                <span v-if="stack.isManagedByDocket" class="meta">{{ $tc("containerCount", serviceCount) }}</span>
                 <span v-if="$root.agentCount > 1 && endpoint !== ''" class="meta">
                     ({{ endpointDisplay }})
                 </span>
             </div>
 
             <!-- Actions -->
-            <div v-if="stack.isManagedByDockge" class="action-bar" :class="{ flat: isAdd }">
+            <div v-if="stack.isManagedByDocket" class="action-bar" :class="{ flat: isAdd }">
                 <template v-if="isEditMode">
                     <!-- Save = save and deploy; the menu saves without deploying -->
                     <div class="save-group">
@@ -97,7 +97,7 @@
             </div>
 
             <!-- View mode -->
-            <div v-if="stack.isManagedByDockge && !isEditMode">
+            <div v-if="stack.isManagedByDocket && !isEditMode">
                 <!-- Containers -->
                 <div class="section-head">
                     <h2 class="section-title">{{ $tc("container", 2) }}</h2>
@@ -218,7 +218,7 @@
             </div>
 
             <!-- Edit mode: compose.yaml / .env editor -->
-            <div v-if="stack.isManagedByDockge && isEditMode" class="edit-view">
+            <div v-if="stack.isManagedByDocket && isEditMode" class="edit-view">
                 <div class="edit-content" :class="{ 'with-panel': isAdd }">
                     <!-- New stack: configuration panel -->
                     <div v-if="isAdd" class="config-panel">
@@ -370,7 +370,7 @@
                 </div>
             </div>
 
-            <div v-if="!stack.isManagedByDockge && !processing">
+            <div v-if="!stack.isManagedByDocket && !processing">
                 {{ $t("stackNotManagedByDockgeMsg") }}
             </div>
 
@@ -474,7 +474,11 @@ import {
     COMBINED_TERMINAL_ROWS,
     copyYAMLComments, envsubstYAML,
     getCombinedTerminalName,
+    getComposeExtension,
     getComposeTerminalName,
+    COMPOSE_EXTENSION_KEY,
+    LEGACY_COMPOSE_EXTENSION_KEY,
+    normalizeStack,
     RUNNING
 } from "../../../common/util-common";
 import { BModal } from "bootstrap-vue-next";
@@ -737,12 +741,13 @@ export default {
         },
 
         urls() {
-            if (!this.envsubstJSONConfig["x-dockge"] || !this.envsubstJSONConfig["x-dockge"].urls || !Array.isArray(this.envsubstJSONConfig["x-dockge"].urls)) {
+            const stackUrls = getComposeExtension(this.envsubstJSONConfig)?.urls;
+            if (!Array.isArray(stackUrls)) {
                 return [];
             }
 
             let urls = [];
-            for (const url of this.envsubstJSONConfig["x-dockge"].urls) {
+            for (const url of stackUrls) {
                 let display;
                 try {
                     let obj = new URL(url);
@@ -1043,7 +1048,7 @@ export default {
                 name: "",
                 composeYAML,
                 composeENV,
-                isManagedByDockge: true,
+                isManagedByDocket: true,
                 endpoint: "",
             };
 
@@ -1177,7 +1182,7 @@ export default {
             this.processing = true;
             this.$root.emitAgent(this.endpoint, "getStack", this.stack.name, (res) => {
                 if (res.ok) {
-                    this.stack = res.stack;
+                    this.stack = normalizeStack(res.stack);
                     this.yamlCodeChange();
                     this.markSaved();
                     this.processing = false;
@@ -1822,15 +1827,19 @@ export default {
                 }
             }
 
-            // URLs live in the stack-level "x-dockge" section
+            // URLs live in the stack-level "x-docket" section. An older
+            // "x-dockge" section is moved there.
+            const extension = getComposeExtension(config) ?? {};
             if (urls.length > 0) {
-                config["x-dockge"] = config["x-dockge"] ?? {};
-                config["x-dockge"].urls = urls;
-            } else if (config["x-dockge"]) {
-                delete config["x-dockge"].urls;
-                if (Object.keys(config["x-dockge"]).length === 0) {
-                    delete config["x-dockge"];
-                }
+                extension.urls = urls;
+            } else {
+                delete extension.urls;
+            }
+            delete config[LEGACY_COMPOSE_EXTENSION_KEY];
+            if (Object.keys(extension).length > 0) {
+                config[COMPOSE_EXTENSION_KEY] = extension;
+            } else {
+                delete config[COMPOSE_EXTENSION_KEY];
             }
 
             this.containerDrawer.open = false;

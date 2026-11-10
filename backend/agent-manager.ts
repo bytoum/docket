@@ -1,4 +1,4 @@
-import { DockgeSocket } from "./util-server";
+import { DocketSocket } from "./util-server";
 import { io, Socket as SocketClient } from "socket.io-client";
 import { log } from "./log";
 import { Agent } from "./models/agent";
@@ -8,17 +8,17 @@ import { R } from "redbean-node";
 import dayjs, { Dayjs } from "dayjs";
 
 /**
- * Dockge Instance Manager
+ * Docket Instance Manager
  * One AgentManager per Socket connection
  */
 export class AgentManager {
 
-    protected socket : DockgeSocket;
+    protected socket : DocketSocket;
     protected agentSocketList : Record<string, SocketClient> = {};
     protected agentLoggedInList : Record<string, boolean> = {};
     protected _firstConnectTime : Dayjs = dayjs();
 
-    constructor(socket: DockgeSocket) {
+    constructor(socket: DocketSocket) {
         this.socket = socket;
     }
 
@@ -184,12 +184,19 @@ export class AgentManager {
             });
         });
 
-        client.on("disconnect", () => {
+        client.on("disconnect", (reason) => {
             log.info("agent-manager", "Disconnected from the socket server: " + endpoint);
             this.socket.emit("agentStatus", {
                 endpoint: endpoint,
                 status: "offline",
             });
+
+            // The agent ended the connection (e.g. its session expired):
+            // socket.io does not reconnect by itself in this case, so connect
+            // again, which logs in again with the stored credentials
+            if (reason === "io server disconnect") {
+                client.connect();
+            }
         });
 
         client.on("agent", (...args : unknown[]) => {

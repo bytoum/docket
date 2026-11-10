@@ -1,7 +1,7 @@
 // @ts-ignore
 import composerize from "composerize";
 import { SocketHandler } from "../socket-handler.js";
-import { DockgeServer } from "../dockge-server";
+import { DocketServer } from "../docket-server";
 import { log } from "../log";
 import { R } from "redbean-node";
 import { loginRateLimiter, twoFaRateLimiter } from "../rate-limiter";
@@ -10,7 +10,7 @@ import { User } from "../models/user";
 import {
     callbackError,
     checkLogin,
-    DockgeSocket,
+    DocketSocket,
     doubleCheckPassword,
     JWTDecoded,
     ValidationError
@@ -22,7 +22,7 @@ import fs, { promises as fsAsync } from "fs";
 import path from "path";
 
 export class MainSocketHandler extends SocketHandler {
-    create(socket : DockgeSocket, server : DockgeServer) {
+    create(socket : DocketSocket, server : DocketServer) {
 
         // ***************************
         // Public Socket API
@@ -42,6 +42,7 @@ export class MainSocketHandler extends SocketHandler {
                 const user = R.dispense("user");
                 user.username = username;
                 user.password = generatePasswordHash(password);
+                user.is_owner = true;
                 await R.store(user);
 
                 server.needSetup = false;
@@ -69,7 +70,11 @@ export class MainSocketHandler extends SocketHandler {
             log.info("auth", `Login by token. IP=${clientIP}`);
 
             try {
-                const decoded = jwt.verify(token, server.jwtSecret) as JWTDecoded;
+                // maxAge checks the issue time, so tokens issued before expiry
+                // was turned on (or shortened) expire too
+                const decoded = jwt.verify(token, server.jwtSecret, server.sessionExpirySeconds ? {
+                    maxAge: server.sessionExpirySeconds,
+                } : {}) as JWTDecoded;
 
                 log.info("auth", "Username from JWT: " + decoded.username);
 
@@ -84,7 +89,10 @@ export class MainSocketHandler extends SocketHandler {
                     }
 
                     log.debug("auth", "afterLogin");
-                    await server.afterLogin(socket, user);
+                    const expiresAt = server.sessionExpirySeconds && decoded.iat
+                        ? (decoded.iat + server.sessionExpirySeconds) * 1000
+                        : undefined;
+                    await server.afterLogin(socket, user, expiresAt);
                     log.debug("auth", "afterLogin ok");
 
                     log.info("auth", `Successfully logged in user ${decoded.username}. IP=${clientIP}`);
@@ -105,6 +113,15 @@ export class MainSocketHandler extends SocketHandler {
             } catch (error) {
                 if (!(error instanceof Error)) {
                     console.error("Unknown error:", error);
+                    return;
+                }
+                if (error instanceof jwt.TokenExpiredError) {
+                    log.info("auth", `Session expired. IP=${clientIP}`);
+                    callback({
+                        ok: false,
+                        msg: "authSessionExpired",
+                        msgi18n: true,
+                    });
                     return;
                 }
                 log.error("auth", `Invalid token. IP=${clientIP}`);
@@ -151,7 +168,7 @@ export class MainSocketHandler extends SocketHandler {
 
                     callback({
                         ok: true,
-                        token: User.createJWT(user, server.jwtSecret),
+                        token: User.createJWT(user, server.jwtSecret, server.sessionExpirySeconds),
                     });
                 }
 
@@ -180,7 +197,7 @@ export class MainSocketHandler extends SocketHandler {
 
                         callback({
                             ok: true,
-                            token: User.createJWT(user, server.jwtSecret),
+                            token: User.createJWT(user, server.jwtSecret, server.sessionExpirySeconds),
                         });
                     } else {
 

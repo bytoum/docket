@@ -30,7 +30,7 @@ The above cases may not cover all possible situations.
 
 I (@louislam) have the final say. If your pull request does not meet my expectations, I will reject it, no matter how much time you spend on it. Therefore, it is essential to have a discussion beforehand.
 
-I will assign your pull request to a [milestone](https://github.com/louislam/dockge/milestones), if I plan to review and merge it.
+I will assign your pull request to a [milestone](https://github.com/bytoum/docket/milestones), if I plan to review and merge it.
 
 Also, please don't rush or ask for an ETA, because I have to understand the pull request, make sure it is no breaking changes and stick to my vision of this project, especially for large pull requests.
 
@@ -38,7 +38,7 @@ Also, please don't rush or ask for an ETA, because I have to understand the pull
 
 I personally do not like something that requires so many configurations before you can finally start the app.
 
-- Settings should be configurable in the frontend. Environment variables are discouraged, unless it is related to startup such as `DOCKGE_STACKS_DIR`
+- Settings should be configurable in the frontend. Environment variables are discouraged, unless it is related to startup such as `DOCKET_STACKS_DIR`
 - Easy to use
 - The web UI styling should be consistent and nice
 - No native build dependency

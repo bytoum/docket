@@ -150,10 +150,10 @@ export default {
 
             result.sort((m1, m2) => {
 
-                // sort by managed by dockge
-                if (m1.isManagedByDockge && !m2.isManagedByDockge) {
+                // sort by managed by Docket
+                if (m1.isManagedByDocket && !m2.isManagedByDocket) {
                     return -1;
-                } else if (!m1.isManagedByDockge && m2.isManagedByDockge) {
+                } else if (!m1.isManagedByDocket && m2.isManagedByDocket) {
                     return 1;
                 }
 

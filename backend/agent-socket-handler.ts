@@ -1,7 +1,7 @@
-import { DockgeServer } from "./dockge-server";
+import { DocketServer } from "./docket-server";
 import { AgentSocket } from "../common/agent-socket";
-import { DockgeSocket } from "./util-server";
+import { DocketSocket } from "./util-server";
 
 export abstract class AgentSocketHandler {
-    abstract create(socket : DockgeSocket, server : DockgeServer, agentSocket : AgentSocket): void;
+    abstract create(socket : DocketSocket, server : DocketServer, agentSocket : AgentSocket): void;
 }

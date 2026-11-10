@@ -4,6 +4,7 @@ import { defineComponent } from "vue";
 import jwtDecode from "jwt-decode";
 import { Terminal } from "@xterm/xterm";
 import { AgentSocket } from "../../../common/agent-socket";
+import { normalizeStack } from "../../../common/util-common";
 
 let socket : Socket;
 
@@ -251,6 +252,7 @@ export default defineComponent({
 
             agentSocket.on("stackList", (res) => {
                 if (res.ok) {
+                    Object.values(res.stackList ?? {}).forEach(normalizeStack);
                     if (!res.endpoint) {
                         this.stackList = res.stackList;
                     } else {
@@ -367,6 +369,9 @@ export default defineComponent({
                 this.allowLoginDialog = true;
 
                 if (! res.ok) {
+                    if (res.msg === "authSessionExpired") {
+                        this.toastRes(res);
+                    }
                     this.logout();
                 } else {
                     this.loggedIn = true;

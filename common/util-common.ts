@@ -43,7 +43,44 @@ async function initRandomBytes() {
     }
 }
 
-export const ALL_ENDPOINTS = "##ALL_DOCKGE_ENDPOINTS##";
+export const ALL_ENDPOINTS = "##ALL_DOCKET_ENDPOINTS##";
+
+// Stack-level compose extension where Docket keeps its own settings (stack URLs).
+// Files written by Dockge or older Docket versions use "x-dockge"; it is still
+// read, and moved to "x-docket" the next time the URLs are saved.
+export const COMPOSE_EXTENSION_KEY = "x-docket";
+export const LEGACY_COMPOSE_EXTENSION_KEY = "x-dockge";
+
+/**
+ * Docket's compose extension of a parsed compose file, from "x-docket" or the
+ * older "x-dockge" (merged, "x-docket" wins)
+ * @param config Parsed compose file
+ * @returns The extension object, or undefined when there is none
+ */
+export function getComposeExtension(config : LooseObject | undefined) : LooseObject | undefined {
+    const current = config?.[COMPOSE_EXTENSION_KEY];
+    const legacy = config?.[LEGACY_COMPOSE_EXTENSION_KEY];
+    if (!current && !legacy) {
+        return undefined;
+    }
+    return {
+        ...(legacy ?? {}),
+        ...(current ?? {}),
+    };
+}
+
+/**
+ * Accept stacks from older agents (Dockge or Docket before the rename), which
+ * send "isManagedByDockge" instead of "isManagedByDocket"
+ * @param stack Stack object from an agent
+ * @returns The same object, with "isManagedByDocket" set
+ */
+export function normalizeStack<T extends LooseObject>(stack : T) : T {
+    if (stack && stack.isManagedByDocket === undefined && stack.isManagedByDockge !== undefined) {
+        (stack as LooseObject).isManagedByDocket = stack.isManagedByDockge;
+    }
+    return stack;
+}
 
 // Stack Status
 export const UNKNOWN = 0;

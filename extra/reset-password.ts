@@ -2,7 +2,7 @@ import { Database } from "../backend/database";
 import { R } from "redbean-node";
 import readline from "readline";
 import { User } from "../backend/models/user";
-import { DockgeServer } from "../backend/dockge-server";
+import { DocketServer } from "../backend/docket-server";
 import { log } from "../backend/log";
 import { io } from "socket.io-client";
 import { BaseRes } from "../common/util-common";
@@ -14,7 +14,7 @@ const rl = readline.createInterface({
     output: process.stdout
 });
 
-const server = new DockgeServer();
+const server = new DocketServer();
 
 export const main = async () => {
     // Check if
@@ -31,9 +31,27 @@ export const main = async () => {
     try {
         // No need to actually reset the password for testing, just make sure no connection problem. It is ok for now.
         if (!process.env.TEST_BACKEND) {
-            const user = await R.findOne("user");
-            if (! user) {
+            const users = await R.find("user", " 1 = 1 ORDER BY id ");
+            if (users.length === 0) {
                 throw new Error("user not found, have you installed?");
+            }
+
+            // With several users, ask which one to reset
+            let user = users[0];
+            if (users.length > 1) {
+                console.log("Users:");
+                for (const u of users) {
+                    console.log(`  - ${u.username}${u.is_owner ? " (owner)" : ""}${u.active ? "" : " (disabled)"}`);
+                }
+                while (true) {
+                    const username = (await question("Username to reset: ")).trim().toLowerCase();
+                    const found = users.find((u) => String(u.username).toLowerCase() === username);
+                    if (found) {
+                        user = found;
+                        break;
+                    }
+                    console.log("No user with that name, please try again.");
+                }
             }
 
             console.log("Found user: " + user.username);

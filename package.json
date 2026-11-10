@@ -19,7 +19,6 @@
         "build:docker-base": "docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t louislam/dockge:base -f ./docker/Base.Dockerfile . --push",
         "build:docker": "node ./extra/env2arg.js docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t bytoum/docket:latest -t bytoum/docket:1 -t bytoum/docket:$VERSION -t bytoum/docket:beta -t bytoum/docket:nightly --target release -f ./docker/Dockerfile . --push",
         "build:docker-beta": "node ./extra/env2arg.js docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t bytoum/docket:beta -t bytoum/docket:$VERSION --target release -f ./docker/Dockerfile . --push",
-        "build:healthcheck": "docker buildx build -f docker/BuildHealthCheck.Dockerfile --platform linux/amd64,linux/arm64,linux/arm/v7 -t louislam/dockge:build-healthcheck . --push",
         "release-nightly": "npm run build:frontend && docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t bytoum/docket:nightly -t ghcr.io/bytoum/docket:nightly --target nightly -f ./docker/Dockerfile . --push",
         "start-docker": "docker run --rm -p 5001:5001 --name docket bytoum/docket:latest",
         "mark-as-nightly": "tsx ./extra/mark-as-nightly.ts",

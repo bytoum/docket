@@ -1,6 +1,6 @@
 import { log } from "./log";
 import { R } from "redbean-node";
-import { DockgeServer } from "./dockge-server";
+import { DocketServer } from "./docket-server";
 import fs from "fs";
 import path from "path";
 import knex from "knex";
@@ -20,9 +20,12 @@ interface DBConfig {
     password?: string;
 }
 
+// SQLite companion files that belong with the database file
+const SQLITE_SIDE_FILES = [ "-wal", "-shm", "-journal" ];
+
 export class Database {
     /**
-     * SQLite file path (Default: ./data/dockge.db)
+     * SQLite file path (Default: ./data/docket.db)
      * @type {string}
      */
     static sqlitePath : string;
@@ -33,14 +36,43 @@ export class Database {
 
     static knexMigrationsPath = "./backend/migrations";
 
-    private static server : DockgeServer;
+    private static server : DocketServer;
 
     /**
      * Use for decode the auth object
      */
     jwtSecret? : string;
 
-    static async init(server : DockgeServer) {
+    /**
+     * Rename the database of Dockge or older Docket versions (dockge.db) to
+     * docket.db, so upgrading keeps all users, settings and agents. Does
+     * nothing when docket.db already exists.
+     * @param {string} dataDir Data directory
+     * @returns {void}
+     */
+    static renameLegacySQLiteFile(dataDir : string) {
+        const legacyPath = path.join(dataDir, "dockge.db");
+        const newPath = path.join(dataDir, "docket.db");
+
+        if (!fs.existsSync(legacyPath)) {
+            return;
+        }
+        if (fs.existsSync(newPath)) {
+            log.warn("db", `Both ${legacyPath} and ${newPath} exist. Using ${newPath}; ${legacyPath} is not used.`);
+            return;
+        }
+
+        log.info("db", `Renaming ${legacyPath} to ${newPath}`);
+        // Side files first, so the main file is only moved once they are in place
+        for (const suffix of SQLITE_SIDE_FILES) {
+            if (fs.existsSync(legacyPath + suffix)) {
+                fs.renameSync(legacyPath + suffix, newPath + suffix);
+            }
+        }
+        fs.renameSync(legacyPath, newPath);
+    }
+
+    static async init(server : DocketServer) {
         this.server = server;
 
         log.debug("server", "Connecting to the database");
@@ -108,7 +140,8 @@ export class Database {
         log.info("db", `Database Type: ${dbConfig.type}`);
 
         if (dbConfig.type === "sqlite") {
-            this.sqlitePath = path.join(this.server.config.dataDir, "dockge.db");
+            this.sqlitePath = path.join(this.server.config.dataDir, "docket.db");
+            this.renameLegacySQLiteFile(this.server.config.dataDir);
             Dialect.prototype._driver = () => sqlite;
 
             config = {

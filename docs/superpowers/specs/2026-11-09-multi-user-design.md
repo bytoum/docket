@@ -43,7 +43,7 @@ Add `requireOwner(socket)` to `backend/util-server.ts`. It loads the user for `s
 
 ### `backend/socket-handlers/user-socket-handler.ts`
 
-This is a new `SocketHandler`, registered in `DockgeServer.socketHandlerList`. It is local-only and is not proxied to agents. Every event calls `checkLogin(socket)` first and replies with `callbackResult` / `callbackError`. Error messages are i18n keys (`msgi18n: true`).
+This is a new `SocketHandler`, registered in `DocketServer.socketHandlerList`. It is local-only and is not proxied to agents. Every event calls `checkLogin(socket)` first and replies with `callbackResult` / `callbackError`. Error messages are i18n keys (`msgi18n: true`).
 
 | Event | Caller | Behaviour |
 |---|---|---|
@@ -54,7 +54,7 @@ This is a new `SocketHandler`, registered in `DockgeServer.socketHandlerList`. I
 
 ### Other backend changes
 
-- **Disable-auth auto-login** (`dockge-server.ts`): look up `R.findOne("user", " is_owner = 1 ")` instead of `R.findOne("user")`.
+- **Disable-auth auto-login** (`docket-server.ts`): look up `R.findOne("user", " is_owner = 1 ")` instead of `R.findOne("user")`.
 - **`extra/reset-password.ts`:** if more than one user exists, print the usernames and ask which one to reset. With one user, behaviour is unchanged.
 - **Unchanged:** `login`, `loginByToken`, `changePassword` (each user changes their own password), the login rate limiter, and agent connections, which use their own stored credentials.
 

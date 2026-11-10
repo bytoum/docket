@@ -1,7 +1,11 @@
 ############################################
 # Healthcheck Binary
+# Built from extra/healthcheck.go in this repo, so it reads the DOCKET_* variables
 ############################################
-FROM louislam/dockge:build-healthcheck AS build_healthcheck
+FROM golang:1.21.4-bookworm AS build_healthcheck
+WORKDIR /app
+COPY ./extra/healthcheck.go ./extra/healthcheck.go
+RUN CGO_ENABLED=0 go build -o ./extra/healthcheck ./extra/healthcheck.go
 
 ############################################
 # Build

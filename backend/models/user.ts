@@ -32,13 +32,14 @@ export class User extends BeanModel {
      * Create a new JWT for a user
      * @param {User} user The User to create a JsonWebToken for
      * @param {string} jwtSecret The key used to sign the JsonWebToken
+     * @param {number|null} expirySeconds Lifetime of the token, or null for no expiry
      * @returns {string} the JsonWebToken as a string
      */
-    static createJWT(user : User, jwtSecret : string) {
+    static createJWT(user : User, jwtSecret : string, expirySeconds : number | null = null) {
         return jwt.sign({
             username: user.username,
             h: shake256(user.password, SHAKE256_LENGTH),
-        }, jwtSecret);
+        }, jwtSecret, expirySeconds ? { expiresIn: expirySeconds } : {});
     }
 
 }

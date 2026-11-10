@@ -1,5 +1,5 @@
 <template>
-    <router-link :to="url" :class="{ 'dim' : !stack.isManagedByDockge }" class="item">
+    <router-link :to="url" :class="{ 'dim' : !stack.isManagedByDocket }" class="item">
         <span class="item-icon"><AssetIcon :src="iconCube" width="13.3333" height="14.6653" /></span>
         <div class="title">{{ stackName }}</div>
         <Uptime :stack="stack" />
