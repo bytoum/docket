@@ -281,3 +281,42 @@
         }
     }
 }
+
+// Segmented switch (same look as the one in the env drawer)
+.settings-segmented {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 4px;
+    background-color: $bg-surface-raised;
+
+    .dark & {
+        background-color: $dark-bg-surface-raised;
+    }
+
+    .settings-segment {
+        padding: 5px 10px;
+        border: none;
+        border-radius: 3px;
+        background: transparent;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: normal;
+        color: $text-secondary;
+
+        .dark & {
+            color: $dark-text-secondary;
+        }
+
+        &.selected {
+            font-weight: 600;
+            color: $text-primary;
+            background-color: $bg-surface;
+
+            .dark & {
+                color: $dark-text-primary;
+                background-color: $dark-bg-surface;
+            }
+        }
+    }
+}

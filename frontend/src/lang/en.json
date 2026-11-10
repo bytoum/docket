@@ -374,6 +374,8 @@
     "enableAuthDesc": "Require a username and password to use this instance.",
     "settingsDescSecurity": "Manage your password and sign-in protection.",
     "settingsDescUsers": "Manage who can sign in to this instance.",
+    "globalEnvCommentsNote": "This file has comments or blank lines. Edit it in Raw to keep them.",
+    "globalEnvVariables": "{n} variable | {n} variables",
     "settingsDescGlobalEnv": "Variables shared by every stack, stored in global.env.",
     "settingsDescAbout": "Version and environment details.",
     "Theme": "Theme",

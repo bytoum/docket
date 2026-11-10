@@ -1,28 +1,43 @@
 <template>
     <div>
-        <div v-if="settingsLoaded" class="my-4">
-            <form class="my-4" autocomplete="off" @submit.prevent="saveGeneral">
-                <div class="shadow-box mb-3 editor-box edit-mode">
+        <div v-if="settingsLoaded">
+            <form autocomplete="off" @submit.prevent="saveGeneral">
+                <div class="global-env-toolbar">
+                    <div class="settings-segmented" role="radiogroup">
+                        <button
+                            v-for="option in viewOptions" :key="option.value" type="button"
+                            class="settings-segment" role="radio" :aria-checked="view === option.value"
+                            :class="{ selected: view === option.value }" @click="setView(option.value)"
+                        >
+                            {{ option.label }}
+                        </button>
+                    </div>
+                    <span class="global-env-count">{{ $tc("globalEnvVariables", variableCount) }}</span>
+                </div>
+
+                <!-- List view -->
+                <div v-if="view === 'list'" class="global-env-list">
+                    <p v-if="readonlyList" class="global-env-note">{{ $t("globalEnvCommentsNote") }}</p>
+                    <EnvEditor ref="list" list-only :readonly="readonlyList" />
+                </div>
+
+                <!-- Raw view -->
+                <div v-else class="global-env-editor">
                     <code-mirror
                         ref="editor"
                         v-model="settings.globalENV"
                         :extensions="extensionsEnv"
                         minimal
                         wrap="true"
-                        dark="true"
+                        :dark="$root.isDark"
                         tab="true"
-                        :hasFocus="editorFocus"
-                        @change="onChange"
                     />
                 </div>
 
-                <div class="my-4">
-                    <!-- Save Button -->
-                    <div>
-                        <button class="btn btn-primary" type="submit">
-                            {{ $t("Save") }}
-                        </button>
-                    </div>
+                <div class="global-env-actions">
+                    <button class="btn btn-primary" type="submit">
+                        {{ $t("Save") }}
+                    </button>
                 </div>
             </form>
         </div>
@@ -31,34 +46,40 @@
 
 <script>
 import CodeMirror from "vue-codemirror6";
-import { python } from "@codemirror/lang-python"; // good enough for .env key=value highlighting
-import { dracula as editorTheme } from "thememirror";
-import { lineNumbers, EditorView } from "@codemirror/view";
-import { ref } from "vue";
+import { lineNumbers, highlightActiveLine, highlightActiveLineGutter } from "@codemirror/view";
+import EnvEditor from "../EnvEditor.vue";
+import { envLanguage, envHighlighting, hasComments, rowsToText, textToRows } from "../env-text";
+
+const VIEW_STORAGE_KEY = "docket.globalEnvView";
 
 export default {
     name: "GlobalEnv",
     components: {
         CodeMirror,
+        EnvEditor,
     },
 
     setup() {
-        const editorFocus = ref(false);
-
-        const focusEffectHandler = (state, focusing) => {
-            editorFocus.value = focusing;
-            return null;
-        };
-
         const extensionsEnv = [
-            editorTheme,
-            python(),
+            envLanguage,
+            envHighlighting,
             lineNumbers(),
-            EditorView.focusChangeEffect.of(focusEffectHandler),
+            highlightActiveLine(),
+            highlightActiveLineGutter(),
         ];
 
-        return { editorFocus,
-            extensionsEnv };
+        return { extensionsEnv };
+    },
+
+    data() {
+        let view = "raw";
+        try {
+            view = localStorage.getItem(VIEW_STORAGE_KEY) === "list" ? "list" : "raw";
+        } catch (e) {
+            // Storage can be unavailable, e.g. in a private window
+        }
+
+        return { view };
     },
 
     computed: {
@@ -71,28 +92,247 @@ export default {
         settingsLoaded() {
             return this.$parent.$parent.$parent.settingsLoaded;
         },
+
+        viewOptions() {
+            return [
+                {
+                    value: "list",
+                    label: this.$t("envList"),
+                },
+                {
+                    value: "raw",
+                    label: this.$t("envRaw"),
+                },
+            ];
+        },
+
+        /** The saved text */
+        text() {
+            return this.settings.globalENV || "";
+        },
+
+        /** Whether the list view would drop comments or blank lines, so it is read-only */
+        readonlyList() {
+            return hasComments(this.text);
+        },
+
+        /** Number of KEY=value lines */
+        variableCount() {
+            return textToRows(this.text).rows.length;
+        },
+    },
+
+    watch: {
+        // Fill the list whenever it opens (also on load, when List was remembered)
+        view: "fillList",
+        settingsLoaded: "fillList",
+    },
+
+    mounted() {
+        this.fillList();
     },
 
     methods: {
-        /** Save the settings */
-        saveGeneral() {
-            this.saveSettings();
+        /**
+         * Load the saved text into the list view, when it is shown
+         * @returns {void}
+         */
+        fillList() {
+            this.$nextTick(() => {
+                if (this.view === "list" && this.$refs.list) {
+                    this.$refs.list.reset(textToRows(this.text).rows);
+                }
+            });
         },
 
-        onChange() {
-            // hook for future live validation if desired
+        /**
+         * Write the list's variables back to settings.globalENV
+         * @returns {boolean} False when the list has invalid input (an error is shown)
+         */
+        syncFromList() {
+            if (this.view !== "list" || this.readonlyList || !this.$refs.list) {
+                return true;
+            }
+            const rows = this.$refs.list.collect();
+            if (rows === null) {
+                return false;
+            }
+            this.settings.globalENV = rowsToText(rows);
+            return true;
+        },
+
+        /**
+         * Switch between the list and the raw editor, carrying edits over
+         * @param {string} view "list" or "raw"
+         * @returns {void}
+         */
+        setView(view) {
+            if (view === this.view) {
+                return;
+            }
+            if (view === "raw") {
+                if (!this.syncFromList()) {
+                    return;
+                }
+            } else {
+                const { errorLine } = textToRows(this.text);
+                if (errorLine) {
+                    this.$root.toastError(this.$t("envInvalidLine", [ errorLine ]));
+                    return;
+                }
+            }
+            this.view = view;
+            try {
+                localStorage.setItem(VIEW_STORAGE_KEY, view);
+            } catch (e) {
+                // Ignore, the setting is only a convenience
+            }
+        },
+
+        /** Save the settings */
+        saveGeneral() {
+            if (!this.syncFromList()) {
+                return;
+            }
+            this.saveSettings();
         },
     },
 };
 </script>
 
 <style scoped lang="scss">
-.editor-box {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
+@import "../../styles/vars.scss";
 
-    &.edit-mode {
-        background-color: #2c2f38 !important;
+.global-env-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.global-env-count {
+    font-size: 12px;
+    color: $text-muted;
+}
+
+.global-env-note {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: $text-muted;
+}
+
+.global-env-editor {
+    min-height: 320px;
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: $bg-input;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+
+    :deep(.cm-editor) {
+        min-height: 320px;
+        font-family: inherit;
+        color: $text-primary;
+        background-color: transparent !important;
+
+        &.cm-focused {
+            outline: none;
+        }
+    }
+
+    :deep(.cm-scroller) {
+        font-family: inherit;
+        line-height: 22px;
+    }
+
+    :deep(.cm-content) {
+        padding: 10px 0;
+        caret-color: $text-primary;
+    }
+
+    :deep(.cm-line) {
+        padding: 0 10px;
+    }
+
+    :deep(.cm-gutters) {
+        min-height: 100%;
+        padding: 0 10px;
+        color: $muted;
+        background-color: $bg-surface-raised;
+        border-right: none;
+    }
+
+    :deep(.cm-gutter.cm-lineNumbers .cm-gutterElement) {
+        padding: 0;
+    }
+
+    :deep(.cm-activeLine) {
+        background-color: rgba($accent-primary-subtle, 0.7) !important;
+    }
+
+    :deep(.cm-activeLineGutter) {
+        background-color: transparent;
+        color: $text-primary;
+    }
+
+    :deep(.cm-cursor) {
+        border-left: 2px solid $text-primary;
+    }
+
+    :deep(.tok-key) {
+        color: $accent-primary;
+    }
+
+    :deep(.tok-op),
+    :deep(.tok-comment) {
+        color: $text-muted;
+    }
+}
+
+.global-env-actions {
+    margin-top: 20px;
+}
+
+.dark {
+    .global-env-count,
+    .global-env-note {
+        color: $dark-text-muted;
+    }
+
+    .global-env-editor {
+        background-color: $dark-bg-input;
+
+        :deep(.cm-editor),
+        :deep(.cm-content) {
+            color: $dark-text-primary;
+            caret-color: $dark-text-primary;
+        }
+
+        :deep(.cm-gutters) {
+            background-color: $dark-bg-surface-raised;
+            color: $dark-text-muted;
+        }
+
+        :deep(.cm-activeLine) {
+            background-color: rgba($dark-accent-primary, 0.12) !important;
+        }
+
+        :deep(.cm-activeLineGutter) {
+            color: $dark-text-primary;
+        }
+
+        :deep(.cm-cursor) {
+            border-left-color: $dark-text-primary;
+        }
+
+        :deep(.tok-key) {
+            color: $dark-accent-primary;
+        }
+
+        :deep(.tok-op),
+        :deep(.tok-comment) {
+            color: $dark-text-muted;
+        }
     }
 }
 </style>

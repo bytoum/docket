@@ -1,6 +1,6 @@
 <template>
     <div class="env-editor-field">
-        <div class="toggle-row">
+        <div v-if="!listOnly" class="toggle-row">
             <span class="field-label">{{ label }}</span>
             <span class="toggle-spacer"></span>
             <div class="segmented" role="radiogroup">
@@ -23,14 +23,15 @@
                     <span class="square-spacer"></span>
                 </div>
                 <div v-for="(row, index) in rows" :key="index" class="row-line">
-                    <input v-model.trim="row.key" class="field-input env-key" placeholder="KEY" :aria-label="$t('envKey')" />
-                    <input v-model="row.value" class="field-input env-value" placeholder="value" :aria-label="$t('envValue')" />
-                    <button type="button" class="square-btn" :aria-label="$t('removeVariable')" @click="removeRow(index)">
+                    <input v-model.trim="row.key" class="field-input env-key" placeholder="KEY" :aria-label="$t('envKey')" :readonly="readonly" />
+                    <input v-model="row.value" class="field-input env-value" placeholder="value" :aria-label="$t('envValue')" :readonly="readonly" />
+                    <span v-if="readonly" class="square-spacer"></span>
+                    <button v-else type="button" class="square-btn" :aria-label="$t('removeVariable')" @click="removeRow(index)">
                         <span class="icon"><img :src="icons.close" alt="" width="9.5" height="9.5" /></span>
                     </button>
                 </div>
             </div>
-            <button type="button" class="add-row" @click="rows.push({ key: '', value: '' })">
+            <button v-if="!readonly" type="button" class="add-row" @click="rows.push({ key: '', value: '' })">
                 <span class="icon"><img :src="icons.plus" alt="" width="10.8333" height="10.8333" /></span>
                 {{ $t("addVariable") }}
             </button>
@@ -68,8 +69,7 @@
 <script>
 import CodeMirror from "vue-codemirror6";
 import { lineNumbers, highlightActiveLine, highlightActiveLineGutter } from "@codemirror/view";
-import { HighlightStyle, StreamLanguage, syntaxHighlighting } from "@codemirror/language";
-import { tags } from "@lezer/highlight";
+import { KEY_PATTERN, envLanguage, envHighlighting, rowsToText, textToRows } from "./env-text";
 import AssetIcon from "./AssetIcon.vue";
 import iconClose from "../assets/drawer/close.svg";
 import iconPlus from "../assets/drawer/plus.svg";
@@ -84,54 +84,10 @@ const icons = {
     format: iconFormat,
 };
 
-// Environment variable names allowed
-const KEY_PATTERN = /^[^\s=#]+$/;
-
 const MODE_STORAGE_KEY = "envEditorMode";
 
-// "KEY = value" lines with # comments
-const envLanguage = StreamLanguage.define({
-    startState: () => ({ afterKey: false }),
-    token(stream, state) {
-        if (stream.sol()) {
-            state.afterKey = false;
-            stream.eatSpace();
-            if (stream.peek() === "#") {
-                stream.skipToEnd();
-                return "comment";
-            }
-        }
-        if (!state.afterKey) {
-            if (stream.eatSpace()) {
-                return null;
-            }
-            if (stream.eat("=")) {
-                state.afterKey = true;
-                return "operator";
-            }
-            stream.eatWhile(/[^=\s]/);
-            return "propertyName";
-        }
-        stream.skipToEnd();
-        return "string";
-    },
-});
-
-// Same colour classes as the compose editor
-const envHighlighting = syntaxHighlighting(HighlightStyle.define([
-    {
-        tag: tags.propertyName,
-        class: "tok-key",
-    },
-    {
-        tag: tags.comment,
-        class: "tok-comment",
-    },
-    {
-        tag: tags.operator,
-        class: "tok-op",
-    },
-]));
+// Shared with the Global .env settings page
+export { textToRows, rowsToText };
 
 /**
  * Turn a service's "environment" (list or map) into key/value rows
@@ -183,47 +139,6 @@ export function rowsToEnv(rows, original) {
 }
 
 /**
- * Rows to editor text, one KEY=value per line
- * @param {{key: string, value: string}[]} rows Rows
- * @returns {string} Editor text
- */
-function rowsToText(rows) {
-    const lines = rows.filter((row) => row.key !== "").map((row) => `${row.key}=${row.value}`);
-    return lines.length > 0 ? lines.join("\n") + "\n" : "";
-}
-
-/**
- * Parse editor text into rows. Blank lines and # comments are skipped.
- * @param {string} text Editor text
- * @returns {{rows: {key: string, value: string}[], errorLine: number}} Rows, and the first invalid line number (0 if none)
- */
-function textToRows(text) {
-    const rows = [];
-    let errorLine = 0;
-    text.split("\n").forEach((rawLine, index) => {
-        const line = rawLine.trim();
-        if (line === "" || line.startsWith("#")) {
-            return;
-        }
-        const eq = line.indexOf("=");
-        const key = (eq === -1 ? line : line.slice(0, eq)).trim();
-        const value = eq === -1 ? "" : line.slice(eq + 1).trim();
-        if (!KEY_PATTERN.test(key)) {
-            errorLine = errorLine || index + 1;
-            return;
-        }
-        rows.push({
-            key,
-            value,
-        });
-    });
-    return {
-        rows,
-        errorLine,
-    };
-}
-
-/**
  * Environment variables editor with a key/value list view and a raw
  * "KEY=value" code editor view, used in the env drawer.
  * The parent calls reset() to load rows and collect() to read them back.
@@ -239,6 +154,16 @@ export default {
             type: String,
             default: "",
         },
+        /** Show only the list view: no List / Raw toggle, and the mode is not stored */
+        listOnly: {
+            type: Boolean,
+            default: false,
+        },
+        /** The list is display-only: inputs are read-only, and rows cannot be added or removed */
+        readonly: {
+            type: Boolean,
+            default: false,
+        },
     },
     setup() {
         return {
@@ -253,10 +178,14 @@ export default {
     },
     data() {
         let mode = "raw";
-        try {
-            mode = localStorage.getItem(MODE_STORAGE_KEY) === "list" ? "list" : "raw";
-        } catch (e) {
-            // Storage can be unavailable, e.g. in a private window
+        if (this.listOnly) {
+            mode = "list";
+        } else {
+            try {
+                mode = localStorage.getItem(MODE_STORAGE_KEY) === "list" ? "list" : "raw";
+            } catch (e) {
+                // Storage can be unavailable, e.g. in a private window
+            }
         }
 
         return {
@@ -307,7 +236,7 @@ export default {
          * @returns {void}
          */
         ensureBlankRow() {
-            if (this.rows.length === 0) {
+            if (this.rows.length === 0 && !this.readonly) {
                 this.rows.push({
                     key: "",
                     value: "",
@@ -344,7 +273,7 @@ export default {
          * @returns {void}
          */
         setMode(mode) {
-            if (mode === this.mode) {
+            if (mode === this.mode || this.listOnly) {
                 return;
             }
             if (mode === "raw") {
