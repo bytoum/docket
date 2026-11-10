@@ -4,13 +4,6 @@
             <!-- Change password -->
             <template v-if="!settings.disableAuth">
                 <div class="settings-section">
-                    <h3>{{ $t("Change Password") }}</h3>
-                    <div class="settings-row">
-                        <div class="settings-row-text">
-                            <span class="settings-row-title">{{ $t("Current User") }}: {{ $root.username }}</span>
-                        </div>
-                        <button id="logout-btn" type="button" class="btn-subtle" @click="$root.logout">{{ $t("Logout") }}</button>
-                    </div>
                     <form class="security-form" @submit.prevent="savePassword">
                         <div class="settings-field">
                             <label for="current-password">{{ $t("Current Password") }}</label>
