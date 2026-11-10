@@ -417,5 +417,15 @@
     "System": "System",
     "themeHelp": "Choose a light or dark appearance, or follow your system.",
     "languageHelp": "Used for all labels and messages in the interface.",
-    "primaryHostnameHelp": "Used when Docket builds links to your stacks. Leave empty to use the hostname you are visiting."
+    "primaryHostnameHelp": "Used when Docket builds links to your stacks. Leave empty to use the hostname you are visiting.",
+    "loginWelcome": "Welcome back",
+    "loginSubtitle": "Sign in to manage your stacks.",
+    "loginUsernamePlaceholder": "Enter your username",
+    "loginPasswordPlaceholder": "Enter your password",
+    "Sign in": "Sign in",
+    "loginForgotPassword": "Forgot your password? Ask an admin to reset it.",
+    "loginBrandTitle": "Every stack, one dashboard.",
+    "loginBrandSubtitle": "Start, stop and edit your Docker Compose stacks without leaving the browser.",
+    "loginTwoFASubtitle": "Enter the 6-digit code from your authenticator app.",
+    "Back to sign in": "Back to sign in"
 }
