@@ -11,6 +11,7 @@ import { User } from "../models/user";
 import { verifyToken } from "../two-fa";
 import {
     callbackError,
+    callbackResult,
     checkLogin,
     DocketSocket,
     doubleCheckPassword,
@@ -22,6 +23,27 @@ import jwt from "jsonwebtoken";
 import { Settings } from "../settings";
 import fs, { promises as fsAsync } from "fs";
 import path from "path";
+import os from "os";
+import childProcessAsync from "promisify-child-process";
+
+/**
+ * Run a command and return its trimmed stdout
+ * @param cmd Command to run
+ * @param args Arguments
+ * @returns The output, or null on any error or empty output
+ */
+async function commandOutput(cmd : string, args : string[]) : Promise<string | null> {
+    try {
+        const res = await childProcessAsync.spawn(cmd, args, {
+            encoding: "utf-8",
+            timeout: 5000,
+        });
+        const out = String(res.stdout ?? "").trim();
+        return out || null;
+    } catch (e) {
+        return null;
+    }
+}
 
 export class MainSocketHandler extends SocketHandler {
     create(socket : DocketSocket, server : DocketServer) {
@@ -382,6 +404,28 @@ export class MainSocketHandler extends SocketHandler {
                     ok: true,
                     composeTemplate,
                 });
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
+
+        // System info for the About page
+        socket.on("getSystemInfo", async (callback) => {
+            try {
+                checkLogin(socket);
+
+                const [ dockerVersion, composeVersion ] = await Promise.all([
+                    commandOutput("docker", [ "version", "--format", "{{.Server.Version}}" ]),
+                    commandOutput("docker", [ "compose", "version", "--short" ]),
+                ]);
+
+                callbackResult({
+                    ok: true,
+                    dockerVersion,
+                    composeVersion,
+                    host: `${os.type()} ${os.arch()}`,
+                    uptimeSeconds: Math.floor(process.uptime()),
+                }, callback);
             } catch (e) {
                 callbackError(e, callback);
             }
