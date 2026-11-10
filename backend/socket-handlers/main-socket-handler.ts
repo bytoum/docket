@@ -343,14 +343,18 @@ export class MainSocketHandler extends SocketHandler {
                 if (!currentDisabledAuth && data.disableAuth) {
                     await doubleCheckPassword(socket, currentPassword);
                 }
-                // Handle global.env
-                if (data.globalENV && data.globalENV != "# VARIABLE=value #comment") {
-                    await fsAsync.writeFile(path.join(server.stacksDir, "global.env"), data.globalENV);
-                } else {
-                    await fsAsync.rm(path.join(server.stacksDir, "global.env"), {
-                        recursive: true,
-                        force: true
-                    });
+                // Handle global.env, only when the request includes it. A save
+                // without it (e.g. sent before the settings page has loaded)
+                // must not delete the file.
+                if (typeof data.globalENV === "string") {
+                    if (data.globalENV && data.globalENV != "# VARIABLE=value #comment") {
+                        await fsAsync.writeFile(path.join(server.stacksDir, "global.env"), data.globalENV);
+                    } else {
+                        await fsAsync.rm(path.join(server.stacksDir, "global.env"), {
+                            recursive: true,
+                            force: true
+                        });
+                    }
                 }
                 delete data.globalENV;
 
