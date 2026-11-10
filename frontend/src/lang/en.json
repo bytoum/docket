@@ -328,5 +328,10 @@
     "twoFAAlreadyEnabled": "Two-factor authentication is already enabled.",
     "twoFANotPrepared": "Start the 2FA setup first.",
     "twoFAEnabled": "Two-factor authentication enabled.",
-    "twoFADisabled": "Two-factor authentication disabled."
+    "twoFADisabled": "Two-factor authentication disabled.",
+    "twoFABadge": "2FA",
+    "reset2FA": "Reset 2FA",
+    "reset2FATitle": "Reset two-factor authentication",
+    "reset2FAMsg": "Turn off 2FA for {0}? They will be able to log in with just their password.",
+    "twoFAReset": "Two-factor authentication was turned off for this user."
 }

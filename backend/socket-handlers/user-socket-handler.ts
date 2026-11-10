@@ -6,6 +6,7 @@ import { passwordStrength } from "check-password-strength";
 import { generatePasswordHash } from "../password-hash";
 import { callbackError, callbackResult, checkLogin, DocketSocket, requireOwner } from "../util-server";
 import { LooseObject } from "../../common/util-common";
+import { clearTwoFA } from "../two-fa";
 
 /**
  * User management: list, add, disable/enable and delete users.
@@ -21,7 +22,7 @@ export class UserSocketHandler extends SocketHandler {
             try {
                 checkLogin(socket);
 
-                const rows = await R.getAll("SELECT id, username, active, is_owner FROM `user` ORDER BY id");
+                const rows = await R.getAll("SELECT id, username, active, is_owner, twofa_status FROM `user` ORDER BY id");
 
                 callbackResult({
                     ok: true,
@@ -30,6 +31,7 @@ export class UserSocketHandler extends SocketHandler {
                         username: row.username,
                         active: !!row.active,
                         isOwner: !!row.is_owner,
+                        twoFA: !!row.twofa_status,
                     })),
                     currentUserID: socket.userID,
                 }, callback);
@@ -101,6 +103,26 @@ export class UserSocketHandler extends SocketHandler {
                 callbackResult({
                     ok: true,
                     msg: "Saved",
+                    msgi18n: true,
+                }, callback);
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
+
+        // Turn off another user's 2FA (owner only), e.g. when they lost their device
+        socket.on("resetUser2FA", async (userID : unknown, callback : unknown) => {
+            try {
+                await requireOwner(socket);
+                const user = await findOtherUser(socket, userID);
+
+                await clearTwoFA(user.id);
+
+                log.info("user", `2FA of user ${user.username} reset by user ID ${socket.userID}`);
+
+                callbackResult({
+                    ok: true,
+                    msg: "twoFAReset",
                     msgi18n: true,
                 }, callback);
             } catch (e) {

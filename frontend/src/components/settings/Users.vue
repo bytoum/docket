@@ -14,10 +14,14 @@
                 <span v-if="user.id === currentUserID" class="badge bg-primary">{{ $t("youBadge") }}</span>
                 <span v-if="user.isOwner" class="badge bg-info">{{ $t("ownerBadge") }}</span>
                 <span v-if="!user.active" class="badge bg-secondary">{{ $t("disabledBadge") }}</span>
+                <span v-if="user.twoFA" class="badge bg-success">{{ $t("twoFABadge") }}</span>
 
                 <span class="flex-grow-1"></span>
 
                 <template v-if="isOwner && user.id !== currentUserID">
+                    <button v-if="user.twoFA" type="button" class="btn btn-sm btn-normal" :disabled="processing" @click="confirmReset2FA(user)">
+                        {{ $t("reset2FA") }}
+                    </button>
                     <button type="button" class="btn btn-sm btn-normal" :disabled="processing" @click="setActive(user, !user.active)">
                         {{ user.active ? $t("disableUser") : $t("enableUser") }}
                     </button>
@@ -68,6 +72,10 @@
         <Confirm ref="confirmDelete" btn-style="btn-danger" :yes-text="$t('deleteUser')" :no-text="$t('cancel')" :title="$t('deleteUserTitle')" @yes="deleteUser">
             {{ $t("deleteUserMsg", [ userToDelete?.username ?? "" ]) }}
         </Confirm>
+
+        <Confirm ref="confirmReset2FA" btn-style="btn-danger" :yes-text="$t('reset2FA')" :no-text="$t('cancel')" :title="$t('reset2FATitle')" @yes="reset2FA">
+            {{ $t("reset2FAMsg", [ userToReset?.username ?? "" ]) }}
+        </Confirm>
     </div>
 </template>
 
@@ -93,6 +101,7 @@ export default {
             userList: [],
             currentUserID: null,
             userToDelete: null,
+            userToReset: null,
             invalidPassword: false,
             // Shown in plain text after "Generate", so it can be copied
             showPassword: false,
@@ -244,6 +253,33 @@ export default {
             this.$root.getSocket().emit("deleteUser", this.userToDelete.id, (res) => {
                 this.processing = false;
                 this.userToDelete = null;
+                this.$root.toastRes(res);
+                this.loadUsers();
+            });
+        },
+
+        /**
+         * Ask before turning off a user's 2FA
+         * @param {object} user User whose 2FA to reset
+         * @returns {void}
+         */
+        confirmReset2FA(user) {
+            this.userToReset = user;
+            this.$refs.confirmReset2FA.show();
+        },
+
+        /**
+         * Turn off 2FA for the user waiting for confirmation
+         * @returns {void}
+         */
+        reset2FA() {
+            if (!this.userToReset) {
+                return;
+            }
+            this.processing = true;
+            this.$root.getSocket().emit("resetUser2FA", this.userToReset.id, (res) => {
+                this.processing = false;
+                this.userToReset = null;
                 this.$root.toastRes(res);
                 this.loadUsers();
             });
