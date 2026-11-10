@@ -15,7 +15,6 @@ const REPO_ROOT = path.resolve(fileURLToPath(new URL("../..", import.meta.url)))
 const START_TIMEOUT_MS = 30_000;
 const STOP_TIMEOUT_MS = 5_000;
 const CALL_TIMEOUT_MS = 5_000;
-const DUPLICATE_WAIT_MS = 300;
 const LOG_LINES_KEPT = 50;
 
 export const OWNER = {
@@ -71,6 +70,14 @@ export async function startBackend(entry = "./backend/index.ts") : Promise<Backe
             DOCKET_PORT: String(port),
             DOCKET_DATA_DIR: dataDir + path.sep,
             DOCKET_STACKS_DIR: stacksDir,
+            // Pin settings a developer's .env could set. An empty string
+            // counts as set for dotenv, and the server falls back to its default.
+            DOCKET_HOSTNAME: "127.0.0.1",
+            DOCKET_SSL_KEY: "",
+            DOCKET_SSL_CERT: "",
+            DOCKET_SSL_KEY_PASSPHRASE: "",
+            DOCKET_HIDE_LOG: "",
+            DOCKET_SESSION_EXPIRY: "",
         },
         stdio: [ "ignore", "pipe", "pipe" ],
     });
@@ -82,8 +89,13 @@ export async function startBackend(entry = "./backend/index.ts") : Promise<Backe
     const stop = () : Promise<void> => {
         stopping ??= (async () => {
             await killChild(child, exited);
-            await fs.promises.rm(dataDir, { recursive: true,
-                force: true });
+            // Windows can hold the SQLite file briefly after the process exits
+            await fs.promises.rm(dataDir, {
+                recursive: true,
+                force: true,
+                maxRetries: 5,
+                retryDelay: 100,
+            });
         })();
         return stopping;
     };
@@ -105,7 +117,8 @@ export async function startBackend(entry = "./backend/index.ts") : Promise<Backe
             const timer = setTimeout(() => reject(new Error("Backend start timed out")), START_TIMEOUT_MS);
             child.stdout?.on("data", onData);
             child.stderr?.on("data", onData);
-            child.once("exit", (code) => {
+            // "close" fires after stdout and stderr are drained, unlike "exit"
+            child.once("close", (code) => {
                 clearTimeout(timer);
                 reject(new Error(`Backend exited with code ${code} before it was ready`));
             });
@@ -171,36 +184,6 @@ export function call(socket : Socket, event : string, ...args : unknown[]) : Pro
         socket.emit(event, ...args, (res : unknown) => {
             clearTimeout(timer);
             resolve(res);
-        });
-    });
-}
-
-/**
- * Like call(), but fail if the callback runs more than once
- * @param {Socket} socket Connected socket
- * @param {string} event Event name
- * @param {...unknown} args Event arguments, without the callback
- * @returns {Promise<any>} The callback's first argument
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function callOnce(socket : Socket, event : string, ...args : unknown[]) : Promise<any> {
-    return new Promise((resolve, reject) => {
-        let replies = 0;
-        let first : unknown;
-        const timer = setTimeout(() => reject(new Error(`No reply to "${event}"`)), CALL_TIMEOUT_MS);
-        socket.emit(event, ...args, (res : unknown) => {
-            replies++;
-            if (replies === 1) {
-                clearTimeout(timer);
-                first = res;
-                setTimeout(() => {
-                    if (replies > 1) {
-                        reject(new Error(`"${event}" replied more than once`));
-                    } else {
-                        resolve(first);
-                    }
-                }, DUPLICATE_WAIT_MS);
-            }
         });
     });
 }

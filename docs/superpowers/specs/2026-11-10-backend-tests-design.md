@@ -52,7 +52,6 @@ Kills the process (`SIGTERM`; on Windows, plain `kill()`). If it hasn't exited a
 |---|---|
 | `connect(url): Promise<Socket>` | A new socket.io client (`transports: ["websocket"]`, `forceNew: true`) that resolves on `connect` and rejects on `connect_error`. Each helper-created socket is tracked so `closeAll()` can disconnect them. |
 | `call(socket, event, ...args): Promise<any>` | Emits and resolves with the callback's first argument. Rejects after 5 s with `` `No reply to "${event}"` ``. |
-| `callOnce(socket, event, ...args): Promise<any>` | Like `call`, but waits 300 ms after the first reply and rejects with `` `"${event}" replied more than once` `` if a second one arrives. |
 | `codeFor(uri: string, offsetSteps = 0): string` | The TOTP code for the secret in an `otpauth://` URI, using `otpauth`; `offsetSteps` shifts by 30 s steps. |
 | `setupUsers(url)` | Calls `setup` to create the owner `owner` / `Owner12345`, then logs in as the owner and calls `addUser` for `tester` / `Tester12345`. Returns `{ ownerID, testerID }`. |
 | `closeAll()` | Disconnects every socket the helpers opened. |
@@ -69,9 +68,9 @@ One `describe("two-factor authentication")` with a single backend from `before(s
 5. `save2FA` enables 2FA; then `twoFAStatus` is `true`, and `prepare2FA` replies `twoFAAlreadyEnabled`.
 
 **Login**
-6. Password only → `{ tokenRequired: true }`, replied once.
-7. A non-numeric code → `authInvalidToken`, replied once.
-8. A valid code → `ok` with a JWT, replied once.
+6. Password only → `{ tokenRequired: true }`.
+7. A non-numeric code → `authInvalidToken`.
+8. A valid code → `ok` with a JWT.
 9. The same code again → `authInvalidToken`; the same code with a space in the middle → `authInvalidToken`.
 10. A wrong password with 2FA on → `authIncorrectCreds` (no `tokenRequired`).
 
@@ -106,3 +105,9 @@ Replace line 22 ("There is no test suite. …") with: tests live in `test/`, run
 - Make one behaviour wrong on purpose (for example, comment out the replay check in `login`) and confirm the matching test fails with a clear message. Then restore it.
 - `npm run lint`, `npm run check-ts` and `npm run build:frontend` still pass.
 - After a push, CI is green on Linux, Windows and macOS. That is checked when you push; no push happens without your go-ahead.
+
+## Changes after review
+
+- `callOnce` was dropped. socket.io ignores a second reply to the same event on both the server and the client, so a "replied more than once" check could never fail.
+- The helper also pins `DOCKET_HOSTNAME=127.0.0.1` and blanks `DOCKET_SSL_KEY`, `DOCKET_SSL_CERT`, `DOCKET_SSL_KEY_PASSPHRASE`, `DOCKET_HIDE_LOG` and `DOCKET_SESSION_EXPIRY`, so a developer's `.env` can't move, encrypt or silence the test backend.
+- Folder removal retries (5 × 100 ms) for Windows file locks, and start-up failures wait for `close` so the reported output is complete.

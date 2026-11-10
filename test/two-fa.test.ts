@@ -10,7 +10,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import type { Socket } from "socket.io-client";
-import { Backend, call, callOnce, closeAll, codeFor, connect, OWNER, setupUsers, startBackend, TESTER } from "./helpers/backend";
+import { Backend, call, closeAll, codeFor, connect, OWNER, setupUsers, startBackend, TESTER } from "./helpers/backend";
 
 describe("two-factor authentication", () => {
     let backend : Backend;
@@ -24,9 +24,9 @@ describe("two-factor authentication", () => {
     /**
      * Log in on a fresh socket, so earlier logins don't affect this one
      * @param {object} data Login payload
-     * @returns {Promise<any>} The login reply (checked to arrive once)
+     * @returns {Promise<any>} The login reply
      */
-    const freshLogin = async (data : object) => callOnce(await connect(backend.url), "login", data);
+    const freshLogin = async (data : object) => call(await connect(backend.url), "login", data);
 
     before(async () => {
         backend = await startBackend();
