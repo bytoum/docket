@@ -6,8 +6,8 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             {{ $t("Setup 2FA") }}
-                            <span v-if="twoFAStatus == true" class="status-badge active">{{ $t("Active") }}</span>
-                            <span v-if="twoFAStatus == false" class="status-badge inactive">{{ $t("Inactive") }}</span>
+                            <span v-if="twoFAStatus == true" class="status-badge status-badge--success">{{ $t("Active") }}</span>
+                            <span v-if="twoFAStatus == false" class="status-badge status-badge--neutral">{{ $t("Inactive") }}</span>
                         </h5>
                         <button :disabled="processing" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
                     </div>
@@ -253,26 +253,6 @@ export default {
     word-break: break-all;
 }
 
-.status-badge {
-    display: inline-block;
-    margin-left: 8px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
-    vertical-align: middle;
-
-    &.active {
-        color: $accent-primary;
-        background-color: $accent-primary-subtle;
-    }
-
-    &.inactive {
-        color: $status-neutral;
-        background-color: $status-neutral-subtle;
-    }
-}
-
 .token-valid {
     color: $status-success;
 }
@@ -292,16 +272,6 @@ export default {
 
     .modal-dialog p.token-invalid {
         color: $dark-status-danger;
-    }
-
-    .status-badge.active {
-        color: $dark-accent-primary;
-        background-color: $dark-accent-primary-subtle;
-    }
-
-    .status-badge.inactive {
-        color: $dark-status-neutral;
-        background-color: $dark-status-neutral-subtle;
     }
 }
 </style>

@@ -1,93 +1,102 @@
 <template>
     <div>
-        <div v-if="settingsLoaded" class="my-4">
-            <!-- Change Password -->
+        <div v-if="settingsLoaded">
+            <!-- Change password -->
             <template v-if="!settings.disableAuth">
-                <p>
-                    {{ $t("Current User") }}: <strong>{{ $root.username }}</strong>
-                    <button v-if="! settings.disableAuth" id="logout-btn" class="btn btn-danger ms-4 me-2 mb-2" @click="$root.logout">{{ $t("Logout") }}</button>
-                </p>
-
-                <h5 class="my-4 settings-subheading">{{ $t("Change Password") }}</h5>
-                <form class="mb-3" @submit.prevent="savePassword">
-                    <div class="mb-3">
-                        <label for="current-password" class="form-label">
-                            {{ $t("Current Password") }}
-                        </label>
-                        <input
-                            id="current-password"
-                            v-model="password.currentPassword"
-                            type="password"
-                            class="form-control"
-                            autocomplete="current-password"
-                            required
-                        />
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="new-password" class="form-label">
-                            {{ $t("New Password") }}
-                        </label>
-                        <input
-                            id="new-password"
-                            v-model="password.newPassword"
-                            type="password"
-                            class="form-control"
-                            autocomplete="new-password"
-                            required
-                        />
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="repeat-new-password" class="form-label">
-                            {{ $t("Repeat New Password") }}
-                        </label>
-                        <input
-                            id="repeat-new-password"
-                            v-model="password.repeatNewPassword"
-                            type="password"
-                            class="form-control"
-                            :class="{ 'is-invalid': invalidPassword }"
-                            autocomplete="new-password"
-                            required
-                        />
-                        <div class="invalid-feedback">
-                            {{ $t("passwordNotMatchMsg") }}
+                <div class="settings-section">
+                    <h3>{{ $t("Change Password") }}</h3>
+                    <div class="settings-row">
+                        <div class="settings-row-text">
+                            <span class="settings-row-title">{{ $t("Current User") }}: {{ $root.username }}</span>
                         </div>
+                        <button id="logout-btn" type="button" class="btn-subtle" @click="$root.logout">{{ $t("Logout") }}</button>
                     </div>
+                    <form class="security-form" @submit.prevent="savePassword">
+                        <div class="settings-field">
+                            <label for="current-password">{{ $t("Current Password") }}</label>
+                            <input
+                                id="current-password"
+                                v-model="password.currentPassword"
+                                type="password"
+                                class="form-control"
+                                :placeholder="$t('currentPasswordPlaceholder')"
+                                autocomplete="current-password"
+                                required
+                            />
+                        </div>
 
-                    <div>
+                        <div class="settings-field">
+                            <label for="new-password">{{ $t("New Password") }}</label>
+                            <input
+                                id="new-password"
+                                v-model="password.newPassword"
+                                type="password"
+                                class="form-control"
+                                :placeholder="$t('newPasswordPlaceholder')"
+                                autocomplete="new-password"
+                                required
+                            />
+                        </div>
+
+                        <div class="settings-field">
+                            <label for="repeat-new-password">{{ $t("Repeat New Password") }}</label>
+                            <input
+                                id="repeat-new-password"
+                                v-model="password.repeatNewPassword"
+                                type="password"
+                                class="form-control"
+                                :class="{ 'is-invalid': invalidPassword }"
+                                :placeholder="$t('repeatPasswordPlaceholder')"
+                                autocomplete="new-password"
+                                required
+                            />
+                            <div class="invalid-feedback">
+                                {{ $t("passwordNotMatchMsg") }}
+                            </div>
+                        </div>
+
                         <button class="btn btn-primary" type="submit">
                             {{ $t("Update Password") }}
                         </button>
+                    </form>
+                </div>
+
+                <div class="settings-divider"></div>
+
+                <!-- Two-factor authentication -->
+                <div class="settings-section">
+                    <h3>{{ $t("Two Factor Authentication") }}</h3>
+                    <div class="settings-row">
+                        <div class="settings-row-text">
+                            <div class="settings-row-title">
+                                {{ $t("twoFAAuthenticatorApp") }}
+                                <span v-if="twoFAStatus === true" class="status-badge status-badge--success">{{ $t("enabledBadge") }}</span>
+                                <span v-else-if="twoFAStatus === false" class="status-badge status-badge--neutral">{{ $t("disabledBadge") }}</span>
+                            </div>
+                            <div class="settings-row-desc">{{ $t("twoFAAuthenticatorDesc") }}</div>
+                        </div>
+                        <button class="btn-subtle" type="button" @click="$refs.TwoFADialog.show()">
+                            {{ $t("manageButton") }}
+                        </button>
                     </div>
-                </form>
+                </div>
+
+                <div class="settings-divider"></div>
             </template>
 
-            <div v-if="! settings.disableAuth" class="mt-5 mb-3">
-                <h5 class="my-4 settings-subheading">
-                    {{ $t("Two Factor Authentication") }}
-                    <span v-if="twoFAStatus === true" class="status-badge active">{{ $t("Active") }}</span>
-                    <span v-else-if="twoFAStatus === false" class="status-badge inactive">{{ $t("Inactive") }}</span>
-                </h5>
-                <div class="mb-4">
-                    <button
-                        class="btn btn-primary me-2"
-                        type="button"
-                        @click="$refs.TwoFADialog.show()"
-                    >
-                        {{ $t("2FA Settings") }}
+            <!-- Disable / enable authentication -->
+            <div class="settings-section">
+                <h3>{{ settings.disableAuth ? $t("Enable Auth") : $t("disableAuthTitle") }}</h3>
+                <div class="settings-row">
+                    <div class="settings-row-text">
+                        <div class="settings-row-title">{{ settings.disableAuth ? $t("enableAuthTitle") : $t("turnOffSignIn") }}</div>
+                        <div class="settings-row-desc">{{ settings.disableAuth ? $t("enableAuthDesc") : $t("turnOffSignInDesc") }}</div>
+                    </div>
+                    <button v-if="settings.disableAuth" id="enableAuth-btn" type="button" class="btn btn-primary" @click="enableAuth">{{ $t("Enable Auth") }}</button>
+                    <button v-else id="disableAuth-btn" type="button" class="btn-danger-subtle" @click="confirmDisableAuth">
+                        <span class="trash-icon" :style="{ '--trash-icon': `url('${iconTrash}')` }" aria-hidden="true"></span>
+                        {{ $t("disableUser") }}
                     </button>
-                </div>
-            </div>
-
-            <div class="my-4">
-                <!-- Advanced -->
-                <h5 class="my-4 settings-subheading">{{ $t("Advanced") }}</h5>
-
-                <div class="mb-4">
-                    <button v-if="settings.disableAuth" id="enableAuth-btn" class="btn btn-outline-primary me-2 mb-2" @click="enableAuth">{{ $t("Enable Auth") }}</button>
-                    <button v-if="! settings.disableAuth" id="disableAuth-btn" class="btn btn-primary me-2 mb-2" @click="confirmDisableAuth">{{ $t("Disable Auth") }}</button>
                 </div>
             </div>
         </div>
@@ -128,6 +137,7 @@
 <script>
 import Confirm from "../../components/Confirm.vue";
 import TwoFADialog from "../../components/TwoFADialog.vue";
+import iconTrash from "../../assets/settings/trash.svg";
 
 export default {
     components: {
@@ -137,6 +147,7 @@ export default {
 
     data() {
         return {
+            iconTrash,
             invalidPassword: false,
             twoFAStatus: null,
             password: {
@@ -228,37 +239,23 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import "../../styles/vars.scss";
+.security-form {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 420px;
 
-.status-badge {
-    display: inline-block;
-    margin-left: 8px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
-    vertical-align: middle;
-
-    &.active {
-        color: $accent-primary;
-        background-color: $accent-primary-subtle;
-    }
-
-    &.inactive {
-        color: $status-neutral;
-        background-color: $status-neutral-subtle;
+    .settings-field {
+        align-self: stretch;
     }
 }
 
-.dark {
-    .status-badge.active {
-        color: $dark-accent-primary;
-        background-color: $dark-accent-primary-subtle;
-    }
-
-    .status-badge.inactive {
-        color: $dark-status-neutral;
-        background-color: $dark-status-neutral-subtle;
-    }
+// Trash icon in the Disable button. A mask, so it takes the text colour.
+.trash-icon {
+    width: 16px;
+    height: 16px;
+    background-color: currentColor;
+    mask: var(--trash-icon) center / contain no-repeat;
+    -webkit-mask: var(--trash-icon) center / contain no-repeat;
 }
 </style>
