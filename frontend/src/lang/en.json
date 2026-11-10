@@ -356,5 +356,11 @@
     "settingsDescUsers": "Manage who can sign in to this instance.",
     "settingsDescGlobalEnv": "Variables shared by every stack, stored in global.env.",
     "settingsDescAbout": "Version and environment details.",
+    "Theme": "Theme",
+    "Light": "Light",
+    "Dark": "Dark",
+    "System": "System",
+    "themeHelp": "Choose a light or dark appearance, or follow your system.",
+    "languageHelp": "Used for all labels and messages in the interface.",
     "primaryHostnameHelp": "Used when Docket builds links to your stacks. Leave empty to use the hostname you are visiting."
 }
