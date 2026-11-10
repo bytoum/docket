@@ -6,6 +6,7 @@ import { DocketServer } from "../backend/docket-server";
 import { log } from "../backend/log";
 import { io } from "socket.io-client";
 import { BaseRes } from "../common/util-common";
+import { clearTwoFA } from "../backend/two-fa";
 
 console.log("== Docket Reset Password Tool ==");
 
@@ -65,6 +66,14 @@ export const main = async () => {
 
                     // Reset all sessions by reset jwt secret
                     await server.initJWTSecret();
+
+                    if (user.twofa_status) {
+                        const answer = (await question("Also turn off 2FA for this user? (y/N) ")).trim().toLowerCase();
+                        if (answer === "y" || answer === "yes") {
+                            await clearTwoFA(user.id);
+                            console.log("2FA turned off.");
+                        }
+                    }
 
                     console.log("Password reset successfully.");
 
