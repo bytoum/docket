@@ -115,6 +115,7 @@
     "connect": "Connect",
     "addAgent": "Add Agent",
     "agentAddedSuccessfully": "Agent added successfully.",
+    "agentTwoFAError": "This agent's account uses 2FA. Use an account without 2FA for agent connections.",
     "agentRemovedSuccessfully": "Agent removed successfully.",
     "removeAgent": "Remove Agent",
     "removeAgentMsg": "Are you sure you want to remove this agent?",

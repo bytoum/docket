@@ -53,6 +53,8 @@ export class AgentManager {
                 }, (res : LooseObject) => {
                     if (res.ok) {
                         resolve();
+                    } else if (res.tokenRequired) {
+                        reject(new Error("agentTwoFAError"));
                     } else {
                         reject(new Error(res.msg));
                     }
@@ -166,7 +168,11 @@ export class AgentManager {
                         status: "online",
                     });
                 } else {
-                    log.error("agent-manager", "Failed to login to the socket server: " + endpoint);
+                    if (res.tokenRequired) {
+                        log.error("agent-manager", "Agent account uses 2FA, cannot log in: " + endpoint);
+                    } else {
+                        log.error("agent-manager", "Failed to login to the socket server: " + endpoint);
+                    }
                     this.agentLoggedInList[endpoint] = false;
                     this.socket.emit("agentStatus", {
                         endpoint: endpoint,
