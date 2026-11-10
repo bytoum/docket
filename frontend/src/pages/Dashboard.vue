@@ -1,6 +1,6 @@
 <template>
     <div class="dashboard">
-        <aside v-if="!$root.isMobile" class="sidebar">
+        <aside v-if="showSidebar" class="sidebar">
             <router-link to="/compose" class="btn btn-primary compose-btn"><AssetIcon :src="iconPlus" width="10.8333" height="10.8333" /> {{ $t("compose") }}</router-link>
             <StackList :scrollbar="true" />
         </aside>
@@ -28,6 +28,16 @@ export default {
             height: 0,
             iconPlus,
         };
+    },
+    computed: {
+        /**
+         * The stack list sidebar is shown on desktop, except on the
+         * settings pages, which use the full width
+         * @returns {boolean} True to show the sidebar
+         */
+        showSidebar() {
+            return !this.$root.isMobile && !this.$route.path.startsWith("/settings");
+        },
     },
     mounted() {
         this.height = this.$refs.container.offsetHeight;
