@@ -1,4 +1,5 @@
 import * as OTPAuth from "otpauth";
+import { R } from "redbean-node";
 
 const ISSUER = "Docket";
 
@@ -55,4 +56,15 @@ export function verifyToken(token: unknown, secret: string | null | undefined): 
         token: code,
         window: 1,
     }) !== null;
+}
+
+/**
+ * Turn 2FA off for a user and forget the secret and last used code.
+ * @param userID ID of the user
+ * @returns Resolves when the user row is updated
+ */
+export async function clearTwoFA(userID: number): Promise<void> {
+    await R.exec("UPDATE `user` SET twofa_status = 0, twofa_secret = NULL, twofa_last_token = NULL WHERE id = ?", [
+        userID,
+    ]);
 }

@@ -322,5 +322,9 @@
     "generatedPasswordHint": "Copy this password and give it to the user. It won't be shown again after the user is added.",
     "passwordCopied": "Password copied.",
     "copyFailed": "Could not copy. Select the password and copy it by hand.",
-    "authSessionExpired": "Your session has expired. Please log in again."
+    "authSessionExpired": "Your session has expired. Please log in again.",
+    "twoFAAlreadyEnabled": "Two-factor authentication is already enabled.",
+    "twoFANotPrepared": "Start the 2FA setup first.",
+    "twoFAEnabled": "Two-factor authentication enabled.",
+    "twoFADisabled": "Two-factor authentication disabled."
 }

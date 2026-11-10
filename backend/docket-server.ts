@@ -37,6 +37,7 @@ import { AgentSocketHandler } from "./agent-socket-handler";
 import { AgentSocket } from "../common/agent-socket";
 import { ManageAgentSocketHandler } from "./socket-handlers/manage-agent-socket-handler";
 import { UserSocketHandler } from "./socket-handlers/user-socket-handler";
+import { TwoFASocketHandler } from "./socket-handlers/two-fa-socket-handler";
 import { Terminal } from "./terminal";
 
 /** A Docker network on the host */
@@ -81,6 +82,7 @@ export class DocketServer {
         new MainSocketHandler(),
         new ManageAgentSocketHandler(),
         new UserSocketHandler(),
+        new TwoFASocketHandler(),
     ];
 
     agentProxySocketHandler = new AgentProxySocketHandler();
