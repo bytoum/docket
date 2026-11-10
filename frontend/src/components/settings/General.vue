@@ -1,6 +1,6 @@
 <template>
     <div>
-        <form class="my-4" autocomplete="off" @submit.prevent="saveGeneral">
+        <form autocomplete="off" @submit.prevent="saveGeneral">
             <!-- Client side Timezone -->
             <div v-if="false" class="mb-4">
                 <label for="timezone" class="form-label">
@@ -38,23 +38,24 @@
             </div>
 
             <!-- Primary Hostname -->
-            <div class="mb-4">
-                <label class="form-label" for="primaryBaseURL">
+            <div class="settings-field">
+                <label for="primaryHostname">
                     {{ $t("primaryHostname") }}
                 </label>
 
-                <div class="input-group mb-3">
+                <div class="settings-field-inline">
                     <input
+                        id="primaryHostname"
                         v-model="settings.primaryHostname"
                         class="form-control"
                         :placeholder="$t(`CurrentHostname`)"
                     />
-                    <button class="btn btn-outline-primary" type="button" @click="autoGetPrimaryHostname">
+                    <button class="btn-subtle" type="button" @click="autoGetPrimaryHostname">
                         {{ $t("autoGet") }}
                     </button>
                 </div>
 
-                <div class="form-text"></div>
+                <div class="settings-help">{{ $t("primaryHostnameHelp") }}</div>
             </div>
 
             <!-- Save Button -->

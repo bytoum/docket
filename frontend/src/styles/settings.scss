@@ -1,0 +1,283 @@
+// Shared styles for the Settings pages (flat style from the Figma design:
+// 4px corners, filled inputs, no borders). Imported once, globally, by
+// pages/Settings.vue, so every settings page can use these classes.
+@import "vars.scss";
+
+// A block of the card: subheading, then its content
+.settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+
+    &:last-child {
+        margin-bottom: 0;
+    }
+
+    > h3,
+    .settings-section-title {
+        font-size: 15px;
+        font-weight: 600;
+        line-height: normal;
+        color: $text-primary;
+        margin: 0;
+
+        .dark & {
+            color: $dark-text-primary;
+        }
+    }
+}
+
+// Divider between sections
+.settings-divider {
+    height: 1px;
+    margin: 20px 0;
+    background-color: $border-default;
+
+    .dark & {
+        background-color: $dark-border-default;
+    }
+}
+
+// Label, filled input and help text
+.settings-field {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 14px;
+
+    label,
+    .settings-field-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: $text-primary;
+        margin: 0;
+
+        .dark & {
+            color: $dark-text-primary;
+        }
+    }
+
+    .form-control,
+    .form-select {
+        height: 44px;
+        padding: 8px 10px;
+        font-size: 14px;
+        color: $text-primary;
+        background-color: $bg-input;
+        border: 0;
+        border-radius: 4px;
+        box-shadow: none;
+
+        &::placeholder {
+            color: $text-muted;
+        }
+
+        &:focus {
+            box-shadow: 0 0 0 3px rgba($accent-primary, 0.15);
+        }
+
+        .dark & {
+            color: $dark-text-primary;
+            background-color: $dark-bg-input;
+
+            &::placeholder {
+                color: $dark-text-muted;
+            }
+
+            &:focus {
+                box-shadow: 0 0 0 3px rgba($dark-accent-primary, 0.25);
+            }
+        }
+    }
+
+    .settings-help,
+    .form-text {
+        font-size: 12px;
+        color: $text-muted;
+        margin: 0;
+
+        .dark & {
+            color: $dark-text-muted;
+        }
+    }
+
+    // An input with a button next to it
+    .settings-field-inline {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        .form-control,
+        .form-select {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+}
+
+// Label and description on the left, an action on the right
+.settings-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    max-width: 640px;
+
+    .settings-row-text {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .settings-row-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: $text-primary;
+
+        .dark & {
+            color: $dark-text-primary;
+        }
+    }
+
+    .settings-row-desc {
+        font-size: 12px;
+        color: $text-muted;
+
+        .dark & {
+            color: $dark-text-muted;
+        }
+    }
+}
+
+// Neutral filled button: "Auto get", "Manage", "Disable"
+.btn-subtle,
+.btn-danger-subtle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: normal;
+    white-space: nowrap;
+    text-decoration: none;
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.1s ease-in-out;
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+}
+
+.btn-subtle {
+    color: $text-primary;
+    background-color: $bg-surface-raised;
+
+    &:hover:not(:disabled) {
+        color: $text-primary;
+        background-color: $border-default;
+    }
+
+    .dark & {
+        color: $dark-text-primary;
+        background-color: $dark-bg-surface-raised;
+
+        &:hover:not(:disabled) {
+            color: $dark-text-primary;
+            background-color: $dark-border-default;
+        }
+    }
+}
+
+// Red text on danger-subtle: "Delete", "Disable" sign-in
+.btn-danger-subtle {
+    padding: 8px 12px;
+    color: $status-danger;
+    background-color: $status-danger-subtle;
+
+    &:hover:not(:disabled) {
+        color: $status-danger;
+        background-color: $status-danger-subtle-hover;
+    }
+
+    .dark & {
+        color: $dark-status-danger;
+        background-color: $dark-status-danger-subtle;
+
+        &:hover:not(:disabled) {
+            color: $dark-status-danger;
+            background-color: lighten($dark-status-danger-subtle, 4%);
+        }
+    }
+}
+
+// Pill with a leading dot
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px 3px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: normal;
+    white-space: nowrap;
+    border-radius: 999px;
+
+    &::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: currentColor;
+    }
+
+    &--accent {
+        color: $accent-primary;
+        background-color: $accent-primary-subtle;
+
+        .dark & {
+            color: $dark-accent-primary;
+            background-color: $dark-accent-primary-subtle;
+        }
+    }
+
+    &--success {
+        color: $status-success;
+        background-color: $status-success-subtle;
+
+        .dark & {
+            color: $dark-status-success;
+            background-color: $dark-status-success-subtle;
+        }
+    }
+
+    &--warning {
+        color: $status-warning;
+        background-color: $status-warning-subtle;
+
+        .dark & {
+            color: $dark-status-warning;
+            background-color: $dark-status-warning-subtle;
+        }
+    }
+
+    &--neutral {
+        color: $status-neutral;
+        background-color: $status-neutral-subtle;
+
+        .dark & {
+            color: $dark-status-neutral;
+            background-color: $dark-status-neutral-subtle;
+        }
+    }
+}
