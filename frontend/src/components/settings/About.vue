@@ -10,7 +10,7 @@
         <div class="about-details">
             <div v-for="row in rows" :key="row.label" class="about-row">
                 <span class="about-label">{{ row.label }}</span>
-                <span class="about-value" :class="{ 'about-unavailable': row.value === null }">{{ row.value === null ? $t("unavailable") : row.value }}</span>
+                <span class="about-value" :class="{ 'about-unavailable': row.value === null }">{{ row.value === undefined ? $t("loadingValue") : row.value === null ? $t("unavailable") : row.value }}</span>
             </div>
         </div>
 
@@ -59,12 +59,12 @@ export default {
         return {
             iconSwitchOn,
             iconSwitchOff,
-            /** Result of getSystemInfo; null fields mean unavailable */
+            /** Result of getSystemInfo; undefined means still loading, null means unavailable */
             systemInfo: {
-                dockerVersion: null,
-                composeVersion: null,
-                host: null,
-                uptimeSeconds: null,
+                dockerVersion: undefined,
+                composeVersion: undefined,
+                host: undefined,
+                uptimeSeconds: undefined,
             },
         };
     },
@@ -89,8 +89,8 @@ export default {
         },
 
         /**
-         * Rows of the info table. A null value is shown as unavailable.
-         * @returns {{label: string, value: string|null}[]}
+         * Rows of the info table. An undefined value is shown as loading, a null value as unavailable.
+         * @returns {{label: string, value: string|null|undefined}[]}
          */
         rows() {
             const info = this.systemInfo;
@@ -110,7 +110,7 @@ export default {
                 { label: this.$t("host"),
                     value: info.host },
                 { label: this.$t("uptime"),
-                    value: info.uptimeSeconds === null ? null : this.formatUptime(info.uptimeSeconds) },
+                    value: info.uptimeSeconds == null ? info.uptimeSeconds : this.formatUptime(info.uptimeSeconds) },
             );
             return rows;
         },
@@ -124,6 +124,13 @@ export default {
                     composeVersion: res.composeVersion ?? null,
                     host: res.host ?? null,
                     uptimeSeconds: typeof res.uptimeSeconds === "number" ? res.uptimeSeconds : null,
+                };
+            } else {
+                this.systemInfo = {
+                    dockerVersion: null,
+                    composeVersion: null,
+                    host: null,
+                    uptimeSeconds: null,
                 };
             }
         });

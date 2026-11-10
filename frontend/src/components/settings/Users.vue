@@ -87,7 +87,7 @@
                                 <input
                                     id="new-user-repeat-password" v-model="newUser.repeatPassword" :type="showPassword ? 'text' : 'password'"
                                     class="form-control" :class="{ 'is-invalid': invalidPassword }"
-                                    :placeholder="$t('repeatPasswordPlaceholder')" autocomplete="new-password" required
+                                    :placeholder="$t('repeatUserPasswordPlaceholder')" autocomplete="new-password" required
                                 />
                                 <div v-if="invalidPassword" class="field-error">{{ $t("passwordNotMatchMsg") }}</div>
                             </div>

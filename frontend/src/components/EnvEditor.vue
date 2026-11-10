@@ -35,7 +35,7 @@
                 <span class="icon"><img :src="icons.plus" alt="" width="10.8333" height="10.8333" /></span>
                 {{ $t("addVariable") }}
             </button>
-            <p class="field-hint">{{ $t("envHint") }}</p>
+            <p v-if="!listOnly" class="field-hint">{{ $t("envHint") }}</p>
         </template>
 
         <!-- Raw view: code editor -->

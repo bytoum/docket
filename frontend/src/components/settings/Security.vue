@@ -95,7 +95,7 @@
                     <button v-if="settings.disableAuth" id="enableAuth-btn" type="button" class="btn btn-primary" @click="enableAuth">{{ $t("Enable Auth") }}</button>
                     <button v-else id="disableAuth-btn" type="button" class="btn-danger-subtle" @click="confirmDisableAuth">
                         <span class="trash-icon" :style="trashIconStyle" aria-hidden="true"></span>
-                        {{ $t("disableUser") }}
+                        {{ $t("disableSignIn") }}
                     </button>
                 </div>
             </div>

@@ -248,6 +248,12 @@ export default {
         align-items: stretch;
         gap: 16px;
     }
+
+    @media (max-width: 767.98px) {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
 }
 
 .settings-menu {
@@ -258,6 +264,10 @@ export default {
     width: 240px;
 
     .mobile & {
+        width: 100%;
+    }
+
+    @media (max-width: 767.98px) {
         width: 100%;
     }
 
@@ -341,6 +351,13 @@ export default {
     }
 
     .mobile & {
+        padding: 16px;
+        min-height: 0;
+    }
+
+    @media (max-width: 767.98px) {
+        width: 100%;
+        min-width: 0;
         padding: 16px;
         min-height: 0;
     }
