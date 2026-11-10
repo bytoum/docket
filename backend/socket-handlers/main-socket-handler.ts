@@ -15,6 +15,7 @@ import {
     checkLogin,
     DocketSocket,
     doubleCheckPassword,
+    isOwner,
     JWTDecoded,
     ValidationError
 } from "../util-server";
@@ -309,10 +310,13 @@ export class MainSocketHandler extends SocketHandler {
                 checkLogin(socket);
                 const data = await Settings.getSettings("general");
 
-                if (fs.existsSync(path.join(server.stacksDir, "global.env"))) {
-                    data.globalENV = fs.readFileSync(path.join(server.stacksDir, "global.env"), "utf-8");
-                } else {
-                    data.globalENV = "# VARIABLE=value #comment";
+                // global.env can hold secrets, so only the owner gets it
+                if (await isOwner(socket)) {
+                    if (fs.existsSync(path.join(server.stacksDir, "global.env"))) {
+                        data.globalENV = fs.readFileSync(path.join(server.stacksDir, "global.env"), "utf-8");
+                    } else {
+                        data.globalENV = "# VARIABLE=value #comment";
+                    }
                 }
 
                 callback({
@@ -345,8 +349,9 @@ export class MainSocketHandler extends SocketHandler {
                 }
                 // Handle global.env, only when the request includes it. A save
                 // without it (e.g. sent before the settings page has loaded)
-                // must not delete the file.
-                if (typeof data.globalENV === "string") {
+                // must not delete the file. Only the owner may change it; it
+                // is ignored for other users.
+                if (typeof data.globalENV === "string" && await isOwner(socket)) {
                     if (data.globalENV && data.globalENV != "# VARIABLE=value #comment") {
                         await fsAsync.writeFile(path.join(server.stacksDir, "global.env"), data.globalENV);
                     } else {

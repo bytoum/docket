@@ -7,9 +7,10 @@ import { generatePasswordHash } from "../password-hash";
 import { callbackError, callbackResult, checkLogin, DocketSocket, requireOwner } from "../util-server";
 import { LooseObject } from "../../common/util-common";
 import { clearTwoFA } from "../two-fa";
+import User from "../models/user";
 
 /**
- * User management: list, add, disable/enable and delete users.
+ * User management: list, add, disable/enable, reset password or 2FA, and delete users.
  * Every logged-in user can see the list; only the owner can change it.
  * Local only, not proxied to agents.
  */
@@ -123,6 +124,33 @@ export class UserSocketHandler extends SocketHandler {
                 callbackResult({
                     ok: true,
                     msg: "twoFAReset",
+                    msgi18n: true,
+                }, callback);
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
+
+        // Set another user's password (owner only), e.g. when they forgot it.
+        // Logs them out everywhere, because their tokens carry the old password hash.
+        socket.on("resetUserPassword", async (userID : unknown, newPassword : unknown, callback : unknown) => {
+            try {
+                await requireOwner(socket);
+                const user = await findOtherUser(socket, userID);
+
+                const password = typeof newPassword === "string" ? newPassword : "";
+                if (passwordStrength(password).value === "Too weak") {
+                    throw new Error("Password is too weak. It should contain alphabetic and numeric characters. It must be at least 6 characters in length.");
+                }
+
+                await User.resetPassword(user.id, password);
+                server.disconnectAllSocketClients(user.id);
+
+                log.info("user", `Password of user ${user.username} reset by user ID ${socket.userID}`);
+
+                callbackResult({
+                    ok: true,
+                    msg: "userPasswordReset",
                     msgi18n: true,
                 }, callback);
             } catch (e) {

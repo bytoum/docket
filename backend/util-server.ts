@@ -84,13 +84,24 @@ export function checkLogin(socket : DocketSocket) {
 export async function requireOwner(socket : DocketSocket) {
     checkLogin(socket);
 
+    if (!await isOwner(socket)) {
+        throw new Error("ownerOnly");
+    }
+}
+
+/**
+ * Whether the socket's user is the active owner. Reads the database every time.
+ * @param {DocketSocket} socket Socket to check
+ * @returns {Promise<boolean>} True for the owner
+ */
+export async function isOwner(socket : DocketSocket) : Promise<boolean> {
+    if (!socket.userID) {
+        return false;
+    }
     const user = await R.findOne("user", " id = ? AND active = 1 ", [
         socket.userID,
     ]);
-
-    if (!user || !user.is_owner) {
-        throw new Error("ownerOnly");
-    }
+    return !!user?.is_owner;
 }
 
 export class ValidationError extends Error {

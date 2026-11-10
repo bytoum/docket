@@ -27,8 +27,8 @@
             <div class="settings-card">
                 <div v-if="currentPage" class="settings-card-header">
                     <div class="settings-card-title">
-                        <h2>{{ subMenus[currentPage].title }}</h2>
-                        <p>{{ subMenus[currentPage].description }}</p>
+                        <h2>{{ pageInfo.title }}</h2>
+                        <p>{{ pageInfo.description }}</p>
                     </div>
                     <!-- Pages teleport their header actions (e.g. "Add user") here -->
                     <div id="settings-header-actions" class="settings-card-actions"></div>
@@ -61,6 +61,9 @@ export default {
             show: true,
             settings: {},
             settingsLoaded: false,
+            // Only the owner sees the Users and Global .env pages. False until the server says otherwise.
+            isOwner: false,
+            ownerStatusLoaded: false,
         };
     },
 
@@ -82,7 +85,28 @@ export default {
             }
         },
 
+        /**
+         * Title and description of the current page. Uses the full list,
+         * so the header still renders before the owner check returns.
+         * @returns {object} Title and description, empty for an unknown page
+         */
+        pageInfo() {
+            return this.allMenus[this.currentPage] ?? {
+                title: "",
+                description: "",
+            };
+        },
+
         subMenus() {
+            const menus = { ...this.allMenus };
+            if (!this.isOwner) {
+                delete menus.users;
+                delete menus.globalEnv;
+            }
+            return menus;
+        },
+
+        allMenus() {
             return {
                 general: {
                     title: this.$t("general"),
@@ -121,11 +145,16 @@ export default {
     watch: {
         "$root.isMobile"() {
             this.loadGeneralPage();
-        }
+        },
+
+        currentPage() {
+            this.leaveOwnerPagesIfNotOwner();
+        },
     },
 
     mounted() {
         this.loadSettings();
+        this.loadOwnerStatus();
         this.loadGeneralPage();
     },
 
@@ -148,6 +177,31 @@ export default {
         loadGeneralPage() {
             if (!this.currentPage && !this.$root.isMobile) {
                 this.$router.push("/settings/appearance");
+            }
+        },
+
+        /**
+         * Ask the server whether the logged-in user is the owner,
+         * then leave the owner-only pages if they are not
+         * @returns {void}
+         */
+        loadOwnerStatus() {
+            this.$root.getSocket().emit("getUserList", (res) => {
+                this.isOwner = !!res.ok && res.userList.some((user) => user.id === res.currentUserID && user.isOwner);
+                this.ownerStatusLoaded = true;
+                this.leaveOwnerPagesIfNotOwner();
+            });
+        },
+
+        /**
+         * Send a non-owner who opens an owner-only page (Users, Global .env)
+         * to the Security page
+         * @returns {void}
+         */
+        leaveOwnerPagesIfNotOwner() {
+            const ownerPages = [ "users", "globalEnv" ];
+            if (this.ownerStatusLoaded && !this.isOwner && ownerPages.includes(this.currentPage)) {
+                this.$router.replace("/settings/security");
             }
         },
 

@@ -1,7 +1,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import type { Socket } from "socket.io-client";
-import { Backend, call, closeAll, connect, OWNER, setupUsers, startBackend } from "./helpers/backend";
+import { Backend, call, closeAll, connect, OWNER, setupUsers, startBackend, TESTER } from "./helpers/backend";
 
 describe("settings", () => {
     let backend : Backend;
@@ -43,5 +43,20 @@ describe("settings", () => {
         const res = await call(owner, "setSettings", { globalENV: "" }, "");
         assert.equal(res.ok, true);
         assert.equal(await globalEnv(), "# VARIABLE=value #comment");
+    });
+
+    it("hides global.env from a non-owner and ignores their changes to it", async () => {
+        assert.equal((await call(owner, "setSettings", { globalENV: "SECRET=1\n" }, "")).ok, true);
+
+        const tester = await connect(backend.url);
+        assert.equal((await call(tester, "login", TESTER)).ok, true);
+
+        const read = await call(tester, "getSettings");
+        assert.equal(read.ok, true);
+        assert.equal(read.data.globalENV, undefined);
+
+        const write = await call(tester, "setSettings", { globalENV: "SECRET=2\n" }, "");
+        assert.equal(write.ok, true);
+        assert.equal(await globalEnv(), "SECRET=1\n");
     });
 });

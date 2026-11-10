@@ -27,6 +27,9 @@
                     </div>
 
                     <div v-if="isOwner && user.id !== currentUserID" class="user-actions">
+                        <button type="button" class="btn-subtle" :disabled="processing" @click="openResetPassword(user)">
+                            {{ $t("resetPassword") }}
+                        </button>
                         <button v-if="user.twoFA" type="button" class="btn-subtle" :disabled="processing" @click="confirmReset2FA(user)">
                             {{ $t("reset2FA") }}
                         </button>
@@ -44,15 +47,15 @@
             <p v-if="loaded && !isOwner" class="settings-help">{{ $t("ownerOnlyHint") }}</p>
         </div>
 
-        <!-- Add user dialog (owner only) -->
-        <form v-if="isOwner" @submit.prevent="addUser">
+        <!-- Add user / reset password dialog (owner only) -->
+        <form v-if="isOwner" @submit.prevent="submitForm">
             <div ref="modal" class="modal fade" tabindex="-1" data-bs-backdrop="static">
                 <div class="modal-dialog modal-dialog-centered add-user-modal">
                     <div class="modal-content add-user-dialog settings-dialog">
                         <div class="dialog-header">
                             <div class="dialog-title">
-                                <h5>{{ $t("addUser") }}</h5>
-                                <p>{{ $t("addUserSubtitle") }}</p>
+                                <h5>{{ passwordTarget ? $t("resetPasswordTitle") : $t("addUser") }}</h5>
+                                <p>{{ passwordTarget ? $t("resetPasswordSubtitle", [ passwordTarget.username ]) : $t("addUserSubtitle") }}</p>
                             </div>
                             <button type="button" class="btn-subtle dialog-close" data-bs-dismiss="modal" aria-label="Close">
                                 <span class="close-icon" aria-hidden="true"></span>
@@ -60,16 +63,16 @@
                         </div>
 
                         <div class="dialog-body">
-                            <div class="settings-field">
+                            <div v-if="!passwordTarget" class="settings-field">
                                 <label for="new-user-username">{{ $t("Username") }}</label>
                                 <input
                                     id="new-user-username" v-model.trim="newUser.username" class="form-control"
-                                    :placeholder="$t('usernamePlaceholder')" autocomplete="off" required
+                                    :placeholder="$t('usernamePlaceholder')" autocomplete="off" :required="!passwordTarget"
                                 />
                             </div>
 
                             <div class="settings-field">
-                                <label for="new-user-password">{{ $t("Password") }}</label>
+                                <label for="new-user-password">{{ passwordTarget ? $t("New Password") : $t("Password") }}</label>
                                 <div class="settings-field-inline">
                                     <input
                                         id="new-user-password" v-model="newUser.password" :type="showPassword ? 'text' : 'password'"
@@ -79,7 +82,7 @@
                                     <button v-if="showPassword && newUser.password" type="button" class="btn-subtle" @click="copyPassword">{{ $t("copyPassword") }}</button>
                                 </div>
                                 <div class="settings-help">{{ $t("newUserPasswordHelp") }}</div>
-                                <div v-if="showPassword" class="settings-help">{{ $t("generatedPasswordHint") }}</div>
+                                <div v-if="showPassword" class="settings-help">{{ passwordTarget ? $t("generatedResetPasswordHint") : $t("generatedPasswordHint") }}</div>
                             </div>
 
                             <div class="settings-field">
@@ -96,8 +99,11 @@
                         <div class="dialog-footer">
                             <button type="button" class="btn-subtle" data-bs-dismiss="modal">{{ $t("cancel") }}</button>
                             <button class="btn btn-primary" type="submit" :disabled="processing">
-                                <span class="plus-icon" aria-hidden="true"></span>
-                                {{ $t("addUser") }}
+                                <template v-if="passwordTarget">{{ $t("resetPassword") }}</template>
+                                <template v-else>
+                                    <span class="plus-icon" aria-hidden="true"></span>
+                                    {{ $t("addUser") }}
+                                </template>
                             </button>
                         </div>
                     </div>
@@ -125,7 +131,8 @@ import { genSecret } from "../../../../common/util-common";
 const GENERATED_PASSWORD_LENGTH = 20;
 
 /**
- * Settings page to list users. The owner can also add, disable and delete them.
+ * Settings page to list users. The owner can also add, disable and delete them,
+ * and reset their password or 2FA.
  */
 export default {
     components: {
@@ -142,6 +149,8 @@ export default {
             currentUserID: null,
             userToDelete: null,
             userToReset: null,
+            // User whose password the dialog resets; null when it adds a user
+            passwordTarget: null,
             invalidPassword: false,
             // Shown in plain text after "Generate", so it can be copied
             showPassword: false,
@@ -214,12 +223,60 @@ export default {
          * @returns {void}
          */
         openAddUser() {
+            this.passwordTarget = null;
             this.ensureModal();
             this.modal?.show();
         },
 
         /**
-         * Clear the Add user form and its error
+         * Open the dialog to set a new password for another user
+         * @param {object} user User whose password to reset
+         * @returns {void}
+         */
+        openResetPassword(user) {
+            this.resetForm();
+            this.passwordTarget = user;
+            this.ensureModal();
+            this.modal?.show();
+        },
+
+        /**
+         * Submit the dialog: add a user or reset a password
+         * @returns {void}
+         */
+        submitForm() {
+            if (this.passwordTarget) {
+                this.resetPassword();
+            } else {
+                this.addUser();
+            }
+        },
+
+        /**
+         * Set the new password from the form for the target user.
+         * The server logs that user out everywhere.
+         * @returns {void}
+         */
+        resetPassword() {
+            if (this.newUser.password !== this.newUser.repeatPassword) {
+                this.invalidPassword = true;
+                return;
+            }
+
+            this.processing = true;
+            this.$root.getSocket().emit("resetUserPassword", this.passwordTarget.id, this.newUser.password, (res) => {
+                this.processing = false;
+                this.$root.toastRes(res);
+                // The form is cleared once the dialog has closed (hidden.bs.modal),
+                // so the title doesn't switch to "Add user" while it fades out
+                if (res.ok) {
+                    this.modal?.hide();
+                }
+            });
+        },
+
+        /**
+         * Clear the dialog form and its error
          * @returns {void}
          */
         resetForm() {
@@ -230,6 +287,7 @@ export default {
             };
             this.showPassword = false;
             this.invalidPassword = false;
+            this.passwordTarget = null;
         },
 
         /**
