@@ -62,6 +62,9 @@ Replies to the browser come back wrapped as `"agent"` events (`socket.emitAgent`
 ### Database
 [backend/database.ts](backend/database.ts) uses `redbean-node` (`R`) on top of knex. SQLite is the default (`data/docket.db`; an older `data/dockge.db` is renamed to it on startup), and MySQL is possible via `data/db-config.json`. Migrations are knex migrations in [backend/migrations/](backend/migrations/), named `YYYY-MM-DD-HHMM-description.ts`, and they run automatically at startup (`Database.patch()`). The DB only holds users, settings and agents.
 
+### Two-factor authentication
+TOTP, using the `otpauth` package in [backend/two-fa.ts](backend/two-fa.ts) (6 digits, 30s, window 1; `clearTwoFA(userID)` wipes a user's 2FA). Users manage their own 2FA through the local-only events in [backend/socket-handlers/two-fa-socket-handler.ts](backend/socket-handlers/two-fa-socket-handler.ts), and the ones that change it require the current password. The `login` handler replies `tokenRequired`, rejects a reused code (`twofa_last_token`) and is rate limited. The owner can reset another user's 2FA (`resetUser2FA` in `user-socket-handler.ts`), and `npm run reset-password` offers to turn it off. Agent connections cannot use 2FA, so `AgentManager` reports `agentTwoFAError` when a remote account has it on.
+
 ### Frontend
 Vue 3 with the Options API, using mixins. [frontend/src/mixins/socket.ts](frontend/src/mixins/socket.ts) holds the global socket connection and shared state (stack list, agent list and status, terminals). It is mixed into the root app, and components reach it via `this.$root`. Bootstrap 5 / bootstrap-vue-next components are auto-imported (see `frontend/components.d.ts`, which the Vite plugin regenerates; commit it when components are added or removed). `common/` is imported by both backend and frontend.
 
