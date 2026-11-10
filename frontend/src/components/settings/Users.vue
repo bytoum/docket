@@ -34,7 +34,7 @@
                             {{ user.active ? $t("disableUser") : $t("enableUser") }}
                         </button>
                         <button type="button" class="btn-danger-subtle" :disabled="processing" @click="confirmDelete(user)">
-                            <span class="trash-icon" :style="{ '--trash-icon': `url('${iconTrash}')` }" aria-hidden="true"></span>
+                            <span class="trash-icon" :style="trashIconStyle" aria-hidden="true"></span>
                             {{ $t("deleteUser") }}
                         </button>
                     </div>
@@ -47,8 +47,8 @@
         <!-- Add user dialog (owner only) -->
         <form v-if="isOwner" @submit.prevent="addUser">
             <div ref="modal" class="modal fade" tabindex="-1" data-bs-backdrop="static">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content add-user-dialog">
+                <div class="modal-dialog modal-dialog-centered add-user-modal">
+                    <div class="modal-content add-user-dialog settings-dialog">
                         <div class="dialog-header">
                             <div class="dialog-title">
                                 <h5>{{ $t("addUser") }}</h5>
@@ -134,7 +134,8 @@ export default {
 
     data() {
         return {
-            iconTrash,
+            // The URL is quoted because inlined SVG data URIs contain single quotes
+            trashIconStyle: { "--trash-icon": `url("${iconTrash}")` },
             loaded: false,
             processing: false,
             userList: [],
@@ -514,7 +515,11 @@ $close-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' v
     -webkit-mask: $close-icon center / contain no-repeat;
 }
 
-// Add user dialog
+// Add user dialog (520px wide in Figma)
+.add-user-modal {
+    max-width: 520px;
+}
+
 .add-user-dialog {
     border: 0;
     border-radius: 4px;
@@ -553,6 +558,7 @@ $close-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' v
     p {
         margin: 0;
         font-size: 13px;
+        line-height: normal;
         color: $text-muted;
 
         .dark & {

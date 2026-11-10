@@ -230,7 +230,7 @@ export default {
 }
 
 .global-env-editor {
-    min-height: 320px;
+    min-height: 440px;
     border-radius: 4px;
     overflow: hidden;
     background-color: $bg-input;
@@ -238,7 +238,7 @@ export default {
     font-size: 13px;
 
     :deep(.cm-editor) {
-        min-height: 320px;
+        min-height: 440px;
         font-family: inherit;
         color: $text-primary;
         background-color: transparent !important;
@@ -250,11 +250,11 @@ export default {
 
     :deep(.cm-scroller) {
         font-family: inherit;
-        line-height: 22px;
+        line-height: 23px;
     }
 
     :deep(.cm-content) {
-        padding: 10px 0;
+        padding: 14px 0;
         caret-color: $text-primary;
     }
 
@@ -264,9 +264,9 @@ export default {
 
     :deep(.cm-gutters) {
         min-height: 100%;
-        padding: 0 10px;
+        padding: 0 6px 0 14px;
         color: $muted;
-        background-color: $bg-surface-raised;
+        background-color: transparent;
         border-right: none;
     }
 
@@ -275,7 +275,7 @@ export default {
     }
 
     :deep(.cm-activeLine) {
-        background-color: rgba($accent-primary-subtle, 0.7) !important;
+        background-color: transparent !important;
     }
 
     :deep(.cm-activeLineGutter) {
@@ -317,12 +317,12 @@ export default {
         }
 
         :deep(.cm-gutters) {
-            background-color: $dark-bg-surface-raised;
+            background-color: transparent;
             color: $dark-text-muted;
         }
 
         :deep(.cm-activeLine) {
-            background-color: rgba($dark-accent-primary, 0.12) !important;
+            background-color: transparent !important;
         }
 
         :deep(.cm-activeLineGutter) {

@@ -6,8 +6,8 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             {{ $t("Setup 2FA") }}
-                            <span v-if="twoFAStatus == true" class="status-badge status-badge--success">{{ $t("Active") }}</span>
-                            <span v-if="twoFAStatus == false" class="status-badge status-badge--neutral">{{ $t("Inactive") }}</span>
+                            <span v-if="twoFAStatus == true" class="status-badge status-badge--success ms-2">{{ $t("Active") }}</span>
+                            <span v-if="twoFAStatus == false" class="status-badge status-badge--neutral ms-2">{{ $t("Inactive") }}</span>
                         </h5>
                         <button :disabled="processing" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
                     </div>

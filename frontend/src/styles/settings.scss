@@ -95,6 +95,7 @@
     .settings-help,
     .form-text {
         font-size: 12px;
+        line-height: normal;
         color: $text-muted;
         margin: 0;
 
@@ -147,6 +148,7 @@
 
     .settings-row-desc {
         font-size: 12px;
+        line-height: normal;
         color: $text-muted;
 
         .dark & {
@@ -319,4 +321,19 @@
             }
         }
     }
+}
+
+// Primary button in the settings card and its dialogs: flat 4px corners,
+// optional leading icon, smaller type than the default Bootstrap button
+.settings-card .btn-primary,
+.settings-dialog .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: normal;
+    border-radius: 4px;
 }

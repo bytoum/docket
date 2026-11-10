@@ -3,7 +3,7 @@
         <div class="about-brand">
             <img src="/icon.svg" alt="" width="32" height="32" />
             <span class="about-name">Docket</span>
-            <span class="status-badge status-badge--accent">v{{ $root.info.version }}</span>
+            <span v-if="$root.info?.version" class="status-badge status-badge--accent">v{{ $root.info.version }}</span>
         </div>
         <p class="about-tagline">{{ $t("aboutTagline") }}</p>
 
@@ -96,7 +96,7 @@ export default {
             const info = this.systemInfo;
             const rows = [
                 { label: this.$t("Version"),
-                    value: this.$root.info.version },
+                    value: this.$root.info?.version ?? null },
             ];
             if (!this.$root.isFrontendBackendVersionMatched) {
                 rows.push({ label: this.$t("Frontend Version"),
@@ -211,6 +211,7 @@ export default {
     gap: 8px;
     padding: 12px 14px;
     font-size: 13px;
+    line-height: normal;
     border-radius: 4px;
     background-color: $bg-input;
 

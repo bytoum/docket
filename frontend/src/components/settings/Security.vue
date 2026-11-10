@@ -94,7 +94,7 @@
                     </div>
                     <button v-if="settings.disableAuth" id="enableAuth-btn" type="button" class="btn btn-primary" @click="enableAuth">{{ $t("Enable Auth") }}</button>
                     <button v-else id="disableAuth-btn" type="button" class="btn-danger-subtle" @click="confirmDisableAuth">
-                        <span class="trash-icon" :style="{ '--trash-icon': `url('${iconTrash}')` }" aria-hidden="true"></span>
+                        <span class="trash-icon" :style="trashIconStyle" aria-hidden="true"></span>
                         {{ $t("disableUser") }}
                     </button>
                 </div>
@@ -147,7 +147,8 @@ export default {
 
     data() {
         return {
-            iconTrash,
+            // The URL is quoted because inlined SVG data URIs contain single quotes
+            trashIconStyle: { "--trash-icon": `url("${iconTrash}")` },
             invalidPassword: false,
             twoFAStatus: null,
             password: {

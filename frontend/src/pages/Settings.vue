@@ -269,6 +269,7 @@ export default {
         border-radius: 4px;
         font-size: 14px;
         font-weight: 500;
+        line-height: normal;
         color: $text-primary;
         text-decoration: none !important;
         cursor: pointer;
@@ -286,6 +287,7 @@ export default {
             }
         }
 
+        &.active,
         &.router-link-active {
             font-weight: 600;
             color: $accent-primary;
@@ -375,6 +377,7 @@ export default {
 
     p {
         font-size: 13px;
+        line-height: normal;
         margin: 0;
         color: $text-muted;
 
