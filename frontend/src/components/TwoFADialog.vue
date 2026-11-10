@@ -6,18 +6,22 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             {{ $t("Setup 2FA") }}
-                            <span v-if="twoFAStatus == true" class="badge bg-primary">{{ $t("Active") }}</span>
-                            <span v-if="twoFAStatus == false" class="badge bg-primary">{{ $t("Inactive") }}</span>
+                            <span v-if="twoFAStatus == true" class="status-badge active">{{ $t("Active") }}</span>
+                            <span v-if="twoFAStatus == false" class="status-badge inactive">{{ $t("Inactive") }}</span>
                         </h5>
                         <button :disabled="processing" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" />
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
-                            <div v-if="uri && twoFAStatus == false" class="mx-auto text-center" style="width: 210px;">
-                                <vue-qrcode :key="uri" :value="uri" type="image/png" :quality="1" :color="{ light: '#ffffffff' }" />
-                                <button v-show="!showURI" type="button" class="btn btn-outline-primary btn-sm mt-2" @click="showURI = true">{{ $t("Show URI") }}</button>
+                            <div v-if="uri && twoFAStatus == false" class="mx-auto text-center qr-wrap">
+                                <div class="qr-box">
+                                    <vue-qrcode :key="uri" :value="uri" type="image/png" :quality="1" :color="{ light: '#ffffffff' }" />
+                                </div>
+                                <button v-show="!showSecret" type="button" class="btn btn-outline-primary btn-sm mt-2" @click="showSecret = true">{{ $t("Show secret") }}</button>
                             </div>
-                            <p v-if="showURI && twoFAStatus == false" class="text-break mt-2">{{ uri }}</p>
+                            <div v-if="showSecret && secret && twoFAStatus == false" class="text-center mt-2">
+                                <code class="secret-code">{{ secret }}</code>
+                            </div>
 
                             <div v-if="!(uri && twoFAStatus == false)" class="mb-3">
                                 <label for="current-password" class="form-label">
@@ -47,7 +51,7 @@
                                     <input v-model="token" type="text" maxlength="6" class="form-control" autocomplete="one-time-code" required>
                                     <button class="btn btn-outline-primary" type="button" @click="verifyToken()">{{ $t("Verify Token") }}</button>
                                 </div>
-                                <p v-show="tokenValid" class="mt-2" style="color: green;">{{ $t("tokenValidSettingsMsg") }}</p>
+                                <p v-show="tokenValid" class="mt-2 token-valid">{{ $t("tokenValidSettingsMsg") }}</p>
                             </div>
                         </div>
                     </div>
@@ -85,6 +89,7 @@ export default {
         VueQrcode,
     },
     props: {},
+    emits: [ "changed" ],
     data() {
         return {
             currentPassword: "",
@@ -93,14 +98,43 @@ export default {
             tokenValid: false,
             twoFAStatus: null,
             token: null,
-            showURI: false,
+            showSecret: false,
         };
+    },
+    computed: {
+        /**
+         * The shared secret, parsed from the otpauth URI. Only set during setup.
+         * @returns {string} The secret, or an empty string
+         */
+        secret() {
+            if (!this.uri) {
+                return "";
+            }
+            try {
+                return new URL(this.uri).searchParams.get("secret") || "";
+            } catch (e) {
+                return "";
+            }
+        },
     },
     mounted() {
         this.modal = new Modal(this.$refs.modal);
+        this.$refs.modal.addEventListener("hidden.bs.modal", this.resetForm);
         this.getStatus();
     },
+    beforeUnmount() {
+        this.$refs.modal?.removeEventListener("hidden.bs.modal", this.resetForm);
+    },
     methods: {
+        /** Clear the password, code and setup state when the dialog closes */
+        resetForm() {
+            this.currentPassword = "";
+            this.token = null;
+            this.uri = null;
+            this.tokenValid = false;
+            this.showSecret = false;
+        },
+
         /** Show the dialog */
         show() {
             this.modal.show();
@@ -141,7 +175,7 @@ export default {
                 if (res.ok) {
                     this.$root.toastRes(res);
                     this.getStatus();
-                    this.currentPassword = "";
+                    this.$emit("changed");
                     this.modal.hide();
                 } else {
                     toast.error(res.msg);
@@ -159,7 +193,7 @@ export default {
                 if (res.ok) {
                     this.$root.toastRes(res);
                     this.getStatus();
-                    this.currentPassword = "";
+                    this.$emit("changed");
                     this.modal.hide();
                 } else {
                     toast.error(res.msg);
@@ -195,9 +229,62 @@ export default {
 <style lang="scss" scoped>
 @import "../styles/vars.scss";
 
+.qr-wrap {
+    width: 210px;
+}
+
+.qr-box {
+    background-color: #fff; // stays white so the QR code scans in dark mode
+    border-radius: 4px;
+    padding: 8px;
+}
+
+.secret-code {
+    user-select: all;
+    word-break: break-all;
+}
+
+.status-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    vertical-align: middle;
+
+    &.active {
+        color: $accent-primary;
+        background-color: $accent-primary-subtle;
+    }
+
+    &.inactive {
+        color: $status-neutral;
+        background-color: $status-neutral-subtle;
+    }
+}
+
+.token-valid {
+    color: $status-success;
+}
+
 .dark {
     .modal-dialog .form-text, .modal-dialog p {
         color: $dark-font-color;
+    }
+
+    .modal-dialog p.token-valid {
+        color: $dark-status-success;
+    }
+
+    .status-badge.active {
+        color: $dark-accent-primary;
+        background-color: $dark-accent-primary-subtle;
+    }
+
+    .status-badge.inactive {
+        color: $dark-status-neutral;
+        background-color: $dark-status-neutral-subtle;
     }
 }
 </style>

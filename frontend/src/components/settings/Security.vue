@@ -64,10 +64,11 @@
                 </form>
             </template>
 
-            <!-- TODO: Hidden for now -->
-            <div v-if="! settings.disableAuth && false" class="mt-5 mb-3">
+            <div v-if="! settings.disableAuth" class="mt-5 mb-3">
                 <h5 class="my-4 settings-subheading">
                     {{ $t("Two Factor Authentication") }}
+                    <span v-if="twoFAStatus === true" class="status-badge active">{{ $t("Active") }}</span>
+                    <span v-else-if="twoFAStatus === false" class="status-badge inactive">{{ $t("Inactive") }}</span>
                 </h5>
                 <div class="mb-4">
                     <button
@@ -91,7 +92,7 @@
             </div>
         </div>
 
-        <TwoFADialog ref="TwoFADialog" />
+        <TwoFADialog ref="TwoFADialog" @changed="loadTwoFAStatus" />
 
         <Confirm ref="confirmDisableAuth" btn-style="btn-danger" :yes-text="$t('I understand, please disable')" :no-text="$t('Leave')" @yes="disableAuth">
             <i18n-t keypath="disableauth.message1" tag="p">
@@ -137,6 +138,7 @@ export default {
     data() {
         return {
             invalidPassword: false,
+            twoFAStatus: null,
             password: {
                 currentPassword: "",
                 newPassword: "",
@@ -163,7 +165,20 @@ export default {
         },
     },
 
+    mounted() {
+        this.loadTwoFAStatus();
+    },
+
     methods: {
+        /** Load whether 2FA is enabled for the current user */
+        loadTwoFAStatus() {
+            this.$root.getSocket().emit("twoFAStatus", (res) => {
+                if (res.ok) {
+                    this.twoFAStatus = res.status;
+                }
+            });
+        },
+
         /** Check new passwords match before saving them */
         savePassword() {
             if (this.password.newPassword !== this.password.repeatNewPassword) {
@@ -211,3 +226,39 @@ export default {
     },
 };
 </script>
+
+<style lang="scss" scoped>
+@import "../../styles/vars.scss";
+
+.status-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    vertical-align: middle;
+
+    &.active {
+        color: $accent-primary;
+        background-color: $accent-primary-subtle;
+    }
+
+    &.inactive {
+        color: $status-neutral;
+        background-color: $status-neutral-subtle;
+    }
+}
+
+.dark {
+    .status-badge.active {
+        color: $dark-accent-primary;
+        background-color: $dark-accent-primary-subtle;
+    }
+
+    .status-badge.inactive {
+        color: $dark-status-neutral;
+        background-color: $dark-status-neutral-subtle;
+    }
+}
+</style>
