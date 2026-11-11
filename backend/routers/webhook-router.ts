@@ -54,16 +54,17 @@ export class WebhookRouter extends Router {
      * @returns {Promise<void>}
      */
     async handle(server : DocketServer, token : string, res : Response) : Promise<void> {
-        if (await webhookRateLimiter.removeTokens(1) < 0) {
-            res.status(429).json({
-                ok: false,
-                msg: "Too many requests",
-            });
-            return;
-        }
-
+        // Only unknown tokens count toward the limit, so strangers sending
+        // junk cannot block a real CI call
         const stackName = await findWebhookStackName(token);
         if (!stackName) {
+            if (await webhookRateLimiter.removeTokens(1) < 0) {
+                res.status(429).json({
+                    ok: false,
+                    msg: "Too many requests",
+                });
+                return;
+            }
             res.status(404).json({
                 ok: false,
                 msg: "Not found",

@@ -161,7 +161,7 @@ The request waits for the update to finish, so the step fails when the update fa
 | `200` | Updated |
 | `404` | Unknown URL, or the stack no longer exists |
 | `409` | Another operation is running on the stack; try again |
-| `429` | More than 30 webhook calls in a minute |
+| `429` | More than 30 calls with unknown URLs in a minute (valid URLs are never limited) |
 | `500` | The pull or the restart failed; the Docket log has details |
 
 Docket must be reachable from GitHub's runners (or use a self-hosted runner). If it runs behind a reverse proxy, raise the proxy's read timeout (for example `proxy_read_timeout 600s;` in nginx) so a long pull isn't cut off. A stack on a remote agent gets a URL on that agent's host.
