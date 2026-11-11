@@ -152,6 +152,59 @@ export const acceptedComposeFileNames = [
 ];
 
 /**
+ * Env file names Docket reads and writes in a stack folder: a plain file name
+ * (no folders), such as ".env.redis" or "redis.env"
+ */
+export const ENV_FILE_NAME_PATTERN = /^\.?[a-zA-Z0-9_-][a-zA-Z0-9._-]*$/;
+
+/**
+ * Whether Docket may read and write an env file of this name in the stack
+ * folder. The stack's own ".env" and the compose files are saved separately.
+ * @param fileName File name
+ * @returns True if it is allowed
+ */
+export function isValidEnvFileName(fileName : string) : boolean {
+    return ENV_FILE_NAME_PATTERN.test(fileName)
+        && fileName !== ".env"
+        && !acceptedComposeFileNames.includes(fileName);
+}
+
+/**
+ * Default name of a service's own env file, e.g. ".env.redis"
+ * @param serviceName Service name
+ * @returns File name
+ */
+export function defaultEnvFileName(serviceName : string) : string {
+    return `.env.${serviceName}`;
+}
+
+/**
+ * The env files of a service ("env_file", a path or a list of paths or
+ * { path } entries) that are plain files in the stack folder
+ * @param service Compose service
+ * @returns File names, without a leading "./"
+ */
+export function serviceEnvFileNames(service : unknown) : string[] {
+    const envFile = (service as LooseObject | null | undefined)?.env_file;
+    if (envFile === undefined || envFile === null) {
+        return [];
+    }
+    const list = Array.isArray(envFile) ? envFile : [ envFile ];
+    const names : string[] = [];
+    for (const entry of list) {
+        const entryPath = typeof entry === "string" ? entry : entry?.path;
+        if (typeof entryPath !== "string") {
+            continue;
+        }
+        const name = entryPath.replace(/^\.\//, "");
+        if (isValidEnvFileName(name) && !names.includes(name)) {
+            names.push(name);
+        }
+    }
+    return names;
+}
+
+/**
  * Generate a decimal integer number from a string
  * @param str Input
  * @param length Default is 10 which means 0 - 9

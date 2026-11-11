@@ -41,8 +41,9 @@
                             {{ $t("stopStack") }}
                         </button>
                     </div>
-                    <button class="icon-btn" :title="$t('editEnv')" :aria-label="$t('editEnv')" @click="editEnv">
-                        <AssetIcon :src="icons.env" width="10.5" height="12.8333" :box="14" tone="neutral" />
+                    <button class="env-btn" :title="hasEnv ? $t('editEnv') : $t('addEnv')" @click="editEnv">
+                        <font-awesome-icon v-if="!hasEnv" icon="plus" class="env-plus" />
+                        {{ $t("envButton") }}
                     </button>
                     <button class="icon-btn" :title="$t('Edit')" :aria-label="$t('Edit')" @click="editService">
                         <AssetIcon :src="icons.pen" width="13.0569" height="13.0569" :box="14" tone="neutral" />
@@ -124,7 +125,6 @@ import iconTerminal from "../assets/stack/terminal-sm.svg";
 import iconRestart from "../assets/stack/restart-sm.svg";
 import iconStop from "../assets/stack/stop-sm.svg";
 import iconPen from "../assets/stack/pen-sm.svg";
-import iconEnv from "../assets/stack/env-sm.svg";
 import iconTrash from "../assets/stack/trash-row.svg";
 import iconDotSuccess from "../assets/stack/dot-success.svg";
 import iconDotNeutral from "../assets/stack/dot-neutral.svg";
@@ -135,7 +135,6 @@ const icons = {
     restart: iconRestart,
     stop: iconStop,
     pen: iconPen,
-    env: iconEnv,
     trash: iconTrash,
     dotSuccess: iconDotSuccess,
     dotNeutral: iconDotNeutral,
@@ -168,7 +167,12 @@ export default defineComponent({
         dockerStats: {
             type: Object,
             default: null
-        }
+        },
+        /** Whether the service has variables (env file or inline) */
+        hasEnv: {
+            type: Boolean,
+            default: false,
+        },
     },
     emits: [
         "start-service",
@@ -450,6 +454,29 @@ export default defineComponent({
     }
 }
 
+// "+ Env" / "Env": opens the service's environment variables
+.env-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 30px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 4px;
+    background-color: $surface-raised;
+    font-size: 12px;
+    font-weight: 500;
+    color: $text-secondary;
+
+    &:hover {
+        background-color: darken($surface-raised, 4%);
+    }
+
+    .env-plus {
+        font-size: 10px;
+    }
+}
+
 .icon-btn {
     display: inline-flex;
     align-items: center;
@@ -568,8 +595,17 @@ export default defineComponent({
     }
 
     .service-actions,
-    .icon-btn {
+    .icon-btn,
+    .env-btn {
         background-color: $dark-bg-surface-raised;
+    }
+
+    .env-btn {
+        color: $dark-font-color;
+
+        &:hover {
+            background-color: $dark-bg2;
+        }
     }
 
     .service-actions .action {

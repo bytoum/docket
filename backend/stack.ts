@@ -13,7 +13,7 @@ import {
     EXITED, getCombinedTerminalName,
     getComposeTerminalName, getContainerExecTerminalName,
     PROGRESS_TERMINAL_ROWS,
-    RUNNING, TERMINAL_ROWS,
+    isValidEnvFileName, LooseObject, RUNNING, serviceEnvFileNames, TERMINAL_ROWS,
     UNKNOWN
 } from "../common/util-common";
 import { InteractiveTerminal, Terminal } from "./terminal";
@@ -28,6 +28,8 @@ export class Stack {
     protected _composeENV?: string;
     protected _configFilePath?: string;
     protected _composeFileName: string = "compose.yaml";
+    // Env files to write on save, by file name; null deletes the file
+    protected _envFilesToSave: Record<string, string | null> = {};
     protected server: DocketServer;
 
     protected combinedTerminal? : Terminal;
@@ -74,6 +76,7 @@ export class Stack {
             ...obj,
             composeYAML: this.composeYAML,
             composeENV: this.composeENV,
+            envFiles: this.envFiles,
             primaryHostname,
         };
     }
@@ -154,6 +157,63 @@ export class Stack {
         return this._composeENV;
     }
 
+    /**
+     * The env files the services list in "env_file" that are plain files in
+     * the stack folder and exist
+     * @returns File contents by file name
+     */
+    get envFiles() : Record<string, string> {
+        const files : Record<string, string> = {};
+        let config : LooseObject;
+        try {
+            config = yaml.parse(this.composeYAML) ?? {};
+        } catch (e) {
+            return files;
+        }
+        const services = config?.services;
+        if (!services || typeof services !== "object") {
+            return files;
+        }
+        for (const service of Object.values(services)) {
+            for (const fileName of serviceEnvFileNames(service)) {
+                if (fileName in files) {
+                    continue;
+                }
+                try {
+                    files[fileName] = fs.readFileSync(path.join(this.path, fileName), "utf-8");
+                } catch (e) {
+                    // Missing or unreadable
+                }
+            }
+        }
+        return files;
+    }
+
+    /**
+     * Set the env files to write on the next save
+     * @param files File contents by file name, null to delete the file
+     */
+    setEnvFiles(files : unknown) {
+        if (files === undefined || files === null) {
+            this._envFilesToSave = {};
+            return;
+        }
+        if (typeof files !== "object" || Array.isArray(files)) {
+            throw new ValidationError("Env files must be an object");
+        }
+        const result : Record<string, string | null> = {};
+        for (const [ fileName, content ] of Object.entries(files)) {
+            if (!isValidEnvFileName(fileName)) {
+                throw new ValidationError("Invalid env file name: " + fileName);
+            }
+            if (typeof content !== "string" && content !== null) {
+                throw new ValidationError("Env file content must be a string or null");
+            }
+            result[fileName] = content;
+        }
+        this._envFilesToSave = result;
+    }
+
     get path() : string {
         return path.join(this.server.stacksDir, this.name);
     }
@@ -198,11 +258,27 @@ export class Stack {
 
         // Write or overwrite the compose.yaml
         fs.writeFileSync(path.join(dir, this._composeFileName), this.composeYAML);
+
+        // Write or delete the services' env files
+        const envFileNames : string[] = [];
+        for (const [ fileName, content ] of Object.entries(this._envFilesToSave)) {
+            const filePath = path.join(dir, fileName);
+            if (content === null) {
+                fs.rmSync(filePath, { force: true });
+            } else {
+                fs.writeFileSync(filePath, content);
+                envFileNames.push(fileName);
+            }
+        }
+
         if (process.env.PUID && process.env.PGID) {
             const uid = Number(process.env.PUID);
             const gid = Number(process.env.PGID);
             fs.lchownSync(dir, uid, gid);
             fs.chownSync(path.join(dir, this._composeFileName), uid, gid);
+            for (const fileName of envFileNames) {
+                fs.chownSync(path.join(dir, fileName), uid, gid);
+            }
         }
     }
 

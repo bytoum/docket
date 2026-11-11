@@ -115,6 +115,7 @@
                         :first="name === Object.keys(jsonConfig.services)[0]"
                         :serviceStatus="serviceStatusList[name]"
                         :dockerStats="dockerStats"
+                        :has-env="hasServiceEnv(name)"
                         @start-service="startService"
                         @stop-service="stopService"
                         @restart-service="restartService"
@@ -396,6 +397,7 @@
                 :stack-name="stack.name"
                 :endpoint="endpoint"
                 :busy="processing && !isEditMode"
+                :has-env-file="!!containerDrawer.serviceName && serviceEnvFile(containerDrawer.serviceName) !== ''"
                 @close="containerDrawer.open = false"
                 @submit="applyContainerDrawer"
                 @create-network="openNetworkDrawerFromContainer"
@@ -404,11 +406,23 @@
             <EnvDrawer
                 :open="envDrawer.open"
                 :service-name="envDrawer.serviceName"
-                :json-config="jsonConfig"
+                :rows="envDrawer.rows"
+                :file-name="envDrawer.fileName"
+                :can-remove="hasServiceEnv(envDrawer.serviceName)"
                 :busy="processing && !isEditMode"
                 @close="envDrawer.open = false"
                 @submit="applyEnvDrawer"
+                @remove="envToRemove = $event"
             />
+
+            <!-- Remove env confirmation -->
+            <BModal
+                :modelValue="envToRemove !== ''" :title="$t('removeEnvTitle')" :cancelTitle="$t('cancel')"
+                :okTitle="$t('removeEnv')" okVariant="danger"
+                @update:model-value="(show) => { if (!show) envToRemove = '' }" @ok="removeServiceEnv(envToRemove)"
+            >
+                {{ $t(isEditMode ? "removeEnvMsgEdit" : "removeEnvMsg", [ envToRemove ]) }}
+            </BModal>
 
             <!-- After the container drawer, so "Create network…" opens on top of it -->
             <NetworkDrawer
@@ -479,12 +493,14 @@ import {
     COMPOSE_EXTENSION_KEY,
     LEGACY_COMPOSE_EXTENSION_KEY,
     normalizeStack,
-    RUNNING
+    defaultEnvFileName,
+    RUNNING,
+    serviceEnvFileNames
 } from "../../../common/util-common";
 import { BModal } from "bootstrap-vue-next";
 import ContainerDrawer from "../components/ContainerDrawer.vue";
 import EnvDrawer from "../components/EnvDrawer.vue";
-import { rowsToEnv } from "../components/EnvEditor.vue";
+import { envToRows, rowsToEnv, rowsToText, textToRows } from "../components/EnvEditor.vue";
 import NetworkDrawer from "../components/NetworkDrawer.vue";
 import VolumeDrawer from "../components/VolumeDrawer.vue";
 import AssetIcon from "../components/AssetIcon.vue";
@@ -601,6 +617,73 @@ function volumeSource(mount) {
     return "";
 }
 
+/**
+ * Add a file to a service's "env_file" (a string or a list of paths or
+ * { path } entries), unless it is already there
+ * @param {string|Array|undefined} envFile Current env_file value
+ * @param {string} fileName File to add, relative to the stack folder
+ * @returns {string|Array} New env_file value
+ */
+function addEnvFile(envFile, fileName) {
+    if (envFile === undefined || envFile === null || envFile === "") {
+        return fileName;
+    }
+    const list = Array.isArray(envFile) ? envFile : [ envFile ];
+    if (list.some((entry) => isEnvFileEntry(entry, fileName))) {
+        return envFile;
+    }
+    return [ ...list, fileName ];
+}
+
+/**
+ * Whether an "env_file" entry (a path or { path }) points to a file
+ * @param {string|object} entry Entry of env_file
+ * @param {string} fileName File name, relative to the stack folder
+ * @returns {boolean} True if it is that file
+ */
+function isEnvFileEntry(entry, fileName) {
+    const entryPath = typeof entry === "string" ? entry : entry?.path;
+    return typeof entryPath === "string" && entryPath.replace(/^\.\//, "") === fileName;
+}
+
+/**
+ * Remove a file from a service's "env_file"
+ * @param {string|Array|undefined} envFile Current env_file value
+ * @param {string} fileName File to remove, relative to the stack folder
+ * @returns {string|Array|undefined} New env_file value, undefined when empty
+ */
+function removeEnvFile(envFile, fileName) {
+    if (envFile === undefined || envFile === null || envFile === "") {
+        return undefined;
+    }
+    if (!Array.isArray(envFile)) {
+        return isEnvFileEntry(envFile, fileName) ? undefined : envFile;
+    }
+    const list = envFile.filter((entry) => !isEnvFileEntry(entry, fileName));
+    return list.length > 0 ? list : undefined;
+}
+
+/**
+ * Point a service's "env_file" entry at another file, keeping its form
+ * (a path or { path, required })
+ * @param {string|Array} envFile Current env_file value
+ * @param {string} oldName File to replace
+ * @param {string} newName New file name
+ * @returns {string|Array} New env_file value
+ */
+function replaceEnvFile(envFile, oldName, newName) {
+    const replace = (entry) => {
+        if (!isEnvFileEntry(entry, oldName)) {
+            return entry;
+        }
+        return typeof entry === "string" ? newName : {
+            ...entry,
+            path: newName,
+        };
+    };
+    return Array.isArray(envFile) ? envFile.map(replace) : replace(envFile);
+}
+
 let yamlErrorTimeout = null;
 
 let serviceStatusTimeout = null;
@@ -688,6 +771,8 @@ export default {
             showDeleteDialog: false,
             // Network waiting for delete confirmation ("" when none)
             networkToDelete: "",
+            // Service whose variables are about to be removed
+            envToRemove: "",
             // Volume waiting for delete confirmation ("" when none)
             volumeToDelete: "",
             volumeDrawer: {
@@ -730,7 +815,11 @@ export default {
             envDrawer: {
                 open: false,
                 serviceName: "",
+                rows: [],
+                fileName: "",
             },
+            // Env files changed since the last save, by file name; null deletes the file
+            pendingEnvFiles: {},
             stopServiceStatusTimeout: false,
             stopDockerStatsTimeout: false,
         };
@@ -811,7 +900,7 @@ export default {
          * @returns {boolean} True if there are unsaved changes
          */
         isDirty() {
-            return this.isYAMLDirty || this.isENVDirty;
+            return this.isYAMLDirty || this.isENVDirty || Object.keys(this.pendingEnvFiles).length > 0;
         },
 
         isYAMLDirty() {
@@ -1216,7 +1305,7 @@ export default {
 
             this.bindTerminal();
 
-            this.$root.emitAgent(this.stack.endpoint, "deployStack", this.stack.name, this.stack.composeYAML, this.stack.composeENV, this.isAdd, (res) => {
+            this.$root.emitAgent(this.stack.endpoint, "deployStack", ...this.saveStackArgs(), (res) => {
                 this.processing = false;
                 this.$root.toastRes(res);
 
@@ -1228,10 +1317,23 @@ export default {
             });
         },
 
+        /**
+         * Arguments of deployStack and saveStack. The changed env files are
+         * only sent when there are some, since older agents don't take them.
+         * @returns {Array} Arguments before the callback
+         */
+        saveStackArgs() {
+            const args = [ this.stack.name, this.stack.composeYAML, this.stack.composeENV, this.isAdd ];
+            if (Object.keys(this.pendingEnvFiles).length > 0) {
+                args.push({ ...this.pendingEnvFiles });
+            }
+            return args;
+        },
+
         saveStack() {
             this.processing = true;
 
-            this.$root.emitAgent(this.stack.endpoint, "saveStack", this.stack.name, this.stack.composeYAML, this.stack.composeENV, this.isAdd, (res) => {
+            this.$root.emitAgent(this.stack.endpoint, "saveStack", ...this.saveStackArgs(), (res) => {
                 this.processing = false;
                 this.$root.toastRes(res);
 
@@ -1441,6 +1543,7 @@ export default {
         markSaved() {
             this.savedYAML = this.stack.composeYAML ?? "";
             this.savedENV = this.stack.composeENV ?? "";
+            this.pendingEnvFiles = {};
         },
 
         /**
@@ -1835,41 +1938,185 @@ export default {
         },
 
         /**
-         * Open the environment variables drawer for a container
+         * Whether the agent reads and writes env files. Older agents don't send
+         * them; then the inline environment is edited.
+         * @returns {boolean} True if env files are supported
+         */
+        supportsEnvFiles() {
+            return this.stack.envFiles !== undefined && this.stack.envFiles !== null;
+        },
+
+        /**
+         * The service's own env file: the first plain file in the stack folder
+         * that its env_file lists
+         * @param {string} serviceName Service name
+         * @returns {string} File name, or "" when it has none
+         */
+        serviceEnvFile(serviceName) {
+            if (!this.supportsEnvFiles()) {
+                return "";
+            }
+            return serviceEnvFileNames(this.jsonConfig.services?.[serviceName])[0] ?? "";
+        },
+
+        /**
+         * Other services whose env_file lists a file
+         * @param {string} fileName File name
+         * @param {string} serviceName Service to leave out
+         * @returns {string[]} Service names
+         */
+        envFileUsedBy(fileName, serviceName) {
+            return Object.entries(this.jsonConfig.services ?? {})
+                .filter(([ name, service ]) => name !== serviceName && serviceEnvFileNames(service).includes(fileName))
+                .map(([ name ]) => name);
+        },
+
+        /**
+         * Set an env file's new content (or null to delete it) for the next save
+         * @param {string} fileName File name
+         * @param {string|null} content Content, or null to delete
+         * @returns {void}
+         */
+        setEnvFile(fileName, content) {
+            this.pendingEnvFiles = {
+                ...this.pendingEnvFiles,
+                [fileName]: content,
+            };
+            const files = { ...this.stack.envFiles };
+            if (content === null) {
+                delete files[fileName];
+            } else {
+                files[fileName] = content;
+            }
+            this.stack.envFiles = files;
+        },
+
+        /**
+         * Whether a service has variables, in its env file or inline
+         * @param {string} serviceName Service name
+         * @returns {boolean} True if the service has an environment
+         */
+        hasServiceEnv(serviceName) {
+            if (this.serviceEnvFile(serviceName)) {
+                return true;
+            }
+            return envToRows(this.jsonConfig.services?.[serviceName]?.environment).length > 0;
+        },
+
+        /**
+         * Open the environment variables drawer for a container. It shows the
+         * service's env file and any variables still inline in compose.yaml.
          * @param {string} serviceName Service to edit
          * @returns {void}
          */
         openEnvDrawer(serviceName) {
+            const service = this.jsonConfig.services?.[serviceName] ?? {};
+            let rows = envToRows(service.environment);
+
+            if (this.supportsEnvFiles()) {
+                const fileName = this.serviceEnvFile(serviceName);
+                const fileRows = textToRows((fileName && this.stack.envFiles[fileName]) || "").rows;
+                // Inline values win over the file, as in docker compose
+                const inlineKeys = new Set(rows.map((row) => row.key));
+                rows = [ ...fileRows.filter((row) => !inlineKeys.has(row.key)), ...rows ];
+                this.envDrawer.fileName = fileName || defaultEnvFileName(serviceName);
+            } else {
+                this.envDrawer.fileName = "";
+            }
+
             this.envDrawer.serviceName = serviceName;
+            this.envDrawer.rows = rows;
             this.envDrawer.open = true;
         },
 
         /**
-         * Write the env drawer's variables to the service, keeping the
-         * original form (list or map). In view mode the stack is deployed.
+         * Apply the env drawer's variables. They go to the env file the user
+         * named (".env.<service>" by default) in the stack folder, which is put
+         * in env_file in place of the service's previous env file, and the inline
+         * environment is removed. On older agents the inline environment is
+         * updated instead. In view mode the stack is deployed.
          * @param {object} result Drawer result
          * @param {string} result.serviceName Service that was edited
          * @param {{key: string, value: string}[]} result.rows Variables
+         * @param {string} result.fileName Env file name, "" on older agents
          * @returns {void}
          */
-        applyEnvDrawer({ serviceName, rows }) {
+        applyEnvDrawer({ serviceName, rows, fileName }) {
             const service = this.jsonConfig.services?.[serviceName];
             if (!service) {
                 this.envDrawer.open = false;
                 return;
             }
 
-            const env = rowsToEnv(rows, service.environment);
-            if (env === undefined) {
+            if (this.supportsEnvFiles() && fileName) {
+                // A new name must not be another service's file. A file that is
+                // already shared (set up by hand) can still be edited.
+                const previous = this.serviceEnvFile(serviceName);
+                const usedBy = this.envFileUsedBy(fileName, serviceName);
+                if (fileName !== previous && usedBy.length > 0) {
+                    this.$root.toastError(this.$t("envFileNameUsed", [ fileName, usedBy.join(", ") ]));
+                    return;
+                }
+
+                // Renamed: the previous file goes away unless another service uses it
+                if (previous && previous !== fileName) {
+                    service.env_file = replaceEnvFile(service.env_file, previous, fileName);
+                    if (this.envFileUsedBy(previous, serviceName).length === 0) {
+                        this.setEnvFile(previous, null);
+                    }
+                } else {
+                    service.env_file = addEnvFile(service.env_file, fileName);
+                }
+
+                this.setEnvFile(fileName, rowsToText(rows));
                 delete service.environment;
             } else {
-                service.environment = env;
+                const env = rowsToEnv(rows, service.environment);
+                if (env === undefined) {
+                    delete service.environment;
+                } else {
+                    service.environment = env;
+                }
             }
 
             this.envDrawer.open = false;
 
             if (!this.isEditMode) {
                 // Wait for the jsonConfig watcher to regenerate the YAML, then deploy
+                this.$nextTick(() => this.deployStack());
+            }
+        },
+
+        /**
+         * Remove all of a service's variables: its env file is deleted (unless
+         * another service uses it) and taken out of env_file, and the inline
+         * environment is removed. In view mode the stack is deployed.
+         * @param {string} serviceName Service name
+         * @returns {void}
+         */
+        removeServiceEnv(serviceName) {
+            const service = this.jsonConfig.services?.[serviceName];
+            this.envToRemove = "";
+            this.envDrawer.open = false;
+            if (!service) {
+                return;
+            }
+
+            const fileName = this.serviceEnvFile(serviceName);
+            if (fileName) {
+                const envFile = removeEnvFile(service.env_file, fileName);
+                if (envFile === undefined) {
+                    delete service.env_file;
+                } else {
+                    service.env_file = envFile;
+                }
+                if (this.envFileUsedBy(fileName, serviceName).length === 0) {
+                    this.setEnvFile(fileName, null);
+                }
+            }
+            delete service.environment;
+
+            if (!this.isEditMode) {
                 this.$nextTick(() => this.deployStack());
             }
         },

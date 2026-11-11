@@ -8,11 +8,14 @@ export class DockerSocketHandler extends AgentSocketHandler {
     create(socket : DocketSocket, server : DocketServer, agentSocket : AgentSocket) {
         // Do not call super.create()
 
-        agentSocket.on("deployStack", async (name : unknown, composeYAML : unknown, composeENV : unknown, isAdd : unknown, callback) => {
+        // The env files are an optional argument before the callback,
+        // so older managers that don't send it still work
+        agentSocket.on("deployStack", async (name : unknown, composeYAML : unknown, composeENV : unknown, isAdd : unknown, ...rest : unknown[]) => {
+            const { envFiles, callback } = splitOptionalArg(rest);
             let stack : Stack | undefined;
             try {
                 checkLogin(socket);
-                stack = await this.saveStack(server, name, composeYAML, composeENV, isAdd);
+                stack = await this.saveStack(server, name, composeYAML, composeENV, isAdd, envFiles);
                 await stack.deploy(socket);
                 server.sendStackList();
                 callbackResult({
@@ -28,10 +31,11 @@ export class DockerSocketHandler extends AgentSocketHandler {
             }
         });
 
-        agentSocket.on("saveStack", async (name : unknown, composeYAML : unknown, composeENV : unknown, isAdd : unknown, callback) => {
+        agentSocket.on("saveStack", async (name : unknown, composeYAML : unknown, composeENV : unknown, isAdd : unknown, ...rest : unknown[]) => {
+            const { envFiles, callback } = splitOptionalArg(rest);
             try {
                 checkLogin(socket);
-                await this.saveStack(server, name, composeYAML, composeENV, isAdd);
+                await this.saveStack(server, name, composeYAML, composeENV, isAdd, envFiles);
                 callbackResult({
                     ok: true,
                     msg: "Saved",
@@ -381,7 +385,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
         });
     }
 
-    async saveStack(server : DocketServer, name : unknown, composeYAML : unknown, composeENV : unknown, isAdd : unknown) : Promise<Stack> {
+    async saveStack(server : DocketServer, name : unknown, composeYAML : unknown, composeENV : unknown, isAdd : unknown, envFiles? : unknown) : Promise<Stack> {
         // Check types
         if (typeof(name) !== "string") {
             throw new ValidationError("Name must be a string");
@@ -397,9 +401,27 @@ export class DockerSocketHandler extends AgentSocketHandler {
         }
 
         const stack = new Stack(server, name, composeYAML, composeENV, false);
+        stack.setEnvFiles(envFiles);
         await stack.save(isAdd);
         return stack;
     }
 
 }
 
+/**
+ * Split "[envFiles], callback" where the first argument is optional
+ * @param rest Arguments after isAdd
+ * @returns The service env files (if sent) and the callback
+ */
+function splitOptionalArg(rest : unknown[]) : { envFiles : unknown, callback : unknown } {
+    if (rest.length >= 2) {
+        return {
+            envFiles: rest[0],
+            callback: rest[rest.length - 1],
+        };
+    }
+    return {
+        envFiles: undefined,
+        callback: rest[0],
+    };
+}

@@ -78,6 +78,14 @@
                         </div>
                     </template>
 
+                    <!-- Environment variables, inline in the compose file. A service
+                         with its own env file is edited in the env drawer instead. -->
+                    <div v-if="!hasEnvFile" class="field">
+                        <span class="field-label">{{ $t("envVariables") }}</span>
+                        <EnvEditor ref="envEditor" list-only />
+                        <p class="field-hint">{{ $t("containerEnvHint") }}</p>
+                    </div>
+
                     <!-- Networks -->
                     <div class="field field-networks">
                         <span class="field-label">{{ $tc("network", 2) }}</span>
@@ -185,6 +193,7 @@
 
 <script>
 import { getComposeExtension } from "../../../common/util-common";
+import EnvEditor, { envToRows, rowsToEnv } from "./EnvEditor.vue";
 import iconClose from "../assets/drawer/close.svg";
 import iconPlus from "../assets/drawer/plus.svg";
 import iconPlusOnAccent from "../assets/drawer/plus-on-accent.svg";
@@ -212,6 +221,9 @@ function networksOf(service) {
 }
 
 export default {
+    components: {
+        EnvEditor,
+    },
     props: {
         /** Whether the drawer is shown */
         open: {
@@ -240,6 +252,11 @@ export default {
         },
         /** Disables the submit button while the parent is working */
         busy: {
+            type: Boolean,
+            default: false,
+        },
+        /** The service has its own env file; then the variables are not shown here */
+        hasEnvFile: {
             type: Boolean,
             default: false,
         },
@@ -453,6 +470,10 @@ export default {
             }
 
             this.draft = draft;
+
+            // The env editor renders with the form, so fill it on the next tick
+            const environment = this.isAdd ? undefined : this.services[this.serviceName]?.environment;
+            this.$nextTick(() => this.$refs.envEditor?.reset(envToRows(environment)));
         },
 
         /**
@@ -538,10 +559,19 @@ export default {
                 return;
             }
 
+            // null: the variables were not shown, so they are kept as they are
+            let envRows = null;
+            if (this.$refs.envEditor) {
+                envRows = this.$refs.envEditor.collect();
+                if (!envRows) {
+                    return;
+                }
+            }
+
             this.$emit("submit", {
                 originalName: this.serviceName,
                 name,
-                service: this.buildService(),
+                service: this.buildService(envRows),
                 urls: this.draft.urls.filter((url) => url !== ""),
                 externalNetworks: this.selectedExternalNetworks(),
                 internalNetworks: this.selectedInternalNetworks(),
@@ -551,9 +581,10 @@ export default {
         /**
          * Build the compose service from the form, keeping any settings
          * the form does not show (and long-syntax entries) untouched
+         * @param {{key: string, value: string}[]|null} envRows Inline variables, or null to keep them
          * @returns {object} Compose service
          */
-        buildService() {
+        buildService(envRows) {
             const original = this.isAdd ? {} : (this.services[this.serviceName] ?? {});
             const service = JSON.parse(JSON.stringify(original));
             const setOrDelete = (key, value, isEmpty) => {
@@ -568,8 +599,13 @@ export default {
             setOrDelete("image", this.draft.image, !this.draft.image);
             setOrDelete("restart", this.draft.restart, !this.draft.restart);
 
-            // Ports and volumes: keep long-syntax objects, replace the short ones.
-            // Environment variables are edited in the env drawer and kept as they are.
+            // Inline environment, in the same form (list or map) as before
+            if (envRows) {
+                const environment = rowsToEnv(envRows, original.environment);
+                setOrDelete("environment", environment, environment === undefined);
+            }
+
+            // Ports and volumes: keep long-syntax objects, replace the short ones
             for (const list of this.simpleLists.filter((item) => item.composeKey)) {
                 const longSyntax = (original[list.composeKey] ?? []).filter((item) => typeof item === "object");
                 const values = [ ...this.draft[list.key].filter((item) => item !== ""), ...longSyntax ];

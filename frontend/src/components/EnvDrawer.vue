@@ -29,11 +29,24 @@
 
                 <!-- Body -->
                 <form id="env-drawer-form" class="drawer-body" @submit.prevent="submit">
+                    <!-- Env file in the stack folder; only when the agent supports env files -->
+                    <div v-if="fileName" class="field">
+                        <label class="field-label" for="env-drawer-file-name">{{ $t("envFileName") }}</label>
+                        <input
+                            id="env-drawer-file-name" v-model.trim="draftFileName" class="field-input"
+                            :placeholder="fileName" autocomplete="off" spellcheck="false"
+                        />
+                        <p class="field-hint">{{ $t("envFileNameHint") }}</p>
+                    </div>
+
                     <EnvEditor ref="editor" :label="$t('envVariables')" />
                 </form>
 
                 <!-- Footer -->
                 <footer class="drawer-footer">
+                    <button v-if="canRemove" type="button" class="footer-btn danger" :disabled="busy" @click="$emit('remove', serviceName)">
+                        {{ $t("removeEnv") }}
+                    </button>
                     <span class="footer-spacer"></span>
                     <button type="button" class="footer-btn secondary" @click="close">{{ $t("cancel") }}</button>
                     <button type="submit" form="env-drawer-form" class="footer-btn primary" :disabled="busy">
@@ -46,7 +59,8 @@
 </template>
 
 <script>
-import EnvEditor, { envToRows } from "./EnvEditor.vue";
+import EnvEditor from "./EnvEditor.vue";
+import { isValidEnvFileName } from "../../../common/util-common";
 import iconClose from "../assets/drawer/close.svg";
 
 const WIDTH_STORAGE_KEY = "envDrawerWidth";
@@ -75,10 +89,20 @@ export default {
             type: String,
             default: "",
         },
-        /** Parsed compose file of the stack */
-        jsonConfig: {
-            type: Object,
-            required: true,
+        /** Variables to start with */
+        rows: {
+            type: Array,
+            default: () => [],
+        },
+        /** The service's env file name, "" when the agent only supports inline variables */
+        fileName: {
+            type: String,
+            default: "",
+        },
+        /** Show "Remove env": the service has an env file or inline variables */
+        canRemove: {
+            type: Boolean,
+            default: false,
         },
         /** Disables the save button while the parent is working */
         busy: {
@@ -86,7 +110,7 @@ export default {
             default: false,
         },
     },
-    emits: [ "close", "submit" ],
+    emits: [ "close", "submit", "remove" ],
     data() {
         let width = DEFAULT_WIDTH;
         try {
@@ -103,6 +127,7 @@ export default {
             MIN_WIDTH,
             width,
             resizing: false,
+            draftFileName: "",
         };
     },
     watch: {
@@ -122,12 +147,12 @@ export default {
     },
     methods: {
         /**
-         * Fill the editor from the service's environment
+         * Fill the editor with the given variables
          * @returns {void}
          */
         load() {
-            const service = this.jsonConfig.services?.[this.serviceName] ?? {};
-            this.$refs.editor?.reset(envToRows(service.environment));
+            this.draftFileName = this.fileName;
+            this.$refs.editor?.reset(this.rows.map((row) => ({ ...row })));
         },
 
         close() {
@@ -229,10 +254,18 @@ export default {
         },
 
         /**
-         * Emit the service name with the new variables
+         * Emit the service name with the new variables and env file name
          * @returns {void}
          */
         submit() {
+            let fileName = "";
+            if (this.fileName) {
+                fileName = this.draftFileName.replace(/^\.\//, "") || this.fileName;
+                if (!isValidEnvFileName(fileName)) {
+                    this.$root.toastError(this.$t("envFileNameInvalid"));
+                    return;
+                }
+            }
             const rows = this.$refs.editor?.collect();
             if (!rows) {
                 return;
@@ -240,6 +273,7 @@ export default {
             this.$emit("submit", {
                 serviceName: this.serviceName,
                 rows,
+                fileName,
             });
         },
     },
