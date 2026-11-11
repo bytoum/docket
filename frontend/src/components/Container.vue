@@ -8,13 +8,13 @@
 
             <div class="function">
                 <template v-if="!isEditMode">
-                    <div v-if="hasServiceActions" class="service-actions" role="group">
+                    <div class="service-actions" role="group">
                         <router-link v-if="isRunning" class="action" :to="terminalRouteLink">
                             <AssetIcon :src="icons.terminal" width="9.97917" height="8.89583" :box="13" tone="neutral" />
                             Bash
                         </router-link>
                         <button
-                            v-if="serviceCount > 1 && !isRunning"
+                            v-if="!isRunning"
                             class="action"
                             :disabled="processing"
                             @click="startService"
@@ -23,7 +23,7 @@
                             {{ $t("startStack") }}
                         </button>
                         <button
-                            v-if="serviceCount > 1 && (isRunning || status === 'unhealthy')"
+                            v-if="isRunning || status === 'unhealthy'"
                             class="action"
                             :disabled="processing"
                             @click="restartService"
@@ -32,7 +32,7 @@
                             {{ $t("restartStack") }}
                         </button>
                         <button
-                            v-if="serviceCount > 1 && (isRunning || status === 'unhealthy')"
+                            v-if="isRunning || status === 'unhealthy'"
                             class="action"
                             :disabled="processing"
                             @click="stopService"
@@ -206,14 +206,6 @@ export default defineComponent({
         },
 
         /**
-         * Whether the service action button group has any button to show
-         * @returns {boolean} True if at least one action is available
-         */
-        hasServiceActions() {
-            return this.isRunning || this.serviceCount > 1;
-        },
-
-        /**
          * Memory usage of the first instance as a CSS width
          * @returns {string} Percentage, e.g. "3.2%"
          */
@@ -265,10 +257,6 @@ export default defineComponent({
                 return {};
             }
             return this.jsonObject.services[this.name];
-        },
-
-        serviceCount() {
-            return Object.keys(this.jsonObject.services).length;
         },
 
         jsonObject() {
