@@ -135,6 +135,8 @@
                         </button>
                     </div>
 
+                    <p v-if="networkGroups.every((group) => group.items.length === 0)" class="group-hint">{{ $t("noNetworks") }}</p>
+
                     <template v-for="group in networkGroups" :key="group.key">
                         <div v-if="group.items.length > 0" class="network-group">
                             <div class="group-label">{{ group.label }}</div>
@@ -494,6 +496,7 @@ import {
     LEGACY_COMPOSE_EXTENSION_KEY,
     normalizeStack,
     defaultEnvFileName,
+    externalNetworkHostName,
     RUNNING,
     serviceEnvFileNames
 } from "../../../common/util-common";
@@ -955,7 +958,7 @@ export default {
         /**
          * Networks of this stack for the read-only view, split into networks
          * defined by the stack and external networks that already exist on the host.
-         * The implicit "default" network is included when a service uses it.
+         * The implicit "default" network that Compose creates is not shown.
          * @returns {object[]} Network groups with their items
          */
         networkGroups() {
@@ -977,9 +980,6 @@ export default {
             });
 
             const names = Object.keys(networks);
-            if (!names.includes("default") && usedBy("default").length > 0) {
-                names.unshift("default");
-            }
 
             const stackItems = [];
             const externalItems = [];
@@ -988,9 +988,11 @@ export default {
                 const config = networks[name] ?? {};
                 const item = {
                     name,
-                    driver: config.driver ?? (config.external ? (this.hostNetworkDrivers[config.name ?? name] ?? "") : "bridge"),
-                    // Custom name on the host ("name:"), shown when it differs
-                    dockerName: !config.external && config.name && config.name !== name ? config.name : "",
+                    driver: config.driver ?? (config.external ? (this.hostNetworkDrivers[externalNetworkHostName(name, config)] ?? "") : "bridge"),
+                    // Name on the host ("name:"), shown when it differs from the key
+                    dockerName: config.external
+                        ? (externalNetworkHostName(name, config) !== name ? externalNetworkHostName(name, config) : "")
+                        : (config.name && config.name !== name ? config.name : ""),
                     usedBy: usedBy(name),
                 };
                 (config.external ? externalItems : stackItems).push(item);

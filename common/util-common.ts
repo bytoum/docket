@@ -152,6 +152,26 @@ export const acceptedComposeFileNames = [
 ];
 
 /**
+ * Name on the host of an external network declared in a compose file.
+ * The key is only the name used inside the stack; "name:" (or the older
+ * "external: { name: x }") names the host network, else it is the key.
+ * @param key Key under "networks"
+ * @param config Network configuration
+ * @returns Host network name, or "" if the network is not external
+ */
+export function externalNetworkHostName(key : string, config : unknown) : string {
+    const network = config as LooseObject | null | undefined;
+    if (!network?.external) {
+        return "";
+    }
+    if (typeof network.name === "string" && network.name !== "") {
+        return network.name;
+    }
+    const legacyName = typeof network.external === "object" ? network.external?.name : undefined;
+    return typeof legacyName === "string" && legacyName !== "" ? legacyName : key;
+}
+
+/**
  * Env file names Docket reads and writes in a stack folder: a plain file name
  * (no folders), such as ".env.redis" or "redis.env"
  */

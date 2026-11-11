@@ -96,6 +96,16 @@
 
                         <p class="field-hint">{{ $t("existingNetworksHint") }}</p>
                     </div>
+
+                    <!-- Key of the external network in this stack's compose file -->
+                    <div v-if="draft.type === 'external'" class="field">
+                        <label class="field-label" for="drawer-external-key">{{ $t("networkNameInStack") }}</label>
+                        <input
+                            id="drawer-external-key" v-model.trim="draft.externalKey" class="field-input"
+                            :placeholder="draft.external || 'e.g. backend'" autocomplete="off" @input="externalKeyEdited = true"
+                        />
+                        <p class="field-hint">{{ $t("networkNameInStackHint") }}</p>
+                    </div>
                 </form>
 
                 <!-- Footer -->
@@ -113,6 +123,7 @@
 </template>
 
 <script>
+import { externalNetworkHostName } from "../../../common/util-common";
 import iconClose from "../assets/drawer/close.svg";
 import iconChevronDown from "../assets/drawer/chevron-down.svg";
 import iconPlusOnAccent from "../assets/drawer/plus-on-accent.svg";
@@ -183,6 +194,8 @@ export default {
             search: "",
             // Set once the user types a Docker name, so it stops following the network key
             dockerNameEdited: false,
+            // Set once the user types a key for an external network, so it stops following the host network
+            externalKeyEdited: false,
             hostNetworks: [],
             typeOptions: [
                 {
@@ -219,8 +232,20 @@ export default {
         },
 
         /**
+         * Host names of the external networks the compose file already declares
+         * (other than the one being edited)
+         * @returns {Set<string>} Host network names
+         */
+        declaredHostNames() {
+            return new Set(Object.entries(this.networks)
+                .filter(([ key ]) => key !== this.networkName)
+                .map(([ key, config ]) => externalNetworkHostName(key, config))
+                .filter((name) => name !== ""));
+        },
+
+        /**
          * Host networks that can be attached: not this stack's own networks,
-         * not already in the compose file, and matching the search
+         * not already declared as external, and matching the search
          * @returns {object[]} Networks with name, driver and container count
          */
         filteredHostNetworks() {
@@ -228,11 +253,18 @@ export default {
             return this.hostNetworks.filter((network) =>
                 !UNSUPPORTED_EXTERNAL.includes(network.name)
                 && !(this.stackName && network.name.startsWith(this.stackName + "_"))
-                && (network.name === this.draft.external || !(network.name in this.networks))
+                && (network.name === this.draft.external || !this.declaredHostNames.has(network.name))
                 && network.name.toLowerCase().includes(search));
         },
     },
     watch: {
+        /** An external network's key follows the picked host network until the user edits it */
+        "draft.external"(name) {
+            if (!this.externalKeyEdited) {
+                this.draft.externalKey = name;
+            }
+        },
+
         /** A new network's Docker name follows its key until the user edits it */
         "draft.name"(name) {
             if (this.isAdd && !this.dockerNameEdited) {
@@ -257,6 +289,7 @@ export default {
                 subnet: "",
                 dockerName: "",
                 external: "",
+                externalKey: "",
             };
         },
 
@@ -268,12 +301,15 @@ export default {
             const draft = this.emptyDraft();
             this.search = "";
             this.dockerNameEdited = false;
+            // Editing: keep the key the network already has
+            this.externalKeyEdited = !this.isAdd;
 
             if (!this.isAdd) {
                 const config = this.networks[this.networkName] ?? {};
                 if (config.external) {
                     draft.type = "external";
-                    draft.external = config.name ?? this.networkName;
+                    draft.external = externalNetworkHostName(this.networkName, config);
+                    draft.externalKey = this.networkName;
                 } else {
                     draft.name = this.networkName;
                     draft.driver = config.driver ?? "bridge";
@@ -322,10 +358,29 @@ export default {
                     this.$root.toastError(this.$t("selectNetworkRequired"));
                     return;
                 }
+                const key = this.draft.externalKey || this.draft.external;
+                // A typed key follows the compose rules; the host name is taken as it is
+                if (this.draft.externalKey && this.draft.externalKey !== this.draft.external && !NETWORK_NAME_PATTERN.test(key)) {
+                    this.$root.toastError(this.$t("networkNameInvalid"));
+                    return;
+                }
+                if (key !== this.networkName && key in this.networks) {
+                    this.$root.toastError(this.$t("networkNameExists"));
+                    return;
+                }
+                // "name" names the host network explicitly ("name: x" + "external: true").
+                // An external network keeps settings the drawer does not show; the
+                // settings of a stack network would conflict with "external".
+                const original = this.isAdd ? {} : (this.networks[this.networkName] ?? {});
+                const config = {
+                    ...(original.external ? JSON.parse(JSON.stringify(original)) : {}),
+                    name: this.draft.external,
+                    external: true,
+                };
                 this.$emit("submit", {
                     originalName: this.networkName,
-                    name: this.draft.external,
-                    config: { external: true },
+                    name: key,
+                    config,
                 });
                 return;
             }

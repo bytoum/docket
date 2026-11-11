@@ -13,7 +13,7 @@ import {
     EXITED, getCombinedTerminalName,
     getComposeTerminalName, getContainerExecTerminalName,
     PROGRESS_TERMINAL_ROWS,
-    isValidEnvFileName, LooseObject, RUNNING, serviceEnvFileNames, TERMINAL_ROWS,
+    externalNetworkHostName, isValidEnvFileName, LooseObject, RUNNING, serviceEnvFileNames, TERMINAL_ROWS,
     UNKNOWN
 } from "../common/util-common";
 import { InteractiveTerminal, Terminal } from "./terminal";
@@ -298,6 +298,8 @@ export class Stack {
             throw new Error("Failed to delete, please check the terminal output for more information.");
         }
 
+        await this.removeNetworks();
+
         // Remove the stack folder
         await fsAsync.rm(this.path, {
             recursive: true,
@@ -305,6 +307,85 @@ export class Stack {
         });
 
         return exitCode;
+    }
+
+    /**
+     * Remove the networks Compose created for this stack. "docker compose down"
+     * only removes the ones still in the compose file, so networks removed from
+     * it earlier would stay on the host. A network that other containers still
+     * use cannot be removed and is left as it is.
+     */
+    async removeNetworks() {
+        let names : string[] = [];
+        try {
+            const res = await childProcessAsync.spawn("docker", [
+                "network", "ls", "--format", "{{.Name}}",
+                "--filter", `label=com.docker.compose.project=${this.name}`,
+            ], {
+                encoding: "utf-8",
+            });
+            names = (res.stdout?.toString() ?? "").split("\n").map((name) => name.trim()).filter((name) => name !== "");
+        } catch (e) {
+            log.warn("stack", `${this.name}: cannot list the stack's networks: ${e instanceof Error ? e.message : e}`);
+            return;
+        }
+
+        // Leave the networks other stacks use as external ones
+        const usedByOthers = this.externalNetworksOfOtherStacks();
+
+        for (const name of names) {
+            if (usedByOthers.has(name)) {
+                log.info("stack", `${this.name}: keeping network ${name}, another stack uses it as external`);
+                continue;
+            }
+            try {
+                await childProcessAsync.spawn("docker", [ "network", "rm", name ], {
+                    encoding: "utf-8",
+                });
+                log.info("stack", `${this.name}: removed network ${name}`);
+            } catch (e) {
+                log.warn("stack", `${this.name}: cannot remove network ${name}: ${e instanceof Error ? e.message : e}`);
+            }
+        }
+    }
+
+    /**
+     * Host names of the external networks that the other stacks' compose files
+     * list ("name:" or else the key)
+     * @returns Network names
+     */
+    externalNetworksOfOtherStacks() : Set<string> {
+        const names = new Set<string>();
+        let dirs : fs.Dirent[];
+        try {
+            dirs = fs.readdirSync(this.server.stacksDir, { withFileTypes: true });
+        } catch (e) {
+            return names;
+        }
+        for (const dir of dirs) {
+            if (!dir.isDirectory() || dir.name === this.name) {
+                continue;
+            }
+            for (const fileName of acceptedComposeFileNames) {
+                const filePath = path.join(this.server.stacksDir, dir.name, fileName);
+                if (!fs.existsSync(filePath)) {
+                    continue;
+                }
+                try {
+                    const networks = yaml.parse(fs.readFileSync(filePath, "utf-8"))?.networks ?? {};
+                    for (const [ key, config ] of Object.entries(networks)) {
+                        const hostName = externalNetworkHostName(key, config);
+                        if (hostName) {
+                            names.add(hostName);
+                        }
+                    }
+                } catch (e) {
+                    // Skip a compose file that cannot be read or parsed
+                }
+                break;
+            }
+        }
+        return names;
     }
 
     async updateStatus() {

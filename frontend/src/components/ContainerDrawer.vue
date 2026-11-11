@@ -115,8 +115,11 @@
                             <div v-if="externalNetworkOptions.length === 0" class="field-hint">{{ $t("No External Networks") }}</div>
                             <div v-for="name in externalNetworkOptions" :key="name" class="network-toggle">
                                 <div class="info">
-                                    <div class="name">{{ name }}</div>
-                                    <div v-if="hostNetworkInfo[name]?.driver" class="meta">{{ hostNetworkInfo[name].driver }} · {{ $tc("containerCount", hostNetworkInfo[name].containers) }}</div>
+                                    <div class="name">
+                                        {{ name }}
+                                        <span v-if="hostNameOf(name) !== name" class="host-name">{{ hostNameOf(name) }}</span>
+                                    </div>
+                                    <div v-if="hostNetworkInfo[hostNameOf(name)]?.driver" class="meta">{{ hostNetworkInfo[hostNameOf(name)].driver }} · {{ $tc("containerCount", hostNetworkInfo[hostNameOf(name)].containers) }}</div>
                                     <div v-else-if="externalUsedBy(name).length > 0" class="meta">{{ $t("usedBy", [ externalUsedBy(name).join(", ") ]) }}</div>
                                 </div>
                                 <button
@@ -192,7 +195,7 @@
 </template>
 
 <script>
-import { getComposeExtension } from "../../../common/util-common";
+import { externalNetworkHostName, getComposeExtension } from "../../../common/util-common";
 import EnvEditor, { envToRows, rowsToEnv } from "./EnvEditor.vue";
 import iconClose from "../assets/drawer/close.svg";
 import iconPlus from "../assets/drawer/plus.svg";
@@ -347,15 +350,17 @@ export default {
         },
 
         /**
-         * External networks: the ones on the host plus the ones already
-         * declared as external in the compose file
+         * External networks: the ones already declared as external in the
+         * compose file (by their key), plus the other networks on the host
          * @returns {string[]} Network names
          */
         externalNetworkOptions() {
             const declared = Object.entries(this.jsonConfig.networks ?? {})
-                .filter(([ , config ]) => config?.external)
-                .map(([ name ]) => name);
-            return [ ...new Set([ ...declared, ...this.hostNetworks ]) ];
+                .filter(([ , config ]) => config?.external);
+            // A host network declared under another key is listed by that key
+            const declaredHostNames = new Set(declared.map(([ key, config ]) => externalNetworkHostName(key, config)));
+            const host = this.hostNetworks.filter((name) => !declaredHostNames.has(name));
+            return [ ...new Set([ ...declared.map(([ key ]) => key), ...host ]) ];
         },
 
         /**
@@ -514,6 +519,16 @@ export default {
             return this.otherServiceNames.filter((name) => (networksOf(this.services[name]) ?? []).includes(networkName));
         },
 
+        /**
+         * Host name of an external network option: "name:" of a declared
+         * network, else the option itself
+         * @param {string} key Network key or host network name
+         * @returns {string} Host network name
+         */
+        hostNameOf(key) {
+            return externalNetworkHostName(key, this.jsonConfig.networks?.[key]) || key;
+        },
+
         close() {
             this.$emit("close");
         },
@@ -648,4 +663,13 @@ export default {
 
 <style lang="scss" scoped>
 @import "../styles/drawer.scss";
+
+// Host name of an external network declared under another key
+.host-name {
+    margin-left: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 400;
+    color: $muted;
+}
 </style>
