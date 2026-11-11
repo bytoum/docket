@@ -19,6 +19,7 @@ import {
 import { InteractiveTerminal, Terminal } from "./terminal";
 import childProcessAsync from "promisify-child-process";
 import { Settings } from "./settings";
+import { deleteWebhook } from "./webhook";
 
 export class Stack {
 
@@ -305,6 +306,14 @@ export class Stack {
             recursive: true,
             force: true
         });
+
+        // Its webhook URL must stop working, and must not carry over to a new
+        // stack of the same name
+        try {
+            await deleteWebhook(this.name);
+        } catch (e) {
+            log.warn("webhook", "Could not delete the webhook of stack " + this.name + ": " + e);
+        }
 
         return exitCode;
     }
