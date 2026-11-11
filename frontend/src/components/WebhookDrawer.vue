@@ -141,7 +141,13 @@ export default {
          * @returns {string} URL
          */
         url() {
+            // The backend serves the webhook. In development it runs on port
+            // 5001 next to the Vite dev server, as in the socket connection.
             let base = location.origin;
+            const env = process.env.NODE_ENV || "production";
+            if (env === "development" || localStorage.dev === "dev") {
+                base = location.protocol + "//" + location.hostname + ":5001";
+            }
             if (this.endpoint !== "") {
                 base = (this.$root.agentList[this.endpoint]?.url ?? "").replace(/\/+$/, "");
             }
