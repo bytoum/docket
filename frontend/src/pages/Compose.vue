@@ -79,6 +79,10 @@
                                 <font-awesome-icon icon="stop" class="me-1" />
                                 {{ $t("downStack") }}
                             </BDropdownItem>
+                            <BDropdownItem @click="webhookDrawer.open = true">
+                                <font-awesome-icon icon="link" class="me-1" />
+                                {{ $t("webhook") }}
+                            </BDropdownItem>
                         </BDropdown>
                     </div>
 
@@ -426,6 +430,13 @@
                 {{ $t(isEditMode ? "removeEnvMsgEdit" : "removeEnvMsg", [ envToRemove ]) }}
             </BModal>
 
+            <WebhookDrawer
+                :open="webhookDrawer.open"
+                :stack-name="stack.name"
+                :endpoint="endpoint"
+                @close="webhookDrawer.open = false"
+            />
+
             <!-- After the container drawer, so "Create network…" opens on top of it -->
             <NetworkDrawer
                 :open="networkDrawer.open"
@@ -506,6 +517,7 @@ import EnvDrawer from "../components/EnvDrawer.vue";
 import { envToRows, rowsToEnv, rowsToText, textToRows } from "../components/EnvEditor.vue";
 import NetworkDrawer from "../components/NetworkDrawer.vue";
 import VolumeDrawer from "../components/VolumeDrawer.vue";
+import WebhookDrawer from "../components/WebhookDrawer.vue";
 import AssetIcon from "../components/AssetIcon.vue";
 import ConsoleDock from "../components/ConsoleDock.vue";
 import iconPlusOnAccent from "../assets/stack/plus-on-accent.svg";
@@ -698,6 +710,7 @@ export default {
         EnvDrawer,
         NetworkDrawer,
         VolumeDrawer,
+        WebhookDrawer,
         AssetIcon,
         ConsoleDock,
         FontAwesomeIcon,
@@ -814,6 +827,9 @@ export default {
             containerDrawer: {
                 open: false,
                 serviceName: "",
+            },
+            webhookDrawer: {
+                open: false,
             },
             envDrawer: {
                 open: false,

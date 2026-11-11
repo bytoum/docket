@@ -69,7 +69,7 @@ describe("deploy webhooks", () => {
         assert.match(res.token, /^[A-Za-z0-9_-]{43}$/);
         const info = await agentCall(socket, "getWebhook", "web");
         assert.equal(info.ok, true);
-        assert.ok(info.webhook.createdDate);
+        assert.match(info.webhook.createdDate, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
         assert.equal(info.webhook.lastTriggered, null);
         assert.equal(info.webhook.lastResult, null);
         assert.equal(JSON.stringify(info).includes(res.token), false);

@@ -38,5 +38,6 @@ declare module 'vue' {
     Uptime: typeof import('./src/components/Uptime.vue')['default']
     Users: typeof import('./src/components/settings/Users.vue')['default']
     VolumeDrawer: typeof import('./src/components/VolumeDrawer.vue')['default']
+    WebhookDrawer: typeof import('./src/components/WebhookDrawer.vue')['default']
   }
 }

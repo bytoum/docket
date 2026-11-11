@@ -23,6 +23,18 @@ function nowUTC() : string {
 }
 
 /**
+ * A stored UTC time as ISO 8601, so browsers read it in their own time zone
+ * @param {unknown} value Database value
+ * @returns {string | null} ISO string, or null when empty
+ */
+function toISO(value : unknown) : string | null {
+    if (value === null || value === undefined || value === "") {
+        return null;
+    }
+    return dayjs.utc(value as string).toISOString();
+}
+
+/**
  * Hash a webhook token for storage and lookup
  * @param {string} token Raw token from the URL
  * @returns {string} SHA-256 hex digest
@@ -68,8 +80,8 @@ export async function getWebhookInfo(stackName : string) : Promise<WebhookInfo |
         return null;
     }
     return {
-        createdDate: row.created_date,
-        lastTriggered: row.last_triggered ?? null,
+        createdDate: toISO(row.created_date) ?? "",
+        lastTriggered: toISO(row.last_triggered),
         lastResult: row.last_result ?? null,
     };
 }
