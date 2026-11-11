@@ -370,16 +370,6 @@ export default {
         },
 
         /**
-         * Open the dock and follow the end of the log
-         * @returns {void}
-         */
-        show() {
-            this.open = true;
-            this.stickToBottom = true;
-            this.scrollToBottom();
-        },
-
-        /**
          * Split a log line into its source container, message and time
          * @param {string} line Log line without colour codes
          * @returns {object} Parsed line

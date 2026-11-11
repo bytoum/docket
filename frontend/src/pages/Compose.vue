@@ -1169,15 +1169,6 @@ export default {
             }
         },
 
-        /**
-         * Open the console dock so the user sees the output of a start.
-         * The dock is not shown in edit mode, so wait for it to render.
-         * @returns {void}
-         */
-        showConsole() {
-            this.$nextTick(() => this.$refs.consoleDock?.show());
-        },
-
         loadStack() {
             this.processing = true;
             this.$root.emitAgent(this.endpoint, "getStack", this.stack.name, (res) => {
@@ -1224,7 +1215,6 @@ export default {
             }
 
             this.bindTerminal();
-            this.showConsole();
 
             this.$root.emitAgent(this.stack.endpoint, "deployStack", this.stack.name, this.stack.composeYAML, this.stack.composeENV, this.isAdd, (res) => {
                 this.processing = false;
@@ -1234,7 +1224,6 @@ export default {
                     this.markSaved();
                     this.isEditMode = false;
                     this.$router.push(this.url);
-                    this.showConsole();
                 }
             });
         },
@@ -1256,7 +1245,6 @@ export default {
 
         startStack() {
             this.processing = true;
-            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "startStack", this.stack.name, (res) => {
                 this.processing = false;
@@ -1266,7 +1254,6 @@ export default {
 
         stopStack() {
             this.processing = true;
-            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "stopStack", this.stack.name, (res) => {
                 this.processing = false;
@@ -1276,7 +1263,6 @@ export default {
 
         downStack() {
             this.processing = true;
-            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "downStack", this.stack.name, (res) => {
                 this.processing = false;
@@ -1286,7 +1272,6 @@ export default {
 
         restartStack() {
             this.processing = true;
-            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "restartStack", this.stack.name, (res) => {
                 this.processing = false;
@@ -1296,7 +1281,6 @@ export default {
 
         updateStack() {
             this.processing = true;
-            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "updateStack", this.stack.name, (res) => {
                 this.processing = false;
@@ -1896,7 +1880,6 @@ export default {
 
         startService(serviceName) {
             this.processing = true;
-            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "startService", this.stack.name, serviceName, (res) => {
                 this.processing = false;
@@ -1910,7 +1893,6 @@ export default {
 
         stopService(serviceName) {
             this.processing = true;
-            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "stopService", this.stack.name, serviceName, (res) => {
                 this.processing = false;
@@ -1924,7 +1906,6 @@ export default {
 
         restartService(serviceName) {
             this.processing = true;
-            this.showConsole();
 
             this.$root.emitAgent(this.endpoint, "restartService", this.stack.name, serviceName, (res) => {
                 this.processing = false;
