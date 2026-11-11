@@ -624,11 +624,13 @@ export class Stack {
     }
 
     /**
-     * Pull the images, then recreate the containers if the stack is running
+     * Pull the images, then recreate the containers. A stopped stack is only
+     * pulled, unless startIfStopped is set (webhooks).
      * @param {DocketSocket | undefined} socket Socket that sees the output, or undefined for a webhook
+     * @param {boolean} startIfStopped Run "up -d" even when the stack is not running
      * @returns {Promise<number>} Exit code
      */
-    async update(socket: DocketSocket | undefined) {
+    async update(socket: DocketSocket | undefined, startIfStopped = false) {
         const terminalName = getComposeTerminalName(socket?.endpoint ?? "", this.name);
         let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", this.getComposeOptions("pull"), this.path);
         if (exitCode !== 0) {
@@ -638,7 +640,7 @@ export class Stack {
         // If the stack is not running, we don't need to restart it
         await this.updateStatus();
         log.debug("update", "Status: " + this.status);
-        if (this.status !== RUNNING) {
+        if (this.status !== RUNNING && !startIfStopped) {
             return exitCode;
         }
 
@@ -726,22 +728,24 @@ export class Stack {
     }
 
     /**
-     * Pull one service's image, then recreate its container if the stack is
-     * running (always restarts it). Other services are left alone.
+     * Pull one service's image, then recreate its container (always restarts
+     * it). Other services are left alone. A stopped stack is only pulled,
+     * unless startIfStopped is set (webhooks).
      * @param {DocketSocket | undefined} socket Socket that sees the output, or undefined for a webhook
      * @param {string} serviceName Service to update
+     * @param {boolean} startIfStopped Recreate the container even when the stack is not running
      * @returns {Promise<number>} Exit code
      */
-    async updateService(socket: DocketSocket | undefined, serviceName: string) : Promise<number> {
+    async updateService(socket: DocketSocket | undefined, serviceName: string, startIfStopped = false) : Promise<number> {
         const terminalName = getComposeTerminalName(socket?.endpoint ?? "", this.name);
         let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", this.getComposeOptions("pull", serviceName), this.path);
         if (exitCode !== 0) {
             throw new Error(`Failed to pull service ${serviceName}, please check the terminal output for more information.`);
         }
 
-        // A stopped stack stays stopped
+        // A stopped stack stays stopped, unless asked otherwise
         await this.updateStatus();
-        if (this.status !== RUNNING) {
+        if (this.status !== RUNNING && !startIfStopped) {
             return exitCode;
         }
 

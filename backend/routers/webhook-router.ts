@@ -8,9 +8,10 @@ import { webhookRateLimiter } from "../rate-limiter";
 import { findWebhookTarget, recordWebhookResult, WebhookResult } from "../webhook";
 
 /**
- * POST /api/webhook/:token runs the Update of the token's stack, or of one
- * of its services (pull, then recreate if the stack is running) and answers when it is done. Meant for a CI step such
- * as GitHub Actions. The reply never includes terminal output.
+ * POST /api/webhook/:token updates the token's stack, or one of its
+ * services: pull, then up -d, which starts a stopped stack too. It answers
+ * when that is done. Meant for a CI step such as GitHub Actions. The reply
+ * never includes terminal output.
  */
 export class WebhookRouter extends Router {
     /**
@@ -97,9 +98,9 @@ export class WebhookRouter extends Router {
         let msg : string;
         try {
             if (serviceName === "") {
-                await stack.update(undefined);
+                await stack.update(undefined, true);
             } else {
-                await stack.updateService(undefined, serviceName);
+                await stack.updateService(undefined, serviceName, true);
             }
             status = 200;
             result = "success";

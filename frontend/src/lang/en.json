@@ -443,7 +443,7 @@
     "loginTwoFASubtitle": "Enter the 6-digit code from your authenticator app.",
     "Back to sign in": "Back to sign in",
     "webhook": "Webhook",
-    "webhookIntro": "Call this URL from a GitHub Actions step (or anything else) to pull the stack's images and recreate it if it is running.",
+    "webhookIntro": "Call this URL from a GitHub Actions step (or anything else) to run docker compose pull and docker compose up -d. This starts the stack if it is stopped.",
     "webhookUnsupported": "This agent's Docket version doesn't support webhooks.",
     "createWebhook": "Create webhook",
     "webhookUrl": "Webhook URL",
@@ -465,5 +465,5 @@
     "regenerateWebhookConfirm": "The current URL will stop working. Continue?",
     "deleteWebhookConfirm": "Delete this webhook? The URL will stop working.",
     "containerWebhook": "Container webhook",
-    "containerWebhookIntro": "Call this URL from a GitHub Actions step (or anything else) to pull {0}'s image and restart only this container. If the stack is stopped, the image is only pulled."
+    "containerWebhookIntro": "Call this URL from a GitHub Actions step (or anything else) to pull {0}'s image and restart only this container, even if it is stopped. The other containers are left alone."
 }
