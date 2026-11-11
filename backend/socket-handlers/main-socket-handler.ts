@@ -27,22 +27,38 @@ import path from "path";
 import os from "os";
 import childProcessAsync from "promisify-child-process";
 
+// How long the About page waits for a command before showing "Unavailable"
+const COMMAND_TIMEOUT_MS = 3000;
+
 /**
  * Run a command and return its trimmed stdout
  * @param cmd Command to run
  * @param args Arguments
- * @returns The output, or null on any error or empty output
+ * @returns The output, or null on any error, empty output or timeout
  */
 async function commandOutput(cmd : string, args : string[]) : Promise<string | null> {
+    let timer : NodeJS.Timeout | undefined;
+    // Don't wait for the process to exit after the timeout: killing it can be
+    // slow (e.g. docker on Windows when the daemon isn't running)
+    const deadline = new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), COMMAND_TIMEOUT_MS);
+    });
+    const run = (async () => {
+        try {
+            const res = await childProcessAsync.spawn(cmd, args, {
+                encoding: "utf-8",
+                timeout: COMMAND_TIMEOUT_MS,
+            });
+            const out = String(res.stdout ?? "").trim();
+            return out || null;
+        } catch (e) {
+            return null;
+        }
+    })();
     try {
-        const res = await childProcessAsync.spawn(cmd, args, {
-            encoding: "utf-8",
-            timeout: 5000,
-        });
-        const out = String(res.stdout ?? "").trim();
-        return out || null;
-    } catch (e) {
-        return null;
+        return await Promise.race([ run, deadline ]);
+    } finally {
+        clearTimeout(timer);
     }
 }
 
