@@ -237,7 +237,7 @@
     "envFileNameUsed": "{0} is already used by {1}",
     "removeEnv": "Remove env",
     "removeEnvTitle": "Remove environment variables",
-    "removeEnvMsg": "Remove all environment variables of {0}? Its env file is deleted and the stack is redeployed.",
+    "removeEnvMsg": "Remove all environment variables of {0}? Its env file is deleted.",
     "removeEnvMsgEdit": "Remove all environment variables of {0}? Its env file is deleted when you save.",
     "containerEnvHint": "Variables passed to the container, written in the compose file. Use Env on the container card to keep them in a .env file.",
     "addEnv": "Add environment variables",

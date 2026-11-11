@@ -1677,7 +1677,7 @@ export default {
             }
 
             this.volumeDrawer.open = false;
-            this.deployIfViewing();
+            this.saveIfViewing();
         },
 
         /**
@@ -1693,7 +1693,7 @@ export default {
                 delete this.jsonConfig.volumes;
             }
             this.renameServiceVolume(volumeName, null);
-            this.deployIfViewing();
+            this.saveIfViewing();
         },
 
         /**
@@ -1740,13 +1740,15 @@ export default {
         },
 
         /**
-         * Deploy right away in view mode; in edit mode the change stays in the editor
+         * Save right away in view mode; in edit mode the change stays in the editor.
+         * Containers are not started or recreated: that is up to the user
+         * (Start, Restart, Update or Deploy).
          * @returns {void}
          */
-        deployIfViewing() {
+        saveIfViewing() {
             if (!this.isEditMode) {
-                // Wait for the jsonConfig watcher to regenerate the YAML, then deploy
-                this.$nextTick(() => this.deployStack());
+                // Wait for the jsonConfig watcher to regenerate the YAML, then save
+                this.$nextTick(() => this.saveStack());
             }
         },
 
@@ -1781,13 +1783,13 @@ export default {
             this.networkDrawer.open = false;
 
             if (this.networkDrawer.fromContainer) {
-                // Select it in the container form; it is deployed when the container is saved
+                // Select it in the container form; it is saved with the container
                 this.networkDrawer.fromContainer = false;
                 this.$refs.containerDrawer?.useCreatedNetwork(name, !!config?.external);
                 return;
             }
 
-            this.deployIfViewing();
+            this.saveIfViewing();
         },
 
         /**
@@ -1815,7 +1817,7 @@ export default {
             this.renameServiceNetwork(networkName, null);
 
             this.networkDrawer.open = false;
-            this.deployIfViewing();
+            this.saveIfViewing();
         },
 
         /**
@@ -1830,8 +1832,8 @@ export default {
 
         /**
          * Remove a service from the compose file and from other services'
-         * dependencies. In view mode the stack is deployed right away, which
-         * removes the container (deploy uses --remove-orphans).
+         * dependencies. In view mode the compose file is saved right away. The
+         * container itself is removed on the next Start or Deploy (--remove-orphans).
          * @param {string} serviceName Service to remove
          * @returns {void}
          */
@@ -1859,16 +1861,14 @@ export default {
 
             this.containerDrawer.open = false;
 
-            if (!this.isEditMode) {
-                // Wait for the jsonConfig watcher to regenerate the YAML, then deploy
-                this.$nextTick(() => this.deployStack());
-            }
+            this.saveIfViewing();
         },
 
         /**
          * Apply the container drawer's result to the compose file.
-         * In view mode the stack is deployed right away; in edit mode the
-         * change stays in the editor until the user deploys or saves.
+         * In view mode the compose file is saved right away (no containers are
+         * started); in edit mode the change stays in the editor until the user
+         * deploys or saves.
          * @param {object} result Values emitted by the drawer
          * @returns {void}
          */
@@ -1931,10 +1931,7 @@ export default {
 
             this.containerDrawer.open = false;
 
-            if (!this.isEditMode) {
-                // Wait for the jsonConfig watcher to regenerate the YAML, then deploy
-                this.$nextTick(() => this.deployStack());
-            }
+            this.saveIfViewing();
         },
 
         /**
@@ -2034,7 +2031,7 @@ export default {
          * named (".env.<service>" by default) in the stack folder, which is put
          * in env_file in place of the service's previous env file, and the inline
          * environment is removed. On older agents the inline environment is
-         * updated instead. In view mode the stack is deployed.
+         * updated instead. In view mode the compose file is saved.
          * @param {object} result Drawer result
          * @param {string} result.serviceName Service that was edited
          * @param {{key: string, value: string}[]} result.rows Variables
@@ -2081,16 +2078,13 @@ export default {
 
             this.envDrawer.open = false;
 
-            if (!this.isEditMode) {
-                // Wait for the jsonConfig watcher to regenerate the YAML, then deploy
-                this.$nextTick(() => this.deployStack());
-            }
+            this.saveIfViewing();
         },
 
         /**
          * Remove all of a service's variables: its env file is deleted (unless
          * another service uses it) and taken out of env_file, and the inline
-         * environment is removed. In view mode the stack is deployed.
+         * environment is removed. In view mode the compose file is saved.
          * @param {string} serviceName Service name
          * @returns {void}
          */
@@ -2116,9 +2110,7 @@ export default {
             }
             delete service.environment;
 
-            if (!this.isEditMode) {
-                this.$nextTick(() => this.deployStack());
-            }
+            this.saveIfViewing();
         },
 
         stackNameToLowercase() {
