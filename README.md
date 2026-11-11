@@ -140,6 +140,32 @@ cd /opt/docket
 docker compose exec docket npm run reset-password
 ```
 
+## 🚀 Deploy from GitHub Actions
+
+Each stack can have a secret webhook URL. Calling it pulls the stack's images and recreates the containers if the stack is running. A stopped stack is pulled but stays stopped. It is the same as pressing **Update**.
+
+1. Open the stack, click the **⋮** menu next to the actions, then **Webhook** → **Create webhook**.
+2. Copy the URL. It is shown only once; if you lose it, use **Regenerate URL**, which also turns the old one off.
+3. In your GitHub repository, add it as the secret `DOCKET_WEBHOOK_URL` (Settings → Secrets and variables → Actions).
+4. Add a step at the end of your workflow, after the image is pushed:
+
+```yaml
+- name: Redeploy on Docket
+  run: curl -fsS -X POST --max-time 600 "${{ secrets.DOCKET_WEBHOOK_URL }}"
+```
+
+The request waits for the update to finish, so the step fails when the update fails. Docket answers with:
+
+| Status | Meaning |
+|---|---|
+| `200` | Updated |
+| `404` | Unknown URL, or the stack no longer exists |
+| `409` | Another operation is running on the stack; try again |
+| `429` | More than 30 webhook calls in a minute |
+| `500` | The pull or the restart failed; the Docket log has details |
+
+Docket must be reachable from GitHub's runners (or use a self-hosted runner). If it runs behind a reverse proxy, raise the proxy's read timeout (for example `proxy_read_timeout 600s;` in nginx) so a long pull isn't cut off. A stack on a remote agent gets a URL on that agent's host.
+
 ## How to Update
 
 ```bash
