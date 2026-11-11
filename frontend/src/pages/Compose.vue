@@ -79,7 +79,7 @@
                                 <font-awesome-icon icon="stop" class="me-1" />
                                 {{ $t("downStack") }}
                             </BDropdownItem>
-                            <BDropdownItem @click="webhookDrawer.open = true">
+                            <BDropdownItem @click="openWebhookDrawer('')">
                                 <font-awesome-icon icon="link" class="me-1" />
                                 {{ $t("webhook") }}
                             </BDropdownItem>
@@ -126,6 +126,7 @@
                         @edit-service="openContainerDrawer"
                         @edit-env="openEnvDrawer"
                         @delete-service="deleteContainer"
+                        @edit-webhook="openWebhookDrawer"
                     />
                 </div>
 
@@ -433,6 +434,7 @@
             <WebhookDrawer
                 :open="webhookDrawer.open"
                 :stack-name="stack.name"
+                :service-name="webhookDrawer.serviceName"
                 :endpoint="endpoint"
                 @close="webhookDrawer.open = false"
             />
@@ -830,6 +832,7 @@ export default {
             },
             webhookDrawer: {
                 open: false,
+                serviceName: "",
             },
             envDrawer: {
                 open: false,
@@ -1379,6 +1382,16 @@ export default {
                 this.processing = false;
                 this.$root.toastRes(res);
             });
+        },
+
+        /**
+         * Open the webhook drawer
+         * @param {string} serviceName Container to update, or "" for the whole stack
+         * @returns {void}
+         */
+        openWebhookDrawer(serviceName) {
+            this.webhookDrawer.serviceName = serviceName;
+            this.webhookDrawer.open = true;
         },
 
         downStack() {

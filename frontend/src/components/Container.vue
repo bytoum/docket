@@ -45,6 +45,9 @@
                         <font-awesome-icon v-if="!hasEnv" icon="plus" class="env-plus" />
                         {{ $t("envButton") }}
                     </button>
+                    <button class="icon-btn" :title="$t('containerWebhook')" :aria-label="$t('containerWebhook')" @click="$emit('edit-webhook', name)">
+                        <font-awesome-icon icon="link" class="webhook-icon" />
+                    </button>
                     <button class="icon-btn" :title="$t('Edit')" :aria-label="$t('Edit')" @click="editService">
                         <AssetIcon :src="icons.pen" width="13.0569" height="13.0569" :box="14" tone="neutral" />
                     </button>
@@ -181,6 +184,7 @@ export default defineComponent({
         "edit-service",
         "edit-env",
         "delete-service",
+        "edit-webhook",
     ],
     data() {
         return {
@@ -488,6 +492,11 @@ export default defineComponent({
     }
 }
 
+.webhook-icon {
+    font-size: 12px;
+    color: $text-secondary;
+}
+
 .card-bottom {
     display: flex;
     align-items: center;
@@ -606,6 +615,10 @@ export default defineComponent({
 
     .icon-btn:hover {
         background-color: $dark-bg2;
+    }
+
+    .webhook-icon {
+        color: $dark-text-secondary;
     }
 
     .icon-btn.danger {

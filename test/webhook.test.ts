@@ -137,4 +137,57 @@ describe("deploy webhooks", () => {
         assert.equal((await agentCall(socket, "deleteWebhook", "web")).ok, true);
         assert.equal((await agentCall(socket, "getWebhook", "web")).webhook, null);
     });
+
+    describe("container webhooks", () => {
+        const MULTI = "services:\n  web:\n    image: nginx:alpine\n  db:\n    image: redis:alpine\n";
+
+        before(async () => {
+            const dir = path.join(backend.dataDir, "stacks", "multi");
+            await fs.promises.mkdir(dir, { recursive: true });
+            await fs.promises.writeFile(path.join(dir, "compose.yaml"), MULTI);
+        });
+
+        it("keeps a container webhook apart from the stack webhook", async () => {
+            const svc = await agentCall(socket, "createWebhook", "multi", "web");
+            assert.equal(svc.ok, true);
+            assert.match(svc.token, /^[A-Za-z0-9_-]{43}$/);
+            assert.equal((await agentCall(socket, "getWebhook", "multi")).webhook, null);
+            assert.ok((await agentCall(socket, "getWebhook", "multi", "web")).webhook.createdDate);
+            assert.equal((await agentCall(socket, "getWebhook", "multi", "db")).webhook, null);
+
+            const stack = await agentCall(socket, "createWebhook", "multi");
+            assert.equal(stack.ok, true);
+            assert.equal((await agentCall(socket, "deleteWebhook", "multi", "web")).ok, true);
+            assert.equal((await agentCall(socket, "getWebhook", "multi", "web")).webhook, null);
+            assert.ok((await agentCall(socket, "getWebhook", "multi")).webhook);
+            assert.equal((await (await hook(svc.token)).json()).msg, "Not found");
+            await agentCall(socket, "deleteWebhook", "multi");
+        });
+
+        it("refuses an unknown or invalid service", async () => {
+            for (const service of [ "nope", "../x", "a b", 42 ]) {
+                const res = await agentCall(socket, "createWebhook", "multi", service);
+                assert.notEqual(res.ok, true, String(service));
+            }
+            assert.equal((await agentCall(socket, "getWebhook", "multi", "nope")).webhook, null);
+        });
+
+        it("answers Service not found when the service is removed", async () => {
+            const { token } = await agentCall(socket, "createWebhook", "multi", "db");
+            const file = path.join(backend.dataDir, "stacks", "multi", "compose.yaml");
+            await fs.promises.writeFile(file, "services:\n  web:\n    image: nginx:alpine\n");
+            const r = await hook(token);
+            assert.equal(r.status, 404);
+            assert.deepEqual(await r.json(), { ok: false,
+                msg: "Service not found" });
+            await fs.promises.writeFile(file, MULTI);
+        });
+
+        it("old container token stops working after regenerate", async () => {
+            const a = (await agentCall(socket, "createWebhook", "multi", "web")).token;
+            const b = (await agentCall(socket, "createWebhook", "multi", "web")).token;
+            assert.notEqual(a, b);
+            assert.equal((await (await hook(a)).json()).msg, "Not found");
+        });
+    });
 });

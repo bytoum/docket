@@ -463,5 +463,7 @@
     "regenerateWebhook": "Regenerate URL",
     "deleteWebhook": "Delete webhook",
     "regenerateWebhookConfirm": "The current URL will stop working. Continue?",
-    "deleteWebhookConfirm": "Delete this webhook? The URL will stop working."
+    "deleteWebhookConfirm": "Delete this webhook? The URL will stop working.",
+    "containerWebhook": "Container webhook",
+    "containerWebhookIntro": "Call this URL from a GitHub Actions step (or anything else) to pull {0}'s image and restart only this container. If the stack is stopped, the image is only pulled."
 }

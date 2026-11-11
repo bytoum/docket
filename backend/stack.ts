@@ -19,7 +19,7 @@ import {
 import { InteractiveTerminal, Terminal } from "./terminal";
 import childProcessAsync from "promisify-child-process";
 import { Settings } from "./settings";
-import { deleteWebhook } from "./webhook";
+import { deleteStackWebhooks } from "./webhook";
 
 export class Stack {
 
@@ -310,7 +310,7 @@ export class Stack {
         // Its webhook URL must stop working, and must not carry over to a new
         // stack of the same name
         try {
-            await deleteWebhook(this.name);
+            await deleteStackWebhooks(this.name);
         } catch (e) {
             log.warn("webhook", "Could not delete the webhook of stack " + this.name + ": " + e);
         }
@@ -722,6 +722,47 @@ export class Stack {
         } catch (e) {
             log.error("getServiceStatusList", e);
             return statusList;
+        }
+    }
+
+    /**
+     * Pull one service's image, then recreate its container if the stack is
+     * running (always restarts it). Other services are left alone.
+     * @param {DocketSocket | undefined} socket Socket that sees the output, or undefined for a webhook
+     * @param {string} serviceName Service to update
+     * @returns {Promise<number>} Exit code
+     */
+    async updateService(socket: DocketSocket | undefined, serviceName: string) : Promise<number> {
+        const terminalName = getComposeTerminalName(socket?.endpoint ?? "", this.name);
+        let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", this.getComposeOptions("pull", serviceName), this.path);
+        if (exitCode !== 0) {
+            throw new Error(`Failed to pull service ${serviceName}, please check the terminal output for more information.`);
+        }
+
+        // A stopped stack stays stopped
+        await this.updateStatus();
+        if (this.status !== RUNNING) {
+            return exitCode;
+        }
+
+        exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", this.getComposeOptions("up", "-d", "--no-deps", "--force-recreate", serviceName), this.path);
+        if (exitCode !== 0) {
+            throw new Error(`Failed to recreate service ${serviceName}, please check the terminal output for more information.`);
+        }
+        return exitCode;
+    }
+
+    /**
+     * Whether the compose file defines a service
+     * @param {string} serviceName Service name
+     * @returns {boolean} True when it does
+     */
+    hasService(serviceName : string) : boolean {
+        try {
+            const services = yaml.parse(this.composeYAML)?.services;
+            return !!services && typeof services === "object" && Object.hasOwn(services, serviceName);
+        } catch (e) {
+            return false;
         }
     }
 

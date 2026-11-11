@@ -5,11 +5,11 @@ import { log } from "../log";
 import { Stack } from "../stack";
 import { TERMINAL_BUSY_MESSAGE } from "../terminal";
 import { webhookRateLimiter } from "../rate-limiter";
-import { findWebhookStackName, recordWebhookResult, WebhookResult } from "../webhook";
+import { findWebhookTarget, recordWebhookResult, WebhookResult } from "../webhook";
 
 /**
- * POST /api/webhook/:token runs the Update of the token's stack (pull, then
- * recreate if running) and answers when it is done. Meant for a CI step such
+ * POST /api/webhook/:token runs the Update of the token's stack, or of one
+ * of its services (pull, then recreate if the stack is running) and answers when it is done. Meant for a CI step such
  * as GitHub Actions. The reply never includes terminal output.
  */
 export class WebhookRouter extends Router {
@@ -56,8 +56,8 @@ export class WebhookRouter extends Router {
     async handle(server : DocketServer, token : string, res : Response) : Promise<void> {
         // Only unknown tokens count toward the limit, so strangers sending
         // junk cannot block a real CI call
-        const stackName = await findWebhookStackName(token);
-        if (!stackName) {
+        const target = await findWebhookTarget(token);
+        if (!target) {
             if (await webhookRateLimiter.removeTokens(1) < 0) {
                 res.status(429).json({
                     ok: false,
@@ -74,7 +74,7 @@ export class WebhookRouter extends Router {
 
         let stack : Stack;
         try {
-            stack = await Stack.getStack(server, stackName);
+            stack = await Stack.getStack(server, target.stackName);
         } catch (e) {
             res.status(404).json({
                 ok: false,
@@ -83,11 +83,24 @@ export class WebhookRouter extends Router {
             return;
         }
 
+        const { stackName, serviceName } = target;
+        if (serviceName !== "" && !stack.hasService(serviceName)) {
+            res.status(404).json({
+                ok: false,
+                msg: "Service not found",
+            });
+            return;
+        }
+
         let status : number;
         let result : WebhookResult;
         let msg : string;
         try {
-            await stack.update(undefined);
+            if (serviceName === "") {
+                await stack.update(undefined);
+            } else {
+                await stack.updateService(undefined, serviceName);
+            }
             status = 200;
             result = "success";
             msg = "Updated";
@@ -103,8 +116,9 @@ export class WebhookRouter extends Router {
             }
         }
 
-        await recordWebhookResult(stackName, result);
-        log.info("webhook", "Webhook triggered for stack " + stackName + ": " + result);
+        await recordWebhookResult(target, result);
+        const what = serviceName === "" ? "stack " + stackName : "service " + serviceName + " of stack " + stackName;
+        log.info("webhook", "Webhook triggered for " + what + ": " + result);
         server.sendStackList();
 
         if (status === 200) {
@@ -112,6 +126,7 @@ export class WebhookRouter extends Router {
                 ok: true,
                 msg,
                 stack: stackName,
+                ...(serviceName !== "" ? { service: serviceName } : {}),
             });
         } else {
             res.status(status).json({

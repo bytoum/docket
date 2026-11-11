@@ -1,12 +1,19 @@
 /*
- * Deploy webhooks: one secret URL per stack that runs the stack's Update
- * (pull, then recreate if running). Only the SHA-256 hash of a token is stored.
+ * Deploy webhooks: secret URLs that run a stack's Update (pull, then recreate
+ * if running), either for the whole stack or for one of its services. Only
+ * the SHA-256 hash of a token is stored.
  */
 import crypto from "crypto";
 import dayjs from "dayjs";
 import { R } from "redbean-node";
 
 export type WebhookResult = "success" | "failed" | "busy";
+
+export interface WebhookTarget {
+    stackName : string;
+    /** "" for a whole-stack webhook */
+    serviceName : string;
+}
 
 export interface WebhookInfo {
     createdDate : string;
@@ -54,15 +61,26 @@ export function isWebhookStackName(name : string) : boolean {
 }
 
 /**
- * Create the stack's webhook, or replace it so the old URL stops working
+ * Whether a string is a valid Compose service name
+ * @param {string} name Service name
+ * @returns {boolean} True when valid
+ */
+export function isWebhookServiceName(name : string) : boolean {
+    return /^[a-zA-Z0-9._-]+$/.test(name) && name !== "." && name !== "..";
+}
+
+/**
+ * Create a webhook, or replace it so the old URL stops working
  * @param {string} stackName Stack name
+ * @param {string} serviceName Service to update, or "" for the whole stack
  * @returns {Promise<string>} The raw token, shown to the user once
  */
-export async function createWebhook(stackName : string) : Promise<string> {
+export async function createWebhook(stackName : string, serviceName = "") : Promise<string> {
     const token = crypto.randomBytes(32).toString("base64url");
-    await R.exec("DELETE FROM webhook WHERE stack_name = ?", [ stackName ]);
-    await R.exec("INSERT INTO webhook (stack_name, token_hash, created_date) VALUES (?, ?, ?)", [
+    await R.exec("DELETE FROM webhook WHERE stack_name = ? AND service_name = ?", [ stackName, serviceName ]);
+    await R.exec("INSERT INTO webhook (stack_name, service_name, token_hash, created_date) VALUES (?, ?, ?, ?)", [
         stackName,
+        serviceName,
         hashWebhookToken(token),
         nowUTC(),
     ]);
@@ -70,12 +88,13 @@ export async function createWebhook(stackName : string) : Promise<string> {
 }
 
 /**
- * The stack's webhook, without its token
+ * A webhook, without its token
  * @param {string} stackName Stack name
- * @returns {Promise<WebhookInfo | null>} Null when the stack has none
+ * @param {string} serviceName Service name, or "" for the stack's own webhook
+ * @returns {Promise<WebhookInfo | null>} Null when there is none
  */
-export async function getWebhookInfo(stackName : string) : Promise<WebhookInfo | null> {
-    const row = await R.getRow("SELECT created_date, last_triggered, last_result FROM webhook WHERE stack_name = ?", [ stackName ]);
+export async function getWebhookInfo(stackName : string, serviceName = "") : Promise<WebhookInfo | null> {
+    const row = await R.getRow("SELECT created_date, last_triggered, last_result FROM webhook WHERE stack_name = ? AND service_name = ?", [ stackName, serviceName ]);
     if (!row) {
         return null;
     }
@@ -87,35 +106,52 @@ export async function getWebhookInfo(stackName : string) : Promise<WebhookInfo |
 }
 
 /**
- * Delete the stack's webhook, if it has one
+ * Delete a webhook, if it exists
+ * @param {string} stackName Stack name
+ * @param {string} serviceName Service name, or "" for the stack's own webhook
+ * @returns {Promise<void>}
+ */
+export async function deleteWebhook(stackName : string, serviceName = "") : Promise<void> {
+    await R.exec("DELETE FROM webhook WHERE stack_name = ? AND service_name = ?", [ stackName, serviceName ]);
+}
+
+/**
+ * Delete every webhook of a stack, its own and its containers'
  * @param {string} stackName Stack name
  * @returns {Promise<void>}
  */
-export async function deleteWebhook(stackName : string) : Promise<void> {
+export async function deleteStackWebhooks(stackName : string) : Promise<void> {
     await R.exec("DELETE FROM webhook WHERE stack_name = ?", [ stackName ]);
 }
 
 /**
- * The stack a webhook token belongs to
+ * What a webhook token updates
  * @param {string} token Raw token from the URL
- * @returns {Promise<string | null>} Stack name, or null for an unknown token
+ * @returns {Promise<WebhookTarget | null>} Stack and service ("" for the whole stack), or null for an unknown token
  */
-export async function findWebhookStackName(token : string) : Promise<string | null> {
-    const row = await R.getRow("SELECT stack_name FROM webhook WHERE token_hash = ?", [ hashWebhookToken(token) ]);
-    return row?.stack_name ?? null;
+export async function findWebhookTarget(token : string) : Promise<WebhookTarget | null> {
+    const row = await R.getRow("SELECT stack_name, service_name FROM webhook WHERE token_hash = ?", [ hashWebhookToken(token) ]);
+    if (!row) {
+        return null;
+    }
+    return {
+        stackName: row.stack_name,
+        serviceName: row.service_name ?? "",
+    };
 }
 
 /**
- * Record a webhook run. Matches by stack name, so a webhook regenerated or
- * deleted during the run is simply updated or left alone.
- * @param {string} stackName Stack name
+ * Record a webhook run. Matches by stack and service, so a webhook
+ * regenerated or deleted during the run is simply updated or left alone.
+ * @param {WebhookTarget} target Stack and service
  * @param {WebhookResult} result Outcome of the run
  * @returns {Promise<void>}
  */
-export async function recordWebhookResult(stackName : string, result : WebhookResult) : Promise<void> {
-    await R.exec("UPDATE webhook SET last_triggered = ?, last_result = ? WHERE stack_name = ?", [
+export async function recordWebhookResult(target : WebhookTarget, result : WebhookResult) : Promise<void> {
+    await R.exec("UPDATE webhook SET last_triggered = ?, last_result = ? WHERE stack_name = ? AND service_name = ?", [
         nowUTC(),
         result,
-        stackName,
+        target.stackName,
+        target.serviceName,
     ]);
 }

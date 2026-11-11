@@ -142,9 +142,14 @@ docker compose exec docket npm run reset-password
 
 ## 🚀 Deploy from GitHub Actions
 
-Each stack can have a secret webhook URL. Calling it pulls the stack's images and recreates the containers if the stack is running. A stopped stack is pulled but stays stopped. It is the same as pressing **Update**.
+There are two kinds of webhook. Each one is a secret URL:
 
-1. Open the stack, click the **⋮** menu next to the actions, then **Webhook** → **Create webhook**.
+- **Stack webhook.** Pulls the stack's images and recreates the containers if the stack is running, the same as pressing **Update**. Open the stack, click the **⌄** button at the end of the Start / Restart / Update / Stop buttons, then choose **Webhook**.
+- **Container webhook.** Pulls one service's image and restarts only that container, leaving the other services alone. Use it when CI builds the image of just one service. Click the link icon on that container's card.
+
+If the stack is stopped, either kind only pulls; the stack stays stopped.
+
+1. Open the webhook panel as described above, then click **Create webhook**.
 2. Copy the URL. It is shown only once; if you lose it, use **Regenerate URL**, which also turns the old one off.
 3. In your GitHub repository, add it as the secret `DOCKET_WEBHOOK_URL` (Settings → Secrets and variables → Actions).
 4. Add a step at the end of your workflow, after the image is pushed:

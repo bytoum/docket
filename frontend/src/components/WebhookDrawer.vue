@@ -9,8 +9,8 @@
                 <!-- Header -->
                 <header class="drawer-header">
                     <div class="drawer-title">
-                        <h2>{{ $t("webhook") }}</h2>
-                        <p>{{ stackName }}</p>
+                        <h2>{{ serviceName ? $t("containerWebhook") : $t("webhook") }}</h2>
+                        <p>{{ serviceName ? serviceName + " · " + stackName : stackName }}</p>
                     </div>
                     <button type="button" class="square-btn" :aria-label="$t('cancel')" @click="close">
                         <span class="icon"><img :src="icons.close" alt="" width="9.5" height="9.5" /></span>
@@ -19,7 +19,7 @@
 
                 <!-- Body -->
                 <div class="drawer-body">
-                    <p class="field-hint intro">{{ $t("webhookIntro") }}</p>
+                    <p class="field-hint intro">{{ serviceName ? $t("containerWebhookIntro", [ serviceName ]) : $t("webhookIntro") }}</p>
 
                     <p v-if="loading" class="field-hint">…</p>
 
@@ -87,7 +87,8 @@ const icons = {
 const LOAD_TIMEOUT_MS = 5000;
 
 /**
- * Side drawer to create, regenerate or delete a stack's deploy webhook.
+ * Side drawer to create, regenerate or delete a deploy webhook, for a whole
+ * stack or for one of its containers.
  * The URL is only shown right after it is created, because the server keeps
  * only a hash of the token.
  */
@@ -102,6 +103,11 @@ export default {
         stackName: {
             type: String,
             required: true,
+        },
+        /** Service the webhook updates, or "" for the whole stack */
+        serviceName: {
+            type: String,
+            default: "",
         },
         /** Agent endpoint of the stack, "" for this instance */
         endpoint: {
@@ -121,6 +127,15 @@ export default {
         };
     },
     computed: {
+        /**
+         * Event arguments that name the webhook. The service is only sent
+         * when set, so whole-stack webhooks work with any agent.
+         * @returns {string[]} Stack name, then the service name if any
+         */
+        target() {
+            return this.serviceName ? [ this.stackName, this.serviceName ] : [ this.stackName ];
+        },
+
         /**
          * Full webhook URL on the host that runs the stack
          * @returns {string} URL
@@ -175,7 +190,7 @@ export default {
                     this.unsupported = true;
                 }
             }, LOAD_TIMEOUT_MS);
-            this.$root.emitAgent(this.endpoint, "getWebhook", this.stackName, (res) => {
+            this.$root.emitAgent(this.endpoint, "getWebhook", ...this.target, (res) => {
                 if (done) {
                     return;
                 }
@@ -196,7 +211,7 @@ export default {
          */
         create() {
             this.busy = true;
-            this.$root.emitAgent(this.endpoint, "createWebhook", this.stackName, (res) => {
+            this.$root.emitAgent(this.endpoint, "createWebhook", ...this.target, (res) => {
                 this.busy = false;
                 if (!res.ok) {
                     this.$root.toastRes(res);
@@ -230,7 +245,7 @@ export default {
                 return;
             }
             this.busy = true;
-            this.$root.emitAgent(this.endpoint, "deleteWebhook", this.stackName, (res) => {
+            this.$root.emitAgent(this.endpoint, "deleteWebhook", ...this.target, (res) => {
                 this.busy = false;
                 if (!res.ok) {
                     this.$root.toastRes(res);
