@@ -14,6 +14,9 @@ import { log } from "./log";
 /**
  * Terminal for running commands, no user interaction
  */
+/** Rejection of Terminal.exec while another operation runs in the same terminal */
+export const TERMINAL_BUSY_MESSAGE = "Another operation is already running, please try again later.";
+
 export class Terminal {
     protected static terminalMap : Map<string, Terminal> = new Map();
 
@@ -225,7 +228,7 @@ export class Terminal {
         return new Promise((resolve, reject) => {
             // check if terminal exists
             if (Terminal.terminalMap.has(terminalName)) {
-                reject("Another operation is already running, please try again later.");
+                reject(TERMINAL_BUSY_MESSAGE);
                 return;
             }
 

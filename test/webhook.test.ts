@@ -88,6 +88,50 @@ describe("deploy webhooks", () => {
         }
     });
 
+    /**
+     * Call the webhook endpoint
+     * @param {string} token Token path segment
+     * @param {string} method HTTP method
+     * @returns {Promise<Response>} Response
+     */
+    function hook(token : string, method = "POST") : Promise<Response> {
+        return fetch(`${backend.url}/api/webhook/${token}`, { method });
+    }
+
+    it("answers 404 for an unknown or odd token", async () => {
+        for (const t of [ "nope", "a%2Fb", "..x", "x".repeat(500) ]) {
+            const r = await hook(t);
+            assert.equal(r.status, 404, t);
+            assert.deepEqual(await r.json(), { ok: false,
+                msg: "Not found" });
+        }
+    });
+
+    it("only accepts POST", async () => {
+        const { token } = await agentCall(socket, "createWebhook", "web");
+        const r = await hook(token, "GET");
+        assert.equal(r.status, 404);
+        assert.equal((await agentCall(socket, "getWebhook", "web")).webhook.lastTriggered, null);
+    });
+
+    it("answers Stack not found when the folder is gone", async () => {
+        await makeStack("gone");
+        const { token } = await agentCall(socket, "createWebhook", "gone");
+        await fs.promises.rm(path.join(backend.dataDir, "stacks", "gone"), { recursive: true });
+        const r = await hook(token);
+        assert.equal(r.status, 404);
+        assert.deepEqual(await r.json(), { ok: false,
+            msg: "Stack not found" });
+    });
+
+    it("old token stops working after regenerate, new one after delete", async () => {
+        const a = (await agentCall(socket, "createWebhook", "web")).token;
+        const b = (await agentCall(socket, "createWebhook", "web")).token;
+        assert.equal((await (await hook(a)).json()).msg, "Not found");
+        await agentCall(socket, "deleteWebhook", "web");
+        assert.equal((await (await hook(b)).json()).msg, "Not found");
+    });
+
     it("deletes a webhook", async () => {
         await agentCall(socket, "createWebhook", "web");
         assert.equal((await agentCall(socket, "deleteWebhook", "web")).ok, true);

@@ -79,3 +79,11 @@ export const twoFaRateLimiter = new KumaRateLimiter({
     fireImmediately: true,
     errorMessage: "Too frequently, try again later."
 });
+
+// Deploy webhooks, for the whole instance. Slows down token guessing.
+export const webhookRateLimiter = new KumaRateLimiter({
+    tokensPerInterval: 30,
+    interval: "minute",
+    fireImmediately: true,
+    errorMessage: "Too many requests"
+});

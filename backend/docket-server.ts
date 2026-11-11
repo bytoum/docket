@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { MainRouter } from "./routers/main-router";
+import { WebhookRouter } from "./routers/webhook-router";
 import * as fs from "node:fs";
 import { PackageJson } from "type-fest";
 import { Database } from "./database";
@@ -74,6 +75,7 @@ export class DocketServer {
      */
     routerList : Router[] = [
         new MainRouter(),
+        new WebhookRouter(),
     ];
 
     /**

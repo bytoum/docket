@@ -623,8 +623,13 @@ export class Stack {
         return exitCode;
     }
 
-    async update(socket: DocketSocket) {
-        const terminalName = getComposeTerminalName(socket.endpoint, this.name);
+    /**
+     * Pull the images, then recreate the containers if the stack is running
+     * @param {DocketSocket | undefined} socket Socket that sees the output, or undefined for a webhook
+     * @returns {Promise<number>} Exit code
+     */
+    async update(socket: DocketSocket | undefined) {
+        const terminalName = getComposeTerminalName(socket?.endpoint ?? "", this.name);
         let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", this.getComposeOptions("pull"), this.path);
         if (exitCode !== 0) {
             throw new Error("Failed to pull, please check the terminal output for more information.");
