@@ -465,5 +465,5 @@
     "regenerateWebhookConfirm": "The current URL will stop working. Continue?",
     "deleteWebhookConfirm": "Delete this webhook? The URL will stop working.",
     "containerWebhook": "Container webhook",
-    "containerWebhookIntro": "Call this URL from a GitHub Actions step (or anything else) to pull {0}'s image and restart only this container, even if it is stopped. The other containers are left alone."
+    "containerWebhookIntro": "Call this URL from a GitHub Actions step (or anything else) to stop and remove the {0} container, then start it again with docker compose up -d. Stopped dependencies are started too. To fetch a newer image from a registry each time, set pull_policy: always on the service."
 }

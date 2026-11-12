@@ -728,30 +728,25 @@ export class Stack {
     }
 
     /**
-     * Pull one service's image, then recreate its container (always restarts
-     * it). Other services are left alone. A stopped stack is only pulled,
-     * unless startIfStopped is set (webhooks).
+     * Recreate one service's container, as "docker stop", "docker rm", then
+     * "docker compose up -d <service>". Stopped dependencies are started;
+     * running ones are left alone. There is no separate pull: "up" pulls a
+     * missing image, and the service's pull_policy decides the rest (for
+     * example "always" to fetch a newer registry image every time).
      * @param {DocketSocket | undefined} socket Socket that sees the output, or undefined for a webhook
-     * @param {string} serviceName Service to update
-     * @param {boolean} startIfStopped Recreate the container even when the stack is not running
+     * @param {string} serviceName Service to recreate
      * @returns {Promise<number>} Exit code
      */
-    async updateService(socket: DocketSocket | undefined, serviceName: string, startIfStopped = false) : Promise<number> {
+    async recreateService(socket: DocketSocket | undefined, serviceName: string) : Promise<number> {
         const terminalName = getComposeTerminalName(socket?.endpoint ?? "", this.name);
-        let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", this.getComposeOptions("pull", serviceName), this.path);
+        let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", this.getComposeOptions("rm", "-s", "-f", serviceName), this.path);
         if (exitCode !== 0) {
-            throw new Error(`Failed to pull service ${serviceName}, please check the terminal output for more information.`);
+            throw new Error(`Failed to stop and remove service ${serviceName}, please check the terminal output for more information.`);
         }
 
-        // A stopped stack stays stopped, unless asked otherwise
-        await this.updateStatus();
-        if (this.status !== RUNNING && !startIfStopped) {
-            return exitCode;
-        }
-
-        exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", this.getComposeOptions("up", "-d", "--no-deps", "--force-recreate", serviceName), this.path);
+        exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", this.getComposeOptions("up", "-d", serviceName), this.path);
         if (exitCode !== 0) {
-            throw new Error(`Failed to recreate service ${serviceName}, please check the terminal output for more information.`);
+            throw new Error(`Failed to start service ${serviceName}, please check the terminal output for more information.`);
         }
         return exitCode;
     }

@@ -145,9 +145,11 @@ docker compose exec docket npm run reset-password
 There are two kinds of webhook. Each one is a secret URL:
 
 - **Stack webhook.** Pulls the stack's images and recreates the containers. Open the stack, click the **⌄** button at the end of the Start / Restart / Update / Stop buttons, then choose **Webhook**.
-- **Container webhook.** Pulls one service's image and restarts only that container, leaving the other services alone. Use it when CI builds the image of just one service. Click the link icon on that container's card.
+- **Container webhook.** Recreates one container: the same as `docker stop`, `docker rm`, then `docker compose up -d <service>`. Stopped dependencies are started too; the other running containers are left alone. Use it when CI builds the image of just one service. Click the link icon on that container's card.
 
 Both kinds always run: a stopped stack or container is started too. A stack webhook is the same as `docker compose pull && docker compose up -d`.
+
+A container webhook does not pull on its own, so it works with images that exist only on the server (built there or loaded with `docker load`). `docker compose up -d` pulls an image only when it is missing. To fetch a newer image from a registry on every call, add `pull_policy: always` to the service.
 
 1. Open the webhook panel as described above, then click **Create webhook**.
 2. Copy the URL. It is shown only once; if you lose it, use **Regenerate URL**, which also turns the old one off.

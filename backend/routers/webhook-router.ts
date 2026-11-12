@@ -8,9 +8,9 @@ import { webhookRateLimiter } from "../rate-limiter";
 import { findWebhookTarget, recordWebhookResult, WebhookResult } from "../webhook";
 
 /**
- * POST /api/webhook/:token updates the token's stack, or one of its
- * services: pull, then up -d, which starts a stopped stack too. It answers
- * when that is done. Meant for a CI step such as GitHub Actions. The reply
+ * POST /api/webhook/:token updates the token's stack (pull, then up -d,
+ * which starts a stopped stack too), or recreates one of its services
+ * (stop and remove it, then up -d). It answers when that is done. Meant for a CI step such as GitHub Actions. The reply
  * never includes terminal output.
  */
 export class WebhookRouter extends Router {
@@ -100,7 +100,7 @@ export class WebhookRouter extends Router {
             if (serviceName === "") {
                 await stack.update(undefined, true);
             } else {
-                await stack.updateService(undefined, serviceName, true);
+                await stack.recreateService(undefined, serviceName);
             }
             status = 200;
             result = "success";
