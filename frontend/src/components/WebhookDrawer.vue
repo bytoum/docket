@@ -113,7 +113,7 @@ export default {
             default: "",
         },
     },
-    emits: [ "close" ],
+    emits: [ "close", "changed" ],
     data() {
         return {
             icons,
@@ -223,6 +223,7 @@ export default {
                     return;
                 }
                 this.token = res.token;
+                this.$emit("changed");
                 this.webhook = {
                     createdDate: new Date().toISOString(),
                     lastTriggered: null,
@@ -259,6 +260,7 @@ export default {
                 }
                 this.token = "";
                 this.webhook = null;
+                this.$emit("changed");
             });
         },
 

@@ -45,7 +45,8 @@
                         <font-awesome-icon v-if="!hasEnv" icon="plus" class="env-plus" />
                         {{ $t("envButton") }}
                     </button>
-                    <button class="icon-btn" :title="$t('containerWebhook')" :aria-label="$t('containerWebhook')" @click="$emit('edit-webhook', name)">
+                    <button class="icon-btn" :class="{ 'webhook-add': !hasWebhook }" :title="$t('containerWebhook')" :aria-label="$t('containerWebhook')" @click="$emit('edit-webhook', name)">
+                        <font-awesome-icon v-if="!hasWebhook" icon="plus" class="webhook-icon webhook-plus" />
                         <font-awesome-icon icon="link" class="webhook-icon" />
                     </button>
                     <button class="icon-btn" :title="$t('Edit')" :aria-label="$t('Edit')" @click="editService">
@@ -176,6 +177,11 @@ export default defineComponent({
             type: Boolean,
             default: false,
         },
+        /** Incremented when a webhook is created or deleted */
+        webhookVersion: {
+            type: Number,
+            default: 0,
+        },
     },
     emits: [
         "start-service",
@@ -191,6 +197,7 @@ export default defineComponent({
             icons,
             expandedStats: false,
             showDeleteDialog: false,
+            hasWebhook: false,
         };
     },
     computed: {
@@ -316,12 +323,29 @@ export default defineComponent({
             return this.serviceStatus[0].status;
         }
     },
+    watch: {
+        webhookVersion() {
+            this.loadWebhook();
+        },
+    },
     mounted() {
         if (this.first) {
             //this.showConfig = true;
         }
+        this.loadWebhook();
     },
     methods: {
+        /**
+         * Check whether this service has a deploy webhook
+         * @returns {void}
+         */
+        loadWebhook() {
+            // Agents without container webhooks never reply, so the icon stays "+"
+            this.$root.emitAgent(this.endpoint, "getWebhook", this.stackName, this.name, (res) => {
+                this.hasWebhook = !!(res.ok && res.webhook);
+            });
+        },
+
         parsePort(port) {
             if (this.stack.endpoint) {
                 return parseDockerPort(port, this.stack.primaryHostname);
@@ -495,6 +519,17 @@ export default defineComponent({
 .webhook-icon {
     font-size: 12px;
     color: $text-secondary;
+}
+
+// "+" before the link icon while the service has no webhook, like "+ Env"
+.icon-btn.webhook-add {
+    width: auto;
+    gap: 3px;
+    padding: 0 8px;
+}
+
+.webhook-plus {
+    font-size: 9px;
 }
 
 .card-bottom {

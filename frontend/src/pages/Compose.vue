@@ -120,6 +120,7 @@
                         :serviceStatus="serviceStatusList[name]"
                         :dockerStats="dockerStats"
                         :has-env="hasServiceEnv(name)"
+                        :webhook-version="webhookVersion"
                         @start-service="startService"
                         @stop-service="stopService"
                         @restart-service="restartService"
@@ -437,6 +438,7 @@
                 :service-name="webhookDrawer.serviceName"
                 :endpoint="endpoint"
                 @close="webhookDrawer.open = false"
+                @changed="webhookVersion++"
             />
 
             <!-- After the container drawer, so "Create network…" opens on top of it -->
@@ -834,6 +836,8 @@ export default {
                 open: false,
                 serviceName: "",
             },
+            /** Bumped when a webhook is created or deleted, so the cards recheck theirs */
+            webhookVersion: 0,
             envDrawer: {
                 open: false,
                 serviceName: "",
