@@ -111,9 +111,36 @@
                     </button>
                 </div>
 
+                <!-- Search and status filter -->
+                <div v-if="serviceCount > 0" class="container-toolbar">
+                    <div class="container-search">
+                        <AssetIcon v-if="containerSearch === ''" :src="icons.search" width="13.5" height="13.5" :box="16" />
+                        <button v-else type="button" class="search-clear" :title="$t('clearFilter')" :aria-label="$t('clearFilter')" @click="containerSearch = ''">
+                            <font-awesome-icon icon="times" />
+                        </button>
+                        <input v-model="containerSearch" type="search" autocomplete="off" :placeholder="$t('searchContainers')" :aria-label="$t('searchContainers')" />
+                    </div>
+                    <div class="container-filters" role="group">
+                        <button
+                            v-for="option in containerFilterOptions"
+                            :key="option.value"
+                            type="button"
+                            class="filter-chip"
+                            :class="{ active: containerFilter === option.value }"
+                            :aria-pressed="containerFilter === option.value"
+                            @click="containerFilter = option.value"
+                        >
+                            {{ $t(option.label) }}
+                        </button>
+                    </div>
+                    <span class="container-count">{{ $t("containersShown", [ filteredServiceNames.length, serviceCount ]) }}</span>
+                </div>
+
+                <p v-if="serviceCount > 0 && filteredServiceNames.length === 0" class="group-hint">{{ $t("noMatchingContainers") }}</p>
+
                 <div ref="containerList">
                     <Container
-                        v-for="(service, name) in jsonConfig.services"
+                        v-for="name in filteredServiceNames"
                         :key="name"
                         :name="name"
                         :first="name === Object.keys(jsonConfig.services)[0]"
@@ -547,6 +574,7 @@ import iconCheck from "../assets/stack/check.svg";
 import iconCubeLarge from "../assets/stack/cube-lg.svg";
 import iconPenRow from "../assets/stack/pen-row.svg";
 import iconTrashRow from "../assets/stack/trash-row.svg";
+import iconSearch from "../assets/stack/search.svg";
 import dotenv from "dotenv";
 import { ref } from "vue";
 
@@ -575,6 +603,7 @@ const icons = {
     cubeLarge: iconCubeLarge,
     penRow: iconPenRow,
     trashRow: iconTrashRow,
+    search: iconSearch,
 };
 
 // Editor syntax colours, styled through these classes in the page CSS
@@ -838,6 +867,28 @@ export default {
             },
             /** Bumped when a webhook is created or deleted, so the cards recheck theirs */
             webhookVersion: 0,
+            /** Text typed in the containers search box */
+            containerSearch: "",
+            /** Containers status filter: all, running, stopped or unhealthy */
+            containerFilter: "all",
+            containerFilterOptions: [
+                {
+                    value: "all",
+                    label: "all",
+                },
+                {
+                    value: "running",
+                    label: "filterRunning",
+                },
+                {
+                    value: "stopped",
+                    label: "Stopped",
+                },
+                {
+                    value: "unhealthy",
+                    label: "filterUnhealthy",
+                },
+            ],
             envDrawer: {
                 open: false,
                 serviceName: "",
@@ -851,6 +902,24 @@ export default {
         };
     },
     computed: {
+        /**
+         * Services that match the containers search text and status filter.
+         * The search matches the service name and image.
+         * @returns {string[]} Service names, in compose file order
+         */
+        filteredServiceNames() {
+            const search = this.containerSearch.trim().toLowerCase();
+            return Object.keys(this.jsonConfig.services ?? {}).filter((name) => {
+                if (search !== "") {
+                    const image = String(this.jsonConfig.services[name]?.image ?? "").toLowerCase();
+                    if (!name.toLowerCase().includes(search) && !image.includes(search)) {
+                        return false;
+                    }
+                }
+                return this.containerFilter === "all" || this.serviceFilterState(name) === this.containerFilter;
+            });
+        },
+
         endpointDisplay() {
             return this.$root.endpointDisplayFunction(this.endpoint);
         },
@@ -1187,6 +1256,23 @@ export default {
         this.unbindProgressTerminal();
     },
     methods: {
+        /**
+         * Group a service's status for the containers filter, the same way
+         * its card shows it: running or healthy, unhealthy, else stopped
+         * @param {string} name Service name
+         * @returns {string} "running", "unhealthy" or "stopped"
+         */
+        serviceFilterState(name) {
+            const status = this.serviceStatusList[name]?.[0]?.status;
+            if (status === "running" || status === "healthy") {
+                return "running";
+            }
+            if (status === "unhealthy") {
+                return "unhealthy";
+            }
+            return "stopped";
+        },
+
         startServiceStatusTimeout() {
             clearTimeout(serviceStatusTimeout);
             serviceStatusTimeout = setTimeout(async () => {
@@ -2375,6 +2461,104 @@ export default {
     color: $muted;
 }
 
+// Containers search and status filter
+.container-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+
+    & + .group-hint {
+        margin-bottom: 12px;
+    }
+}
+
+.container-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 280px;
+    max-width: 100%;
+    padding: 8px 10px;
+    border-radius: 4px;
+    background-color: $surface-raised;
+
+    input {
+        flex: 1;
+        min-width: 0;
+        padding: 0;
+        border: none;
+        outline: none;
+        background: none;
+        font-size: 14px;
+        line-height: normal;
+        color: $text-primary;
+
+        &::placeholder {
+            color: $muted;
+        }
+
+        &::-webkit-search-cancel-button {
+            display: none;
+        }
+    }
+
+    &:focus-within {
+        box-shadow: 0 0 0 2px rgba($primary, 0.25);
+    }
+}
+
+.search-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    background: none;
+    font-size: 13px;
+    color: $muted;
+
+    &:hover {
+        color: $text-secondary;
+    }
+}
+
+.container-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.filter-chip {
+    padding: 4px 10px;
+    border: none;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: normal;
+    color: $text-secondary;
+    background-color: $surface-raised;
+
+    &:hover {
+        background-color: darken($surface-raised, 4%);
+    }
+
+    &.active {
+        color: $accent-primary;
+        background-color: $accent-primary-subtle;
+    }
+}
+
+.container-count {
+    margin-left: auto;
+    font-size: 12px;
+    color: $muted;
+    white-space: nowrap;
+}
+
 // Network rows
 .network-row {
     display: flex;
@@ -3010,6 +3194,37 @@ select.flat-input {
 
 // Dark theme
 .dark {
+    .container-search {
+        background-color: $dark-bg-surface-raised;
+
+        input {
+            color: $dark-text-primary;
+
+            &::placeholder {
+                color: $dark-text-muted;
+            }
+        }
+    }
+
+    .search-clear,
+    .container-count {
+        color: $dark-text-muted;
+    }
+
+    .filter-chip {
+        color: $dark-text-secondary;
+        background-color: $dark-bg-surface-raised;
+
+        &:hover {
+            background-color: lighten($dark-bg-surface-raised, 4%);
+        }
+
+        &.active {
+            color: $dark-accent-primary;
+            background-color: $dark-accent-primary-subtle;
+        }
+    }
+
     .config-panel {
         background-color: $dark-bg-surface;
     }
