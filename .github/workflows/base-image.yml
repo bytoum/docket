@@ -4,9 +4,13 @@ name: Base image to Docker Hub
 # tsx) for amd64 and arm64 and pushes it as bytoum/docket:base. The Docket
 # image (docker/Dockerfile) is built on top of it.
 #
+# Each push also gets a fixed tag, base-<YYYYMMDD>-<commit>, which is never
+# overwritten. If a new base breaks something, point FROM in
+# docker/Dockerfile at an earlier one.
+#
 # Runs when docker/Base.Dockerfile changes on main, or by hand from the
-# Actions tab (for example to pick up a newer Docker CLI or Compose).
-# Run it once before the first release that uses bytoum/docket:base.
+# Actions tab (for example to pick up a newer Docker CLI or Compose). A pull
+# request that changes it only builds the base, without pushing.
 #
 # Needs the repository secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN
 # (a Docker Hub access token with read/write access).
@@ -17,17 +21,22 @@ on:
     paths:
       - docker/Base.Dockerfile
       - .github/workflows/base-image.yml
+  pull_request:
+    paths:
+      - docker/Base.Dockerfile
+      - .github/workflows/base-image.yml
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: base-image
-  cancel-in-progress: false
+  group: base-image-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   IMAGE: bytoum/docket
+  PUSH: ${{ github.event_name != 'pull_request' }}
 
 jobs:
   build:
@@ -40,6 +49,18 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Image tags
+        id: tags
+        run: |
+          stamp="$(date -u +%Y%m%d)-${GITHUB_SHA::7}"
+          {
+            echo "tags<<EOF"
+            echo "${IMAGE}:base"
+            echo "${IMAGE}:base-${stamp}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "Fixed tag: ${IMAGE}:base-${stamp}" >> "$GITHUB_STEP_SUMMARY"
+
       # The base only installs packages, so emulating arm64 is fast enough
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -48,6 +69,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
+        if: env.PUSH == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -59,5 +81,5 @@ jobs:
           context: .
           file: ./docker/Base.Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ env.IMAGE }}:base
+          push: ${{ env.PUSH == 'true' }}
+          tags: ${{ steps.tags.outputs.tags }}
