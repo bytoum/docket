@@ -24,6 +24,8 @@ Tests live in `test/` and run with `npm test` (Node's `node:test` through `tsx`,
 
 Releases: bump `version` in `package.json` and push it to `main`. Then publish a GitHub release with a matching tag, either from Releases → "Draft a new release" or with `gh release create 1.6.0 --generate-notes`. [.github/workflows/release.yml](.github/workflows/release.yml) builds amd64 and arm64 on native runners and pushes `bytoum/docket` to Docker Hub with the tags `1.6.0`, `1.6`, `1` and `latest`. A release marked as a pre-release, or a version like `1.6.0-beta.0`, gets only its own tag. Running the workflow by hand tags the image with the branch name. It uses the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository secrets.
 
+[docker/Dockerfile](docker/Dockerfile) builds on `bytoum/docket:base`, which comes from [docker/Base.Dockerfile](docker/Base.Dockerfile) (Node 22, Docker CLI, the Docker Compose plugin and `tsx`). [.github/workflows/base-image.yml](.github/workflows/base-image.yml) builds the base for amd64 and arm64 and pushes it. It runs when `Base.Dockerfile` changes on `main`, or by hand, for example to pick up a newer Docker CLI or Compose. It uses the same secrets. The base must exist on Docker Hub before a release can build.
+
 The backend needs a working `docker` CLI with `docker compose`, because it shells out to it. Runtime config comes from CLI args or env vars: `DOCKET_STACKS_DIR` (default `/opt/stacks`), `DOCKET_DATA_DIR` (default `./data/`), `DOCKET_PORT`, `DOCKET_HOSTNAME`, `DOCKET_SSL_KEY`/`DOCKET_SSL_CERT`, `DOCKET_ENABLE_CONSOLE`, and `DOCKET_SESSION_EXPIRY` (login session lifetime such as `12h` or `7d`, default `1d`, or `never`).
 
 ### Local dev gotchas (macOS)
@@ -114,7 +116,6 @@ Older names are still accepted where existing installs depend on them:
 
 These still say `dockge` on purpose:
 - i18n keys (`dockgeAgent`, `dockgeURL`, `stackNotManagedByDockgeMsg`): renaming them would orphan the Weblate translations; their English text says Docket.
-- the `louislam/dockge:base` base image in the Dockerfile (an external image);
 - credits and translation links to `louislam/dockge`, and the Figma file name.
 
 The healthcheck binary is built from [extra/healthcheck.go](extra/healthcheck.go) inside [docker/Dockerfile](docker/Dockerfile), because it has to read the `DOCKET_*` variables.
