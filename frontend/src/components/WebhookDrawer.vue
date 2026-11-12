@@ -25,18 +25,28 @@
 
                     <p v-else-if="unsupported" class="field-hint">{{ $t("webhookUnsupported") }}</p>
 
-                    <!-- Just created or regenerated: the only time the URL is shown -->
-                    <template v-else-if="token">
-                        <div class="field">
+                    <template v-else-if="webhook">
+                        <div v-if="token" class="field">
                             <label class="field-label" for="webhook-url">{{ $t("webhookUrl") }}</label>
                             <div class="copy-row">
                                 <input id="webhook-url" class="field-input mono" :value="url" readonly @focus="$event.target.select()" />
                                 <button type="button" class="footer-btn secondary" @click="copy(url)">{{ $t("webhookCopy") }}</button>
                             </div>
-                            <p class="field-hint warning">{{ $t("webhookCopyNow") }}</p>
                         </div>
+                        <p v-else class="field-hint warning">{{ $t("webhookUrlUnavailable") }}</p>
 
-                        <div class="field">
+                        <dl v-if="webhook.createdDate" class="details">
+                            <dt>{{ $t("webhookCreated") }}</dt>
+                            <dd>{{ formatDate(webhook.createdDate) }}</dd>
+                            <dt>{{ $t("webhookLastTriggered") }}</dt>
+                            <dd>{{ webhook.lastTriggered ? formatDate(webhook.lastTriggered) : $t("webhookNever") }}</dd>
+                            <template v-if="webhook.lastResult">
+                                <dt>{{ $t("webhookLastResult") }}</dt>
+                                <dd><span class="result-badge" :class="'result-' + webhook.lastResult">{{ resultLabel(webhook.lastResult) }}</span></dd>
+                            </template>
+                        </dl>
+
+                        <div v-if="token" class="field">
                             <span class="field-label">{{ $t("webhookGithubStep") }}</span>
                             <pre class="snippet">{{ snippet }}</pre>
                             <div>
@@ -45,23 +55,11 @@
                             <p class="field-hint">{{ $t("webhookGithubHint") }}</p>
                         </div>
                     </template>
-
-                    <!-- Exists -->
-                    <dl v-else-if="webhook" class="details">
-                        <dt>{{ $t("webhookCreated") }}</dt>
-                        <dd>{{ formatDate(webhook.createdDate) }}</dd>
-                        <dt>{{ $t("webhookLastTriggered") }}</dt>
-                        <dd>{{ webhook.lastTriggered ? formatDate(webhook.lastTriggered) : $t("webhookNever") }}</dd>
-                        <template v-if="webhook.lastResult">
-                            <dt>{{ $t("webhookLastResult") }}</dt>
-                            <dd><span class="result-badge" :class="'result-' + webhook.lastResult">{{ resultLabel(webhook.lastResult) }}</span></dd>
-                        </template>
-                    </dl>
                 </div>
 
                 <!-- Footer -->
                 <footer v-if="!loading && !unsupported" class="drawer-footer">
-                    <template v-if="webhook || token">
+                    <template v-if="webhook">
                         <button type="button" class="footer-btn danger" :disabled="busy" @click="remove">{{ $t("deleteWebhook") }}</button>
                         <span class="footer-spacer"></span>
                         <button type="button" class="footer-btn secondary" :disabled="busy" @click="regenerate">{{ $t("regenerateWebhook") }}</button>
@@ -89,8 +87,8 @@ const LOAD_TIMEOUT_MS = 5000;
 /**
  * Side drawer to create, regenerate or delete a deploy webhook, for a whole
  * stack or for one of its containers.
- * The URL is only shown right after it is created, because the server keeps
- * only a hash of the token.
+ * Webhooks created before the server stored tokens have no URL to show and
+ * must be regenerated.
  */
 export default {
     props: {
@@ -205,6 +203,7 @@ export default {
                 this.loading = false;
                 if (res.ok) {
                     this.webhook = res.webhook;
+                    this.token = res.webhook?.token ?? "";
                 } else {
                     this.unsupported = true;
                 }
@@ -225,9 +224,10 @@ export default {
                 }
                 this.token = res.token;
                 this.webhook = {
-                    createdDate: null,
+                    createdDate: new Date().toISOString(),
                     lastTriggered: null,
                     lastResult: null,
+                    token: res.token,
                 };
             });
         },

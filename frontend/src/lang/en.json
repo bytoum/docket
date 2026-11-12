@@ -450,7 +450,7 @@
     "webhookCopy": "Copy",
     "webhookCopied": "Copied",
     "webhookCopyFailed": "Could not copy. Select the text and copy it yourself.",
-    "webhookCopyNow": "Copy it now. It won't be shown again.",
+    "webhookUrlUnavailable": "This webhook was created before Docket kept webhook URLs, so its URL can't be shown. Regenerate it to get a URL you can see here.",
     "webhookGithubStep": "GitHub Actions step",
     "webhookGithubHint": "Save the URL as the repository secret DOCKET_WEBHOOK_URL.",
     "webhookCreated": "Created",

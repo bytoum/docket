@@ -1,7 +1,8 @@
 /*
  * Deploy webhooks: secret URLs that run a stack's Update (pull, then recreate
- * if running), either for the whole stack or for one of its services. Only
- * the SHA-256 hash of a token is stored.
+ * if running), either for the whole stack or for one of its services. The
+ * token is stored so its URL can be shown again, and looked up by its SHA-256
+ * hash. Webhooks created before tokens were stored only have the hash.
  */
 import crypto from "crypto";
 import dayjs from "dayjs";
@@ -19,6 +20,8 @@ export interface WebhookInfo {
     createdDate : string;
     lastTriggered : string | null;
     lastResult : WebhookResult | null;
+    /** Raw token, or null for a webhook created before tokens were stored */
+    token : string | null;
 }
 
 /**
@@ -73,28 +76,29 @@ export function isWebhookServiceName(name : string) : boolean {
  * Create a webhook, or replace it so the old URL stops working
  * @param {string} stackName Stack name
  * @param {string} serviceName Service to update, or "" for the whole stack
- * @returns {Promise<string>} The raw token, shown to the user once
+ * @returns {Promise<string>} The raw token
  */
 export async function createWebhook(stackName : string, serviceName = "") : Promise<string> {
     const token = crypto.randomBytes(32).toString("base64url");
     await R.exec("DELETE FROM webhook WHERE stack_name = ? AND service_name = ?", [ stackName, serviceName ]);
-    await R.exec("INSERT INTO webhook (stack_name, service_name, token_hash, created_date) VALUES (?, ?, ?, ?)", [
+    await R.exec("INSERT INTO webhook (stack_name, service_name, token_hash, token, created_date) VALUES (?, ?, ?, ?, ?)", [
         stackName,
         serviceName,
         hashWebhookToken(token),
+        token,
         nowUTC(),
     ]);
     return token;
 }
 
 /**
- * A webhook, without its token
+ * A webhook and its token
  * @param {string} stackName Stack name
  * @param {string} serviceName Service name, or "" for the stack's own webhook
  * @returns {Promise<WebhookInfo | null>} Null when there is none
  */
 export async function getWebhookInfo(stackName : string, serviceName = "") : Promise<WebhookInfo | null> {
-    const row = await R.getRow("SELECT created_date, last_triggered, last_result FROM webhook WHERE stack_name = ? AND service_name = ?", [ stackName, serviceName ]);
+    const row = await R.getRow("SELECT created_date, last_triggered, last_result, token FROM webhook WHERE stack_name = ? AND service_name = ?", [ stackName, serviceName ]);
     if (!row) {
         return null;
     }
@@ -102,6 +106,7 @@ export async function getWebhookInfo(stackName : string, serviceName = "") : Pro
         createdDate: toISO(row.created_date) ?? "",
         lastTriggered: toISO(row.last_triggered),
         lastResult: row.last_result ?? null,
+        token: row.token || null,
     };
 }
 

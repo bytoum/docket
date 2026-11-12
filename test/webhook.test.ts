@@ -63,7 +63,7 @@ describe("deploy webhooks", () => {
         }));
     });
 
-    it("creates a webhook and never returns the token again", async () => {
+    it("creates a webhook and returns its token again", async () => {
         const res = await agentCall(socket, "createWebhook", "web");
         assert.equal(res.ok, true);
         assert.match(res.token, /^[A-Za-z0-9_-]{43}$/);
@@ -72,7 +72,7 @@ describe("deploy webhooks", () => {
         assert.match(info.webhook.createdDate, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
         assert.equal(info.webhook.lastTriggered, null);
         assert.equal(info.webhook.lastResult, null);
-        assert.equal(JSON.stringify(info).includes(res.token), false);
+        assert.equal(info.webhook.token, res.token);
         assert.equal("tokenHash" in info.webhook || "token_hash" in info.webhook, false);
     });
 
