@@ -869,7 +869,7 @@ export default {
             webhookVersion: 0,
             /** Text typed in the containers search box */
             containerSearch: "",
-            /** Containers status filter: all, running, stopped or unhealthy */
+            /** Containers status filter: all, running, exited, stopped or unhealthy */
             containerFilter: "all",
             containerFilterOptions: [
                 {
@@ -879,6 +879,10 @@ export default {
                 {
                     value: "running",
                     label: "filterRunning",
+                },
+                {
+                    value: "exited",
+                    label: "filterExited",
                 },
                 {
                     value: "stopped",
@@ -1258,9 +1262,10 @@ export default {
     methods: {
         /**
          * Group a service's status for the containers filter, the same way
-         * its card shows it: running or healthy, unhealthy, else stopped
+         * its card shows it: running or healthy, unhealthy, exited, else
+         * stopped (no container, or created, paused and so on)
          * @param {string} name Service name
-         * @returns {string} "running", "unhealthy" or "stopped"
+         * @returns {string} "running", "unhealthy", "exited" or "stopped"
          */
         serviceFilterState(name) {
             const status = this.serviceStatusList[name]?.[0]?.status;
@@ -1269,6 +1274,9 @@ export default {
             }
             if (status === "unhealthy") {
                 return "unhealthy";
+            }
+            if (status === "exited") {
+                return "exited";
             }
             return "stopped";
         },

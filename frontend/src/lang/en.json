@@ -129,6 +129,7 @@
     "searchStacks": "Search stacks…",
     "searchContainers": "Search containers…",
     "filterRunning": "Running",
+    "filterExited": "Exited",
     "filterUnhealthy": "Unhealthy",
     "containersShown": "{0} of {1} containers",
     "noMatchingContainers": "No containers match the search or filter.",
