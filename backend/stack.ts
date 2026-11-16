@@ -272,14 +272,36 @@ export class Stack {
             }
         }
 
-        if (process.env.PUID && process.env.PGID) {
-            const uid = Number(process.env.PUID);
-            const gid = Number(process.env.PGID);
+        this.setFileOwner(dir, [ this._composeFileName, ...envFileNames ]);
+    }
+
+    /**
+     * Give the stack folder and the given files to the PUID/PGID user, when
+     * both are set. This is best effort: the files are already saved, so when
+     * the change is not allowed (Docket not running as root) it only logs a
+     * warning instead of failing the save.
+     * @param {string} dir Stack folder
+     * @param {string[]} fileNames Files in the folder to change
+     * @returns {void}
+     */
+    protected setFileOwner(dir : string, fileNames : string[]) : void {
+        if (!process.env.PUID || !process.env.PGID) {
+            return;
+        }
+        const uid = Number(process.env.PUID);
+        const gid = Number(process.env.PGID);
+        if (!Number.isInteger(uid) || !Number.isInteger(gid)) {
+            log.warn("stack", `PUID and PGID must be numbers, not changing the owner of ${dir}`);
+            return;
+        }
+        try {
             fs.lchownSync(dir, uid, gid);
-            fs.chownSync(path.join(dir, this._composeFileName), uid, gid);
-            for (const fileName of envFileNames) {
+            for (const fileName of fileNames) {
                 fs.chownSync(path.join(dir, fileName), uid, gid);
             }
+        } catch (e) {
+            const reason = e instanceof Error ? e.message : String(e);
+            log.warn("stack", `Could not give ${dir} to PUID ${uid} / PGID ${gid}: ${reason}`);
         }
     }
 
