@@ -96,10 +96,11 @@ export class Stack {
     }
 
     /**
-     * Get the status of the stack from `docker compose ps --format json`
+     * Get the status of the stack from `docker compose ps --all --format json`,
+     * stopped containers included
      */
     async ps() : Promise<object> {
-        let res = await childProcessAsync.spawn("docker", this.getComposeOptions("ps", "--format", "json"), {
+        let res = await childProcessAsync.spawn("docker", this.getComposeOptions("ps", "--all", "--format", "json"), {
             cwd: this.path,
             encoding: "utf-8",
         });
@@ -709,7 +710,7 @@ export class Stack {
         let statusList = new Map<string, Array<object>>();
 
         try {
-            let res = await childProcessAsync.spawn("docker", this.getComposeOptions("ps", "--format", "json"), {
+            let res = await childProcessAsync.spawn("docker", this.getComposeOptions("ps", "--all", "--format", "json"), {
                 cwd: this.path,
                 encoding: "utf-8",
             });
