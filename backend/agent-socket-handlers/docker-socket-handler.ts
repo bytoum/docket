@@ -320,6 +320,28 @@ export class DockerSocketHandler extends AgentSocketHandler {
             }
         });
 
+        // Stop and remove the containers of a service that was deleted from the compose file
+        agentSocket.on("removeServiceContainers", async (stackName: unknown, serviceName: unknown, callback) => {
+            try {
+                checkLogin(socket);
+
+                if (typeof stackName !== "string" || typeof serviceName !== "string" || serviceName === "") {
+                    throw new ValidationError("Stack name and service name must be strings");
+                }
+
+                const stack = await Stack.getStack(server, stackName);
+                const count = await stack.removeServiceContainers(socket, serviceName);
+                callbackResult({
+                    ok: true,
+                    removed: count,
+                    msg: count > 0 ? "Container of " + serviceName + " removed" : "Service " + serviceName + " has no container",
+                }, callback);
+                server.sendStackList();
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
+
         agentSocket.on("restartService", async (stackName: unknown, serviceName: unknown, callback) => {
             let stack : Stack | undefined;
             try {

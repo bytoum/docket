@@ -178,6 +178,7 @@
     "consoleLive": "Live",
     "deleteContainerTitle": "Delete container",
     "deleteContainerMsg": "Remove {0} from the compose file? Its container will be stopped and removed when the stack is deployed.",
+    "deleteContainerNowMsg": "Remove {0} from the compose file and stop and remove its container?",
     "addNetworkSubtitle": "Create or attach a network for the {0} stack.",
     "editNetworkTitle": "Edit network",
     "editNetworkSubtitle": "Editing {0} in the {1} stack.",

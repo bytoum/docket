@@ -103,7 +103,7 @@
             v-model="showDeleteDialog" :title="$t('deleteContainerTitle')" :cancelTitle="$t('cancel')"
             :okTitle="$t('deleteContainer')" okVariant="danger" @ok="remove"
         >
-            {{ $t("deleteContainerMsg", [ name ]) }}
+            {{ $t("deleteContainerNowMsg", [ name ]) }}
         </BModal>
 
         <transition name="slide-fade" appear>

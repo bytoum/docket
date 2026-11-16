@@ -817,4 +817,50 @@ export class Stack {
 
         return exitCode;
     }
+
+    /**
+     * The Compose project name: the compose file's top-level "name", else
+     * the stack name
+     * @returns {string} Project name
+     */
+    get projectName() : string {
+        try {
+            const name = yaml.parse(this.composeYAML)?.name;
+            if (typeof name === "string" && name.trim() !== "") {
+                return name.trim();
+            }
+        } catch (e) {
+            // Fall back to the stack name
+        }
+        return this.name;
+    }
+
+    /**
+     * Stop and remove a service's containers ("docker rm -f"), found by
+     * their Compose labels, so it works after the service has been removed
+     * from the compose file. Does nothing when the service has no container.
+     * @param {DocketSocket} socket Socket that sees the output
+     * @param {string} serviceName Service whose containers are removed
+     * @returns {Promise<number>} Number of containers removed
+     */
+    async removeServiceContainers(socket: DocketSocket, serviceName: string) : Promise<number> {
+        const res = await childProcessAsync.spawn("docker", [
+            "ps", "--all", "--quiet",
+            "--filter", `label=com.docker.compose.project=${this.projectName}`,
+            "--filter", `label=com.docker.compose.service=${serviceName}`,
+        ], {
+            encoding: "utf-8",
+        });
+        const ids = (res.stdout?.toString() ?? "").split("\n").map((id) => id.trim()).filter((id) => id !== "");
+        if (ids.length === 0) {
+            return 0;
+        }
+
+        const terminalName = getComposeTerminalName(socket.endpoint, this.name);
+        const exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", [ "rm", "-f", ...ids ], this.path);
+        if (exitCode !== 0) {
+            throw new Error(`Failed to remove the container of service ${serviceName}, please check logs for more information.`);
+        }
+        return ids.length;
+    }
 }

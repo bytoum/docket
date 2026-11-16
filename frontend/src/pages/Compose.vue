@@ -1961,8 +1961,9 @@ export default {
 
         /**
          * Remove a service from the compose file and from other services'
-         * dependencies. In view mode the compose file is saved right away. The
-         * container itself is removed on the next Start or Deploy (--remove-orphans).
+         * dependencies. In view mode the compose file is saved right away and
+         * the service's container is stopped and removed. In edit mode the
+         * container is removed on the next Deploy (--remove-orphans).
          * @param {string} serviceName Service to remove
          * @returns {void}
          */
@@ -1991,6 +1992,26 @@ export default {
             this.containerDrawer.open = false;
 
             this.saveIfViewing();
+            if (!this.isEditMode) {
+                // After the save above (nextTick callbacks run in order). Agents
+                // older than this event never reply; their container is removed
+                // on the next Deploy instead.
+                this.$nextTick(() => this.removeServiceContainers(serviceName));
+            }
+        },
+
+        /**
+         * Stop and remove the containers of a service deleted from the compose file
+         * @param {string} serviceName Deleted service
+         * @returns {void}
+         */
+        removeServiceContainers(serviceName) {
+            this.$root.emitAgent(this.endpoint, "removeServiceContainers", this.stack.name, serviceName, (res) => {
+                if (!res.ok) {
+                    this.$root.toastRes(res);
+                }
+                this.requestServiceStatus();
+            });
         },
 
         /**
