@@ -155,6 +155,41 @@
                         <p class="field-hint">{{ $t("dependsOnHint") }}</p>
                     </div>
 
+                    <!-- Health check -->
+                    <div class="field">
+                        <span class="field-label">{{ $t("healthCheck") }}</span>
+                        <div class="chips" role="radiogroup">
+                            <button
+                                v-for="option in healthModeOptions" :key="option.value" type="button" class="choice-chip"
+                                role="radio" :aria-checked="draft.health.mode === option.value" :class="{ selected: draft.health.mode === option.value }"
+                                @click="setHealthMode(option.value)"
+                            >
+                                {{ $t(option.label) }}
+                            </button>
+                        </div>
+
+                        <template v-if="draft.health.mode === 'custom'">
+                            <div class="sub-field">
+                                <label class="group-label" for="drawer-health-command">{{ $t("healthCheckCommand") }}</label>
+                                <input
+                                    id="drawer-health-command" v-model.trim="draft.health.command" class="field-input health-command"
+                                    placeholder="curl -fsS http://localhost/ || exit 1" autocomplete="off" spellcheck="false"
+                                />
+                            </div>
+                            <div class="health-grid">
+                                <div v-for="option in healthTimingFields" :key="option.key" class="sub-field">
+                                    <label class="group-label" :for="'drawer-health-' + option.key">{{ $t(option.label) }}</label>
+                                    <input
+                                        :id="'drawer-health-' + option.key" v-model.trim="draft.health[option.key]" class="field-input"
+                                        :placeholder="option.placeholder" :inputmode="option.key === 'retries' ? 'numeric' : 'text'" autocomplete="off"
+                                    />
+                                </div>
+                            </div>
+                        </template>
+
+                        <p class="field-hint">{{ $t(healthHint) }}</p>
+                    </div>
+
                     <!-- Extra -->
                     <div class="divider-label">
                         <span>{{ $t("extra") }}</span>
@@ -209,6 +244,42 @@ const SERVICE_NAME_PATTERN = /^[a-z0-9][a-z0-9_.-]*$/;
 
 // Container names allowed by Docker ("container_name")
 const CONTAINER_NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/;
+
+// Compose durations, such as "30s", "1m30s" or "500ms"
+const DURATION_PATTERN = /^(\d+(\.\d+)?(ns|us|ms|s|m|h))+$/;
+
+// Health check timings shown in the drawer: draft key, compose key
+const HEALTH_TIMINGS = [
+    [ "interval", "interval" ],
+    [ "timeout", "timeout" ],
+    [ "retries", "retries" ],
+    [ "startPeriod", "start_period" ],
+];
+
+/**
+ * The command of a health check "test" as one line of text, or null when
+ * it disables the check
+ * @param {string|string[]|undefined} test Compose "test"
+ * @returns {string|null} Command text
+ */
+function healthTestText(test) {
+    if (test === undefined) {
+        return "";
+    }
+    if (typeof test === "string") {
+        return test === "NONE" ? null : test;
+    }
+    if (!Array.isArray(test) || test.length === 0) {
+        return "";
+    }
+    if (test[0] === "NONE") {
+        return null;
+    }
+    if (test[0] === "CMD" || test[0] === "CMD-SHELL") {
+        return test.slice(1).join(" ");
+    }
+    return test.join(" ");
+}
 
 /**
  * Names of the networks a service is attached to
@@ -315,6 +386,43 @@ export default {
                     label: "restartPolicyOnFailure",
                 },
             ],
+            healthModeOptions: [
+                {
+                    value: "image",
+                    label: "healthCheckImage",
+                },
+                {
+                    value: "custom",
+                    label: "healthCheckCustom",
+                },
+                {
+                    value: "disabled",
+                    label: "healthCheckDisabled",
+                },
+            ],
+            // Placeholders are Docker's defaults
+            healthTimingFields: [
+                {
+                    key: "interval",
+                    label: "healthCheckInterval",
+                    placeholder: "30s",
+                },
+                {
+                    key: "timeout",
+                    label: "healthCheckTimeout",
+                    placeholder: "30s",
+                },
+                {
+                    key: "retries",
+                    label: "healthCheckRetries",
+                    placeholder: "3",
+                },
+                {
+                    key: "startPeriod",
+                    label: "healthCheckStartPeriod",
+                    placeholder: "0s",
+                },
+            ],
         };
     },
     computed: {
@@ -378,6 +486,20 @@ export default {
         otherServiceNames() {
             return Object.keys(this.services).filter((name) => name !== this.serviceName);
         },
+
+        /**
+         * Hint under the health check, for the chosen mode
+         * @returns {string} Translation key
+         */
+        healthHint() {
+            if (this.draft.health.mode === "custom") {
+                return "healthCheckCustomHint";
+            }
+            if (this.draft.health.mode === "disabled") {
+                return "healthCheckDisabledHint";
+            }
+            return "healthCheckImageHint";
+        },
     },
     watch: {
         open(isOpen) {
@@ -435,7 +557,122 @@ export default {
                 externalNetworks: {},
                 dependsOn: [],
                 urls: [],
+                health: this.emptyHealth(),
             };
+        },
+
+        /**
+         * Health check form values for "use the image's check"
+         * @returns {object} Health check draft
+         */
+        emptyHealth() {
+            return {
+                mode: "image",
+                command: "",
+                // Command text as loaded, to keep the original "test" form when unchanged
+                loadedCommand: "",
+                interval: "",
+                timeout: "",
+                retries: "",
+                startPeriod: "",
+            };
+        },
+
+        /**
+         * Fill the health check form from a service's "healthcheck"
+         * @param {object|undefined} healthcheck Compose healthcheck
+         * @returns {object} Health check draft
+         */
+        loadHealth(healthcheck) {
+            const health = this.emptyHealth();
+            if (!healthcheck || typeof healthcheck !== "object") {
+                return health;
+            }
+            const command = healthTestText(healthcheck.test);
+            if (healthcheck.disable === true || command === null) {
+                health.mode = "disabled";
+                return health;
+            }
+            health.mode = "custom";
+            health.command = command;
+            health.loadedCommand = command;
+            for (const [ key, composeKey ] of HEALTH_TIMINGS) {
+                health[key] = healthcheck[composeKey] === undefined ? "" : String(healthcheck[composeKey]);
+            }
+            return health;
+        },
+
+        /**
+         * Switch the health check mode. Choosing "Custom" for the first time
+         * fills in common timings.
+         * @param {string} mode "image", "custom" or "disabled"
+         * @returns {void}
+         */
+        setHealthMode(mode) {
+            const health = this.draft.health;
+            const blank = !health.command && HEALTH_TIMINGS.every(([ key ]) => !health[key]);
+            if (mode === "custom" && blank) {
+                health.interval = "30s";
+                health.timeout = "10s";
+                health.retries = "3";
+            }
+            health.mode = mode;
+        },
+
+        /**
+         * Check the custom health check values
+         * @returns {string|null} Translation key of the problem, or null when valid
+         */
+        healthError() {
+            const health = this.draft.health;
+            if (health.mode !== "custom") {
+                return null;
+            }
+            for (const key of [ "interval", "timeout", "startPeriod" ]) {
+                if (health[key] && !DURATION_PATTERN.test(health[key])) {
+                    return "healthCheckDurationInvalid";
+                }
+            }
+            if (health.retries && !/^\d+$/.test(health.retries)) {
+                return "healthCheckRetriesInvalid";
+            }
+            return null;
+        },
+
+        /**
+         * Build the "healthcheck" from the form, keeping settings the form
+         * does not show (such as start_interval)
+         * @param {object|undefined} original The service's current healthcheck
+         * @returns {object|undefined} Compose healthcheck, or undefined to use the image's
+         */
+        buildHealth(original) {
+            const health = this.draft.health;
+            if (health.mode === "image") {
+                return undefined;
+            }
+            if (health.mode === "disabled") {
+                return { disable: true };
+            }
+
+            const result = original && typeof original === "object" ? JSON.parse(JSON.stringify(original)) : {};
+            delete result.disable;
+
+            // An unchanged command keeps its original form (such as a CMD list)
+            if (!health.command) {
+                delete result.test;
+            } else if (health.command !== health.loadedCommand || healthTestText(result.test) === null) {
+                result.test = health.command;
+            }
+
+            for (const [ key, composeKey ] of HEALTH_TIMINGS) {
+                if (!health[key]) {
+                    delete result[composeKey];
+                } else {
+                    result[composeKey] = key === "retries" ? Number(health[key]) : health[key];
+                }
+            }
+            // Nothing set is the same as the image's own check
+            return Object.keys(result).length > 0 ? result : undefined;
         },
 
         /**
@@ -472,6 +709,8 @@ export default {
 
                 const dependsOn = service.depends_on;
                 draft.dependsOn = Array.isArray(dependsOn) ? [ ...dependsOn ] : Object.keys(dependsOn ?? {});
+
+                draft.health = this.loadHealth(service.healthcheck);
             }
 
             this.draft = draft;
@@ -574,6 +813,12 @@ export default {
                 return;
             }
 
+            const healthError = this.healthError();
+            if (healthError) {
+                this.$root.toastError(this.$t(healthError));
+                return;
+            }
+
             // null: the variables were not shown, so they are kept as they are
             let envRows = null;
             if (this.$refs.envEditor) {
@@ -655,6 +900,9 @@ export default {
                 setOrDelete("depends_on", dependsOn, dependsOn.length === 0);
             }
 
+            const healthcheck = this.buildHealth(original.healthcheck);
+            setOrDelete("healthcheck", healthcheck, healthcheck === undefined);
+
             return service;
         },
     },
@@ -671,5 +919,21 @@ export default {
     font-size: 12px;
     font-weight: 400;
     color: $muted;
+}
+
+.health-command {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+}
+
+// Interval, timeout, retries and start period
+.health-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+
+    @media (max-width: 575px) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 </style>
