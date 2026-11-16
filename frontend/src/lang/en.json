@@ -235,6 +235,7 @@
     "resizeDrawer": "Resize panel",
     "consoleEmpty": "No log output yet.",
     "consoleFilter": "Filter logs…",
+    "consoleContainerFilter": "Show logs from",
     "consoleClear": "Clear",
     "consoleNoMatch": "No log lines match the filter.",
     "editEnv": "Edit environment variables",

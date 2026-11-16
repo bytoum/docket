@@ -18,15 +18,14 @@
                 </span>
             </div>
 
-            <div v-if="open && services.length > 1" class="dock-filters" role="radiogroup">
-                <button
-                    v-for="option in filterOptions" :key="option.value" type="button" class="choice-chip"
-                    role="radio" :aria-checked="filter === option.value" :class="{ selected: filter === option.value }"
-                    @click="filter = option.value"
-                >
+            <select
+                v-if="open && services.length > 1" v-model="filter" class="form-select service-select"
+                :class="{ filtered: filter !== '' }" :aria-label="$t('consoleContainerFilter')" :title="$t('consoleContainerFilter')"
+            >
+                <option v-for="option in filterOptions" :key="option.value" :value="option.value">
                     {{ option.label }}
-                </button>
-            </div>
+                </option>
+            </select>
 
             <span class="spacer"></span>
 
@@ -130,7 +129,7 @@ export default {
             type: String,
             default: "",
         },
-        /** Service names of the stack, used for the filter chips */
+        /** Service names of the stack, used for the container filter */
         services: {
             type: Array,
             default: () => [],
@@ -599,32 +598,23 @@ export default {
     background-color: $status-success-subtle;
 }
 
-.dock-filters {
-    display: flex;
-    gap: 6px;
-    padding-left: 12px;
-    overflow-x: auto;
-}
-
-.choice-chip {
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
+.service-select {
+    width: auto;
+    min-width: 160px;
+    max-width: 260px;
     height: 32px;
-    padding: 8px 14px;
+    padding: 6px 32px 6px 10px;
     font-size: 13px;
     font-weight: 500;
     line-height: normal;
+    text-overflow: ellipsis;
     color: $text-secondary;
-    background-color: $bg-surface;
-    border: 1px solid $border-strong;
-    border-radius: 999px;
+    background-color: $bg-input;
+    border-color: $surface-border;
+    border-radius: 4px;
+    cursor: pointer;
 
-    &:hover {
-        background-color: $bg-input;
-    }
-
-    &.selected {
+    &.filtered {
         color: $primary;
         background-color: $accent-subtle;
         border-color: $primary;
@@ -793,12 +783,12 @@ export default {
         background-color: $dark-status-success-subtle;
     }
 
-    .choice-chip {
+    .service-select {
         color: $dark-font-color;
-        background-color: $dark-header-bg;
-        border-color: $dark-border-strong;
+        background-color: $dark-bg;
+        border-color: $dark-border-color;
 
-        &.selected {
+        &.filtered {
             color: $highlight;
             background-color: rgba($primary, 0.2);
             border-color: $highlight;
