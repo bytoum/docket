@@ -42,7 +42,11 @@ Requirements:
      - ✅ ArchLinux
   - ❌ Debian/Raspbian Buster or lower is not supported
   - ❌ Windows (Will be supported later)
-- Arch: armv7, arm64, amd64 (a.k.a x86_64)
+- Arch: arm64, amd64 (a.k.a x86_64)
+- Memory: Docket uses about 250 MB, and more while stacks are being pulled or deployed. Don't set a container memory limit below 384 MB. For the whole machine (VPS or server), add the OS, Docker itself and your own containers:
+  - 1 GB: Docket and one or two small stacks, with swap enabled
+  - 2 GB: a reasonable minimum for a few small apps
+  - 4 GB or more: if your stacks run databases, Java apps or many services
 
 ### Basic
 
