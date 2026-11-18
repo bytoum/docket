@@ -2,6 +2,10 @@ services:
   docket:
     image: bytoum/docket:latest
     restart: unless-stopped
+    # Optional memory limits. Docket uses about 250 MB, more while deploying.
+    # Keep mem_limit at 384m or above, or deploys can be killed.
+    # mem_reservation: 256m
+    # mem_limit: 512m
     ports:
       # Host Port : Container Port
       - 5001:5001
